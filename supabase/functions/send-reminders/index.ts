@@ -181,7 +181,13 @@ Deno.serve(async (req) => {
           const { data: oh } = otherId ? await db.from('households').select('name').eq('id', otherId).maybeSingle() : { data: null }
           if (oh?.name) other = oh.name
         }
-        await send({ title: `🔁 Imorgon kl ${next.time} ${toUs ? `kommer ${kid} hem till er` : `åker ${kid} till ${other}`}`, body: toUs ? 'Dags att förbereda rummet och veckan' : 'Glöm inte att packa väskan', url: '/?tab=calendar' })
+        let packTxt = 'Glöm inte att packa väskan'
+        if (!toUs) {
+          const { data: pack } = await db.from('packing_items').select('title, packed_for').eq('household_id', h.id).eq('child_id', c.child_id)
+          const left = (pack ?? []).filter((x) => x.packed_for !== next.date)
+          if (pack?.length) packTxt = left.length ? `🎒 Kvar att packa: ${left.slice(0, 4).map((x) => x.title).join(', ')}${left.length > 4 ? '…' : ''}` : '🎒 Allt är packat!'
+        }
+        await send({ title: `🔁 Imorgon kl ${next.time} ${toUs ? `kommer ${kid} hem till er` : `åker ${kid} till ${other}`}`, body: toUs ? 'Dags att förbereda rummet och veckan' : packTxt, url: '/?tab=today' })
         await db.from('custody').update({ notified_by: { ...by, [h.id]: next.date }, notified_for: next.date }).eq('id', c.id)
         log.push(`byte ${kid} ${h.name}`)
       }

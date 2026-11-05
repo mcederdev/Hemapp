@@ -3,7 +3,8 @@ import { supabase, isConfigured } from './supabase'
 import { useTable } from './useTable'
 import { useLinked } from './useLinked'
 import Car from './components/Car'
-import Auth from './components/Auth'
+import Messages, { lastSeen } from './components/Messages'
+import Landing from './components/Landing'
 import Setup from './components/Setup'
 import Shopping from './components/Shopping'
 import Chores from './components/Chores'
@@ -29,6 +30,7 @@ const TABS = [
   { id: 'more', label: 'Mer', icon: 'menu' }
 ]
 const MORE = [
+  { id: 'messages', label: 'Meddelanden', icon: 'chat' },
   { id: 'finance', label: 'Ekonomi', icon: 'wallet' },
   { id: 'kids', label: 'Barnens sida', icon: 'star' },
   { id: 'vab', label: 'VAB & Sjukdagar', icon: 'thermo' },
@@ -66,7 +68,7 @@ export default function App() {
     )
   }
   if (session === undefined) return <div className="center">Laddar…</div>
-  if (!session) return <Auth />
+  if (!session) return <Landing />
   if (me === undefined) return <div className="center">Laddar…</div>
   if (!me) return <Setup onDone={loadMe} />
   return <Home me={me} />
@@ -82,6 +84,7 @@ function Home({ me }) {
   const households = useTable('households', me.household_id)
   const linked = useLinked(me.household_id)
   const custody = useTable('custody', me.household_id)
+  const messages = useTable('messages', me.household_id, 'created_at')
   // Familjeremsan: vald person filtrerar Idag, Kalender och Sysslor
   const [focus, setFocusState] = useState(() => localStorageGet('focus') || null)
   const setFocus = (id) => { setFocusState(id); localStorageSet('focus', id || '') }
@@ -93,6 +96,9 @@ function Home({ me }) {
   const props = { me, householdId: me.household_id, members: all, people, linked, custody: custody.rows, custodyTable: custody, membersTable: members, household, households, go: pick,
     focus: all.some((m) => m.id === focus) ? focus : null, setFocus }
   const active = MORE.some((m) => m.id === tab) ? 'more' : tab
+  const seen = lastSeen()
+  const unread = tab === 'messages' ? 0 : messages.rows.filter((m) => m.author !== me.id && m.created_at > seen).length
+  const badge = { messages: unread }
 
   if (tab === 'kitchen') return <Kitchen {...props} onExit={() => pick('today')} />
 
@@ -105,7 +111,7 @@ function Home({ me }) {
             <h2>Mer</h2>
             <ul className="list">
               {MORE.map((m) => (
-                <li key={m.id} className="tap" onClick={() => pick(m.id)}><span className="row"><Icon name={m.icon} /> {m.label}</span><Icon name="chevron" size={18} className="muted" /></li>
+                <li key={m.id} className="tap" onClick={() => pick(m.id)}><span className="row"><Icon name={m.icon} /> {m.label}{badge[m.id] > 0 && <span className="count">{badge[m.id]}</span>}</span><Icon name="chevron" size={18} className="muted" /></li>
               ))}
             </ul>
           </section>
@@ -120,12 +126,13 @@ function Home({ me }) {
         {tab === 'stats' && <Stats {...props} />}
         {tab === 'reminders' && <Reminders {...props} />}
         {tab === 'car' && <Car {...props} />}
+        {tab === 'messages' && <section><h2>Meddelanden</h2><Messages {...props} /></section>}
         {tab === 'family' && <Family {...props} />}
       </main>
       <nav className="tabs">
         {TABS.map((t) => (
           <button key={t.id} className={active === t.id ? 'active' : ''} onClick={() => pick(t.id)}>
-            <Icon name={t.icon} size={24} strokeWidth={active === t.id ? 2.4 : 1.8} />
+            <span className="tab-ico"><Icon name={t.icon} size={24} strokeWidth={active === t.id ? 2.4 : 1.8} />{t.id === 'more' && unread > 0 && <span className="tab-badge">{unread}</span>}</span>
             <span>{t.label}</span>
           </button>
         ))}

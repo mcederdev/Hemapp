@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { today, addDays, prettyDay, parseDay, iso } from '../lib/dates'
 import { withUs, nextHandover, isHandover } from '../lib/custody'
 import Icon from './Icon'
+import Sheet from './Sheet'
+import { useTable } from '../useTable'
 
 const nowHM = () => new Date().toTimeString().slice(0, 5)
 
@@ -23,9 +25,17 @@ const dayWord = (d) => { const t = today(); return d === t ? 'idag' : d === addD
 
 // En rad på Idag och köksskärmen: "Juhani är hos oss · byte sön kl 18"
 export function CustodyLine({ custody, members, me, linked, big = false }) {
+  const items = useTable('packing_items', me.household_id)
+  const [packFor, setPackFor] = useState(null)
   if (!custody?.length) return null
+  const packFc = packFor && custody.find((c) => c.child_id === packFor.id)
   return (
     <div className={`custody-line ${big ? 'big' : ''}`}>
+      {packFor && packFc && (
+        <Sheet title={`Packlista för ${packFor.name}`} onClose={() => setPackFor(null)}>
+          <PackingList child={packFor} custody={packFc} me={me} linked={linked} items={items} />
+        </Sheet>
+      )}
       {custody.map((c) => {
         const kid = members.find((m) => m.id === c.child_id)
         if (!kid) return null
@@ -33,8 +43,9 @@ export function CustodyLine({ custody, members, me, linked, big = false }) {
         return (
           <div key={c.id} className="row custody-item">
             <span className="avatar" style={{ background: kid.color, width: big ? 34 : 26, height: big ? 34 : 26 }}>{kid.short || kid.name[0]}</span>
-            <span><strong>{kid.name}</strong> är {s.here ? 'hos oss' : `hos ${s.other}`}
+            <span className="grow"><strong>{kid.name}</strong> är {s.here ? 'hos oss' : `hos ${s.other}`}
               <span className="muted"> · {s.nextHere ? 'kommer' : 'åker'} {dayWord(s.next.date)} kl {s.next.time}</span></span>
+            <PackChip kid={kid} c={c} me={me} linked={linked} items={items} onClick={() => setPackFor(kid)} />
           </div>
         )
       })}
@@ -109,3 +120,60 @@ function nextArrival(c, me) {
   if (withUs(c, me.household_id, n.date, '23:59')) return n.date
   return addDays(n.date, c.every_days || 7)
 }
+
+// Nästa gång barnet åker från oss (packlistan gäller det bytet)
+export function nextLeave(c, me, linked) {
+  const s = custodyStatus(c, me, linked)
+  return s.here ? s.next.date : addDays(s.next.date, c.every_days || 7)
+}
+
+const PACK_SUGGESTIONS = ['Kläder', 'Underkläder & strumpor', 'Pyjamas', 'Tandborste', 'Mediciner', 'Laddare', 'Skolväska & böcker', 'Gympapåse', 'Gosedjur', 'Surfplatta', 'Jacka & mössa', 'Läxor', 'Fritidsgrejer']
+
+// Packlista inför bytet. En sak räknas som packad om den är bockad inför just nästa byte.
+export function PackingList({ child, custody, me, linked, items }) {
+  const [text, setText] = useState('')
+  const [editing, setEditing] = useState(false)
+  const leave = nextLeave(custody, me, linked)
+  const list = items.rows.filter((i) => i.child_id === child.id).sort((a, b) => a.sort - b.sort || a.created_at.localeCompare(b.created_at))
+  const packed = list.filter((i) => i.packed_for === leave).length
+  const add = (title) => {
+    const t = title.trim()
+    if (!t || list.some((i) => i.title.toLowerCase() === t.toLowerCase())) return
+    items.insert({ child_id: child.id, title: t, sort: list.length })
+  }
+  const toggle = (i) => items.update(i.id, { packed_for: i.packed_for === leave ? null : leave })
+  const suggestions = PACK_SUGGESTIONS.filter((s) => !list.some((i) => i.title.toLowerCase() === s.toLowerCase()))
+  return (
+    <div className="stack">
+      <p className="muted small">Inför bytet {prettyDay(leave)} kl {String(custody.handover_time).slice(0, 5)} · {packed} av {list.length} packade. Bockarna nollställs av sig själva till nästa byte.</p>
+      <ul className="list">
+        {list.map((i) => (
+          <li key={i.id} className={i.packed_for === leave ? 'is-done' : ''}>
+            <label className="check grow"><input type="checkbox" checked={i.packed_for === leave} onChange={() => toggle(i)} /> <span>{i.title}</span></label>
+            {editing && <button className="icon-btn" onClick={() => items.remove(i.id)} aria-label={`Ta bort ${i.title}`}>✕</button>}
+          </li>
+        ))}
+      </ul>
+      {list.length === 0 && <p className="muted">Inga saker än. Välj bland förslagen eller skriv egna.</p>}
+      <form className="row" onSubmit={(e) => { e.preventDefault(); add(text); setText('') }}>
+        <input placeholder="Lägg till sak" value={text} onChange={(e) => setText(e.target.value)} />
+        <button disabled={!text.trim()}>Lägg till</button>
+      </form>
+      {suggestions.length > 0 && <div className="chips">{suggestions.map((s) => <button key={s} className="chip" onClick={() => add(s)}>+ {s}</button>)}</div>}
+      {list.length > 0 && <button className="link" onClick={() => setEditing(!editing)}>{editing ? 'Klar' : 'Ta bort saker'}</button>}
+    </div>
+  )
+}
+
+function PackChip({ kid, c, me, linked, items, onClick }) {
+  const leave = nextLeave(c, me, linked)
+  const list = items.rows.filter((i) => i.child_id === kid.id)
+  const left = list.filter((i) => i.packed_for !== leave).length
+  const soon = daysBetween(today(), leave) <= 2
+  return (
+    <button className={`chip pack-chip ${soon && left ? 'warn' : ''}`} onClick={onClick}>
+      🎒 {list.length ? (left ? `${left} kvar` : 'Packat') : 'Packlista'}
+    </button>
+  )
+}
+const daysBetween = (a, b) => Math.round((parseDay(b) - parseDay(a)) / 86400000)

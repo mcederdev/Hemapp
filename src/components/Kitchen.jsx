@@ -12,9 +12,10 @@ import EventRow from './EventRow'
 import Notes, { Soon } from './Notes'
 import { checkOff } from '../lib/refill'
 import { CustodyLine } from './Custody'
+import Messages from './Messages'
 
 // Köksskärm för en iPad på kylskåpet: klocka, dagen, sysslor, mat och inköp på en skärm
-export default function Kitchen({ householdId, members, me, onExit, custody, linked }) {
+export default function Kitchen({ householdId, members, people, me, onExit, custody, linked }) {
   useWakeLock(true)
   const now = useNow(15000)
   const events = useTable('events', householdId, 'starts_at')
@@ -51,7 +52,6 @@ export default function Kitchen({ householdId, members, me, onExit, custody, lin
       <div className="k-grid">
         <section className="k-card k-day">
           <h3>Idag</h3>
-          <CustodyLine custody={custody} members={members} me={me} linked={linked} big />
           <ul className="list flush flow">
             {allDay.map((o) => <EventRow key={o.key} occ={o} day={d0} byId={byId} />)}
             {flow.map((x) => x.type === 'now'
@@ -96,7 +96,11 @@ export default function Kitchen({ householdId, members, me, onExit, custody, lin
         <section className="k-card k-notes">
           <h3>Lappar</h3>
           <Notes householdId={householdId} members={members} me={me} big />
-          <Soon householdId={householdId} go={() => {}} />
+        </section>
+
+        <section className="k-card k-msgs">
+          <h3>Meddelanden</h3>
+          <Messages me={me} householdId={householdId} people={people} linked={linked} compact />
         </section>
 
         <section className="k-card k-shop">
@@ -105,6 +109,12 @@ export default function Kitchen({ householdId, members, me, onExit, custody, lin
             {toBuy.map((i) => <button key={i.id} className="chip big-chip" onClick={() => checkOff(items, i, lists.rows)}>{i.name}</button>)}
           </div>
           {toBuy.length === 0 && <p className="muted">Listan är tom.</p>}
+        </section>
+
+        <section className="k-card k-soon">
+          <h3>Snart</h3>
+          <CustodyLine custody={custody} members={members} me={me} linked={linked} />
+          <Soon householdId={householdId} go={() => {}} bare />
         </section>
       </div>
     </div>

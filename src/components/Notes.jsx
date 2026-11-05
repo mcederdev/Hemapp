@@ -72,7 +72,7 @@ export default function Notes({ householdId, members, me, big = false, open = fa
 }
 
 // "Snart": födelsedagar och påminnelser som är inom sin påminnelsetid
-export function Soon({ householdId, go }) {
+export function Soon({ householdId, go, bare = false }) {
   const reminders = useTable('reminders', householdId, 'due_date')
   const birthdays = useTable('birthdays', householdId)
   const t = today()
@@ -80,7 +80,8 @@ export function Soon({ householdId, go }) {
     ...reminders.rows.map((r) => ({ id: r.id, emoji: r.emoji, text: r.title, n: daysUntil(t, r.due_date), show: daysUntil(t, r.due_date) <= Math.max(r.remind_days, 0) })),
     ...birthdays.rows.map((b) => { const x = nextBirthday(b.day, t); return { id: b.id, emoji: '🎂', text: `${b.name}${b.year_known ? ` fyller ${x.age}` : ' fyller år'}`, n: x.daysLeft, show: x.daysLeft <= Math.max(b.remind_days, 0) } })
   ].filter((x) => x.show).sort((a, b) => a.n - b.n)
-  if (!items.length) return null
+  if (!items.length) return bare ? <p className="muted small">Inga påminnelser eller födelsedagar de närmaste dagarna.</p> : null
+  if (bare) return <ul className="list flush">{items.map((x) => <li key={x.id}><span>{x.emoji} {x.text}</span><span className={`small ${x.n < 0 ? 'error' : 'muted'}`}>{x.n === 0 ? 'idag' : x.n === 1 ? 'imorgon' : x.n < 0 ? `${-x.n} dagar sen` : `om ${x.n} dagar`}</span></li>)}</ul>
   return (
     <div className="card compact">
       <button className="card-head" onClick={() => go('reminders')}>

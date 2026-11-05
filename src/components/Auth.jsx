@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
 
-export default function Auth() {
-  const [mode, setMode] = useState('login')
+export default function Auth({ initialMode = 'login', onBack = null }) {
+  const [mode, setMode] = useState(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [msg, setMsg] = useState('')
@@ -30,6 +30,7 @@ export default function Auth() {
         <button type="button" className="link" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}>
           {mode === 'login' ? 'Inget konto? Skapa ett' : 'Har du konto? Logga in'}
         </button>
+        {onBack && <button type="button" className="link muted" onClick={onBack}>← Vad är Hemappen?</button>}
       </form>
     </div>
   )

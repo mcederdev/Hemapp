@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 
 // Tabeller där delade barns rader från det andra hushållet också ska med.
 // Där sköter databasens behörighetsregler vad vi får se.
-const SHARED = new Set(['events', 'vab_days', 'members', 'custody', 'cars'])
+const SHARED = new Set(['events', 'vab_days', 'members', 'custody', 'cars', 'messages'])
 
 // Hämtar en tabell för hushållet och håller den uppdaterad live
 // när någon annan i familjen ändrar något.
