@@ -6,6 +6,7 @@ import { simpleRrule, parseRrule } from '../lib/rrule'
 import { expandEvents, onDay, timeOf } from '../lib/events'
 import { iso, today, parseDay } from '../lib/dates'
 import MemberPicker, { MemberTag } from './MemberPicker'
+import Sheet, { Fab } from './Sheet'
 
 const REPEATS = [
   { v: '', label: 'Upprepa inte' }, { v: 'daily', label: 'Varje dag' }, { v: 'weekly', label: 'Varje vecka' },
@@ -19,7 +20,7 @@ export default function Calendar({ householdId, members }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [selected, setSelected] = useState(today())
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ title: '', time: '', endTime: '', member: null, location: '', repeat: '', remind: 30 })
+  const [form, setForm] = useState({ title: '', date: today(), time: '', endTime: '', member: null, location: '', repeat: '', remind: 30 })
   const [importMember, setImportMember] = useState(null)
   const [msg, setMsg] = useState('')
   const [who, setWho] = useState(null)
@@ -44,8 +45,8 @@ export default function Calendar({ householdId, members }) {
     e.preventDefault()
     if (!form.title.trim()) return
     const allDay = !form.time
-    const starts = new Date(`${selected}T${form.time || '00:00'}`)
-    const ends = form.endTime ? new Date(`${selected}T${form.endTime}`) : null
+    const starts = new Date(`${form.date}T${form.time || '00:00'}`)
+    const ends = form.endTime ? new Date(`${form.date}T${form.endTime}`) : null
     events.insert({
       title: form.title.trim(), starts_at: starts.toISOString(), ends_at: ends?.toISOString() || null, all_day: allDay,
       member_id: form.member, location: form.location || null, rrule: simpleRrule(form.repeat), remind_minutes: allDay ? 0 : Number(form.remind)
@@ -108,12 +109,14 @@ export default function Calendar({ householdId, members }) {
 
       <div className="row between mt">
         <h3 className="cap">{selDate.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
-        <button className="primary" onClick={() => setShowForm(!showForm)}>{showForm ? 'Stäng' : '+ Händelse'}</button>
       </div>
 
+      <Fab onClick={() => { setForm({ ...form, date: selected }); setShowForm(true) }} label="Ny händelse" />
       {showForm && (
-        <form className="stack card" onSubmit={add}>
+        <Sheet title="Ny händelse" onClose={() => setShowForm(false)}>
+        <form className="stack" onSubmit={add}>
           <input placeholder="Vad händer?" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} autoFocus />
+          <label className="field"><span className="muted small">Datum</span><input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required /></label>
           <div className="row">
             <label className="field"><span className="muted small">Start</span><input type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} /></label>
             <label className="field"><span className="muted small">Slut</span><input type="time" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} /></label>
@@ -129,6 +132,7 @@ export default function Calendar({ householdId, members }) {
           </div>
           <button className="primary">Spara</button>
         </form>
+        </Sheet>
       )}
 
       <EventList list={selOcc} byId={byId} onRemove={removeEvent} empty="Inget denna dag." />

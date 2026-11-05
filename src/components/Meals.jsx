@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTable } from '../useTable'
 import { COMMON_DISHES } from '../lib/defaults'
 import { addDays, startOfWeek, today, weekdayName, parseDay } from '../lib/dates'
+import Sheet, { Fab } from './Sheet'
 
 const shuffle = (a) => [...a].sort(() => Math.random() - 0.5)
 
@@ -61,6 +62,7 @@ export default function Meals({ householdId }) {
             })}
           </ul>
           <button className="primary wide" onClick={fillWeek}>🎲 Fyll tomma dagar med förslag</button>
+          <Fab onClick={() => setPicking(days.find((d) => d >= t && !planFor(d)) || (days.includes(t) ? t : days[0]))} label="Välj middag" />
         </>
       )}
 
@@ -75,9 +77,7 @@ function Picker({ day, all, onPick, onClose }) {
   const [q, setQ] = useState('')
   const hits = q ? all.filter((d) => d.name.toLowerCase().includes(q.toLowerCase())) : all
   return (
-    <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="row between"><h3 className="cap">{weekdayName(day)}</h3><button className="icon-btn" onClick={onClose}>✕</button></div>
+    <Sheet title={`Middag ${weekdayName(day)}`} onClose={onClose}>
         <div className="row between"><span className="muted">Förslag</span><button className="link" onClick={() => setTips(shuffle(all).slice(0, 3))}>🎲 Nya förslag</button></div>
         <div className="tips">
           {tips.map((t) => <button key={t.name} className="tip" onClick={() => onPick(t.name)}><strong>{t.name}</strong>{t.category && <span className="muted small"> · {t.category}</span>}</button>)}
@@ -89,29 +89,34 @@ function Picker({ day, all, onPick, onClose }) {
         <ul className="list mt scroll">
           {hits.map((d) => <li key={d.id || d.name} className="tap" onClick={() => onPick(d.name)}><span>{d.name}</span><span className="muted small">{d.category}</span></li>)}
         </ul>
-      </div>
-    </div>
+    </Sheet>
   )
 }
 
 function Dishes({ dishes, all }) {
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
+  const [adding, setAdding] = useState(false)
   const categories = [...new Set(all.map((d) => d.category).filter(Boolean))]
   const add = (e) => {
     e.preventDefault()
     if (!name.trim()) return
     dishes.insert({ name: name.trim(), category: category.trim() || null })
-    setName(''); setCategory('')
+    setName(''); setCategory(''); setAdding(false)
   }
   return (
     <>
-      <form className="row" onSubmit={add}>
-        <input placeholder="Egen rätt, t.ex. Mormors köttbullar" value={name} onChange={(e) => setName(e.target.value)} />
-        <input list="cats" placeholder="Kategori" value={category} onChange={(e) => setCategory(e.target.value)} style={{ maxWidth: 110 }} />
-        <datalist id="cats">{categories.map((c) => <option key={c} value={c} />)}</datalist>
-        <button className="primary">+</button>
-      </form>
+      <Fab onClick={() => setAdding(true)} label="Ny rätt" />
+      {adding && (
+        <Sheet title="Ny egen rätt" onClose={() => setAdding(false)}>
+          <form className="stack" onSubmit={add}>
+            <input placeholder="T.ex. Mormors köttbullar" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            <input list="cats" placeholder="Kategori (valfritt)" value={category} onChange={(e) => setCategory(e.target.value)} />
+            <datalist id="cats">{categories.map((c) => <option key={c} value={c} />)}</datalist>
+            <button className="primary">Spara</button>
+          </form>
+        </Sheet>
+      )}
       <ul className="list">
         {all.map((d) => (
           <li key={d.id || d.name}>

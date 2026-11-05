@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { useTable } from '../useTable'
 import { MEMBER_COLORS } from '../lib/defaults'
+import Sheet, { Fab } from './Sheet'
 import { pushSupport, currentSubscription, enablePush, disablePush } from '../lib/push'
 
 export default function Family({ me, householdId, members, membersTable, household, households }) {
   const [childName, setChildName] = useState('')
+  const [adding, setAdding] = useState(false)
   const templates = useTable('chore_templates', householdId)
 
   const addChild = (e) => {
@@ -13,6 +15,7 @@ export default function Family({ me, householdId, members, membersTable, househo
     if (!childName.trim()) return
     membersTable.insert({ name: childName.trim(), role: 'child', color: MEMBER_COLORS[members.length % MEMBER_COLORS.length] })
     setChildName('')
+    setAdding(false)
   }
 
   return (
@@ -42,10 +45,7 @@ export default function Family({ me, householdId, members, membersTable, househo
             </li>
           ))}
         </ul>
-        <form className="row" onSubmit={addChild}>
-          <input placeholder="Lägg till barn (namn)" value={childName} onChange={(e) => setChildName(e.target.value)} />
-          <button className="primary">Lägg till</button>
-        </form>
+        <button onClick={() => setAdding(true)}>+ Lägg till barn</button>
       </div>
 
       {household && (
@@ -69,6 +69,16 @@ export default function Family({ me, householdId, members, membersTable, househo
       )}
 
       <button className="wide" onClick={() => supabase.auth.signOut()}>Logga ut</button>
+      <Fab onClick={() => setAdding(true)} label="Lägg till barn" />
+      {adding && (
+        <Sheet title="Lägg till barn" onClose={() => setAdding(false)}>
+          <form className="row" onSubmit={addChild}>
+            <input placeholder="Namn" value={childName} onChange={(e) => setChildName(e.target.value)} autoFocus />
+            <button className="primary">Spara</button>
+          </form>
+          <p className="muted small mt">Barnet får inget eget konto men kan få sysslor, händelser och stjärnor.</p>
+        </Sheet>
+      )}
     </section>
   )
 }

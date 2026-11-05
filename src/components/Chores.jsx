@@ -3,6 +3,7 @@ import { useTable } from '../useTable'
 import { COMMON_CHORES } from '../lib/defaults'
 import { nextDue, repeatLabel, prettyDay, today } from '../lib/dates'
 import MemberPicker, { MemberTag } from './MemberPicker'
+import Sheet, { Fab } from './Sheet'
 
 const REPEATS = [
   { v: '', label: 'Upprepa inte' },
@@ -36,6 +37,7 @@ export default function Chores({ householdId, members }) {
   const [filter, setFilter] = useState(null)
   const [showCommon, setShowCommon] = useState(false)
   const [showDone, setShowDone] = useState(false)
+  const [adding, setAdding] = useState(false)
 
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
   const isChild = byId[who]?.role === 'child'
@@ -54,6 +56,7 @@ export default function Chores({ householdId, members }) {
       repeat_every: every ? Number(every) : null, repeat_unit: unit, stars: Number(stars) || 0
     })
     setTitle('')
+    setAdding(false)
   }
   const saveAsCommon = () => {
     const text = title.trim()
@@ -63,11 +66,14 @@ export default function Chores({ householdId, members }) {
   return (
     <section>
       <h2>Sysslor</h2>
-      <form className="stack card" onSubmit={(e) => { e.preventDefault(); add() }}>
-        <input placeholder="Ny syssla…" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <Fab onClick={() => setAdding(true)} label="Ny syssla" />
+      {adding && (
+      <Sheet title="Ny syssla" onClose={() => setAdding(false)}>
+      <form className="stack" onSubmit={(e) => { e.preventDefault(); add() }}>
+        <input placeholder="Vad ska göras?" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
         <div className="row">
-          <MemberPicker members={members} value={who} onChange={setWho} emptyLabel="Vem som helst" />
-          <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+          <label className="field"><span className="muted small">Vem</span><MemberPicker members={members} value={who} onChange={setWho} emptyLabel="Vem som helst" /></label>
+          <label className="field"><span className="muted small">När</span><input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></label>
         </div>
         <div className="row">
           <select value={repeat} onChange={(e) => setRepeat(e.target.value)}>
@@ -81,7 +87,7 @@ export default function Chores({ householdId, members }) {
         </div>
         <div className="row wrap">
           <button className="primary">Lägg till</button>
-          <button type="button" onClick={() => setShowCommon(!showCommon)}>Vanliga sysslor</button>
+          <button type="button" onClick={() => setShowCommon(!showCommon)}>{showCommon ? 'Dölj vanliga' : 'Vanliga sysslor'}</button>
           {title.trim() && <button type="button" className="link" onClick={saveAsCommon}>Spara som vanlig</button>}
         </div>
         {showCommon && (
@@ -89,7 +95,10 @@ export default function Chores({ householdId, members }) {
             {common.map((c) => <button type="button" key={c} className="chip" onClick={() => add(c)}>+ {c}</button>)}
           </div>
         )}
+        {showCommon && <p className="muted small">Tryck på en vanlig syssla så läggs den till med valen ovan.</p>}
       </form>
+      </Sheet>
+      )}
 
       <div className="row mb">
         <span className="muted">Visa:</span>

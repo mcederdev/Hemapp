@@ -4,6 +4,7 @@ import { splitBills } from '../lib/finance'
 import { swishUrl } from '../lib/swish'
 import { monthStart, addMonths, monthName, today } from '../lib/dates'
 import MemberPicker from './MemberPicker'
+import Sheet, { Fab } from './Sheet'
 
 const kr = (n) => Math.round(n).toLocaleString('sv-SE') + ' kr'
 
@@ -16,6 +17,7 @@ export default function Finance({ householdId, members, membersTable, go }) {
   const [amount, setAmount] = useState('')
   const [paidBy, setPaidBy] = useState(null)
   const [kind, setKind] = useState('fixed')
+  const [adding, setAdding] = useState(false)
 
   const monthBills = bills.rows.filter((b) => b.kind === 'fixed' || b.month === month)
   const fixed = monthBills.filter((b) => b.kind === 'fixed')
@@ -33,7 +35,7 @@ export default function Finance({ householdId, members, membersTable, go }) {
     e.preventDefault()
     if (!name.trim() || !amount) return
     bills.insert({ name: name.trim(), amount: Number(amount), paid_by: paidBy || parents[0]?.id, kind, month: kind === 'once' ? month : null })
-    setName(''); setAmount('')
+    setName(''); setAmount(''); setAdding(false)
   }
   const markPaid = async (t) => {
     const row = { month, from_member: byName[t.from]?.id, to_member: byName[t.to]?.id, amount: t.amount, total_bills: result.totalBills, paid: true, paid_at: new Date().toISOString() }
@@ -63,21 +65,27 @@ export default function Finance({ householdId, members, membersTable, go }) {
 
       <div className="card stack">
         <h3>Räkningar</h3>
+        <Fab onClick={() => setAdding(true)} label="Ny räkning" />
+        {adding && (
+        <Sheet title="Ny räkning" onClose={() => setAdding(false)}>
         <form className="stack" onSubmit={add}>
           <div className="seg">
             <button type="button" className={kind === 'fixed' ? 'active' : ''} onClick={() => setKind('fixed')}>Fast varje månad</button>
             <button type="button" className={kind === 'once' ? 'active' : ''} onClick={() => setKind('once')}>Bara {monthName(month).split(' ')[0]}</button>
           </div>
           <div className="row">
-            <input placeholder={kind === 'fixed' ? 'T.ex. Hyra, el, försäkring' : 'T.ex. Tandläkare, bilreparation'} value={name} onChange={(e) => setName(e.target.value)} />
+            <input placeholder={kind === 'fixed' ? 'T.ex. Hyra, el, försäkring' : 'T.ex. Tandläkare, bilreparation'} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
             <input type="number" inputMode="numeric" placeholder="Belopp" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ maxWidth: 110 }} />
           </div>
           <div className="row">
             <span className="muted nowrap">Betalas av</span>
             <MemberPicker members={parents} value={paidBy || parents[0]?.id} onChange={setPaidBy} emptyLabel="Välj" />
-            <button className="primary">Lägg till</button>
           </div>
+          <button className="primary">Spara</button>
         </form>
+        </Sheet>
+        )}
+        {monthBills.length === 0 && <p className="muted">Inga räkningar än. Tryck på + för att lägga till.</p>}
         <BillList title="Fasta" rows={fixed} byId={byId} onRemove={(id) => bills.remove(id)} />
         <BillList title="Bara denna månad" rows={once} byId={byId} onRemove={(id) => bills.remove(id)} />
         <div className="row between"><strong>Totalt</strong><strong>{kr(result.totalBills)}</strong></div>

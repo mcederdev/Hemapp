@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTable } from '../useTable'
 import { guessSection, SECTIONS, DEFAULT_STAPLES } from '../lib/sections'
 import { parseDay } from '../lib/dates'
+import Sheet, { Fab } from './Sheet'
 
 export default function Shopping({ householdId, me, members }) {
   const lists = useTable('shopping_lists', householdId)
@@ -11,6 +12,7 @@ export default function Shopping({ householdId, me, members }) {
   const [text, setText] = useState('')
   const [view, setView] = useState('list') // list | home | lists
   const [groupBySection, setGroupBySection] = useState(true)
+  const [adding, setAdding] = useState(false)
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
 
   const activeLists = lists.rows.filter((l) => !l.archived)
@@ -64,12 +66,25 @@ export default function Shopping({ householdId, me, members }) {
 
       {view === 'list' && list && (
         <>
-          <form className="row mt" onSubmit={submit}>
-            <input placeholder={`Lägg till i ${list.name}…`} value={text} onChange={(e) => setText(e.target.value)} />
-            <button className="primary">Lägg till</button>
-          </form>
-          {matches.length > 0 && (
-            <div className="chips mb">{matches.map((m) => <button key={m.id} className="chip" onClick={() => { add(m.name); setText('') }}>+ {m.name}</button>)}</div>
+          <div className="mt" />
+          <Fab onClick={() => setAdding(true)} label="Lägg till vara" />
+          {adding && (
+            <Sheet title={`Lägg till i ${list.name}`} onClose={() => { setAdding(false); setText('') }}>
+              <form className="row" onSubmit={submit}>
+                <input placeholder="Vara…" value={text} onChange={(e) => setText(e.target.value)} autoFocus />
+                <button className="primary">Lägg till</button>
+              </form>
+              {matches.length > 0 && (
+                <div className="chips mt">{matches.map((m) => <button key={m.id} className="chip" onClick={() => { add(m.name); setText('') }}>+ {m.name}</button>)}</div>
+              )}
+              {!typed && suggestions.length > 0 && (
+                <>
+                  <p className="muted small mt">Brukar ni köpa</p>
+                  <div className="chips">{suggestions.map((c) => <button key={c.id} className="chip" onClick={() => add(c.name)}>+ {c.name}</button>)}</div>
+                </>
+              )}
+              {todo.length > 0 && <p className="muted small mt">På listan: {todo.map((i) => i.name).join(', ')}</p>}
+            </Sheet>
           )}
           {groups.map(([section, rows]) => (
             <div key={section || 'all'}>
@@ -130,6 +145,7 @@ export default function Shopping({ householdId, me, members }) {
 function OutAtHome({ catalog, onList, add, defaultList }) {
   const [name, setName] = useState('')
   const [edit, setEdit] = useState(false)
+  const [adding, setAdding] = useState(false)
   const staples = catalog.rows.filter((c) => c.is_staple).sort((a, b) => a.name.localeCompare(b.name, 'sv'))
   const usingDefaults = staples.length === 0
 
@@ -143,6 +159,7 @@ function OutAtHome({ catalog, onList, add, defaultList }) {
     if (existing) await catalog.update(existing.id, { is_staple: true })
     else await catalog.insert({ name: n, section: guessSection(n), is_staple: true })
     setName('')
+    setAdding(false)
   }
   const adoptDefaults = async () => {
     const missing = DEFAULT_STAPLES.filter((n) => !catalog.rows.some((c) => c.name.toLowerCase() === n.toLowerCase()))
@@ -165,10 +182,15 @@ function OutAtHome({ catalog, onList, add, defaultList }) {
         })}
       </div>
       {usingDefaults && <p className="muted small">Det här är förslag. <button className="link" onClick={adoptDefaults}>Använd dem som våra</button> eller lägg till egna nedan.</p>}
-      <form className="row mt" onSubmit={addStaple}>
-        <input placeholder="Lägg till vara som brukar ta slut" value={name} onChange={(e) => setName(e.target.value)} />
-        <button className="primary">+</button>
-      </form>
+      <Fab onClick={() => setAdding(true)} label="Ny basvara" />
+      {adding && (
+        <Sheet title="Ny vara som brukar ta slut" onClose={() => setAdding(false)}>
+          <form className="row" onSubmit={addStaple}>
+            <input placeholder="T.ex. Havregryn" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            <button className="primary">Spara</button>
+          </form>
+        </Sheet>
+      )}
       {!usingDefaults && <button className="link" onClick={() => setEdit(!edit)}>{edit ? 'Klar' : 'Ta bort varor'}</button>}
     </div>
   )
@@ -178,6 +200,7 @@ function Lists({ lists, items, onOpen }) {
   const [name, setName] = useState('')
   const [date, setDate] = useState('')
   const [showArchived, setShowArchived] = useState(false)
+  const [adding, setAdding] = useState(false)
   const visible = lists.rows.filter((l) => showArchived || !l.archived)
     .sort((a, b) => Number(b.is_default) - Number(a.is_default) || (a.for_date || '9').localeCompare(b.for_date || '9'))
   const count = (id) => items.rows.filter((i) => i.list_id === id && !i.done).length
@@ -186,18 +209,22 @@ function Lists({ lists, items, onOpen }) {
     e.preventDefault()
     if (!name.trim()) return
     const rows = await lists.insert({ name: name.trim(), for_date: date || null })
-    setName(''); setDate('')
+    setName(''); setDate(''); setAdding(false)
     if (rows?.[0]) onOpen(rows[0].id)
   }
 
   return (
     <div className="mt">
-      <form className="card stack" onSubmit={create}>
-        <h3>Ny lista</h3>
-        <input placeholder="T.ex. Kalas lördag, Jul, Stugan" value={name} onChange={(e) => setName(e.target.value)} />
-        <div className="row"><span className="muted nowrap">Datum (valfritt)</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-        <button className="primary">Skapa lista</button>
-      </form>
+      <Fab onClick={() => setAdding(true)} label="Ny lista" />
+      {adding && (
+        <Sheet title="Ny inköpslista" onClose={() => setAdding(false)}>
+          <form className="stack" onSubmit={create}>
+            <input placeholder="T.ex. Kalas lördag, Jul, Stugan" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            <label className="field"><span className="muted small">Datum (valfritt)</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+            <button className="primary">Skapa lista</button>
+          </form>
+        </Sheet>
+      )}
       <ul className="list">
         {visible.map((l) => (
           <li key={l.id} className={l.archived ? 'is-done' : ''}>

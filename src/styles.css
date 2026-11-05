@@ -110,3 +110,11 @@ a.button.primary { background: var(--accent); color: var(--accent-text); font-we
 .kid-task { display: flex; align-items: center; gap: 14px; text-align: left; font-size: 1.15rem; padding: 1rem; border-radius: 14px; white-space: normal; }
 .kid-task .box { width: 28px; height: 28px; border: 3px solid var(--accent); border-radius: 8px; flex: none; }
 h4.day::first-letter { text-transform: uppercase; }
+.fab { position: fixed; right: max(16px, calc(50% - 304px)); bottom: calc(76px + env(safe-area-inset-bottom)); width: 58px; height: 58px;
+  border-radius: 50%; background: var(--accent); color: var(--accent-text); border: none; font-size: 2rem; line-height: 1;
+  box-shadow: 0 4px 14px rgba(0,0,0,.25); z-index: 5; padding: 0; display: grid; place-items: center; }
+.sheet-head { margin-bottom: 10px; }
+.sheet-head h3 { margin: 0; }
+.close-btn { width: 36px; height: 36px; border-radius: 50%; padding: 0; font-size: 1rem; background: var(--bg); border: none; }
+body.no-scroll { overflow: hidden; }
+.app main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
