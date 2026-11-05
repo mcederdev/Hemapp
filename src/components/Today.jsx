@@ -12,7 +12,7 @@ import FamilyStrip, { forFocus } from './FamilyStrip'
 import SwipeRow, { Check } from './Swipe'
 import Icon from './Icon'
 import ShopForDishes from './ShopForDishes'
-import Notes, { Soon } from './Notes'
+import Notes, { Soon, NoteButton } from './Notes'
 import { CustodyLine } from './Custody'
 
 // Bygger dagens flöde: händelser och middag i tidsordning, med nu-linjen på rätt plats
@@ -42,6 +42,7 @@ export default function Today({ householdId, members, go, me, focus, setFocus, c
   const lists = useTable('shopping_lists', householdId)
   const [picking, setPicking] = useState(false)
   const [shopFor, setShopFor] = useState(null)
+  const [noteOpen, setNoteOpen] = useState(false)
   const now = useNow()
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
 
@@ -84,8 +85,8 @@ export default function Today({ householdId, members, go, me, focus, setFocus, c
         <p className="muted cap">{d0.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </header>
 
-      <FamilyStrip members={members} focus={focus} setFocus={setFocus} counts={overdue} />
-      <Notes householdId={householdId} members={members} me={me} />
+      <FamilyStrip members={members} focus={focus} setFocus={setFocus} counts={overdue} extra={<NoteButton onClick={() => setNoteOpen(true)} />} />
+      <Notes householdId={householdId} members={members} me={me} open={noteOpen} setOpen={setNoteOpen} />
       <CustodyLine custody={(custody || []).filter((c) => forFocus(focus, c.child_id))} members={members} me={me} linked={linked} />
 
       <div className="hero">

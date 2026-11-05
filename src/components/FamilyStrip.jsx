@@ -2,7 +2,7 @@ import { MemberTag } from './MemberPicker'
 
 // Familjeremsa: tryck på en person för att bara se den personens saker.
 // counts = { [memberId]: antal försenade } visas som en röd siffra.
-export default function FamilyStrip({ members, focus, setFocus, counts = {} }) {
+export default function FamilyStrip({ members, focus, setFocus, counts = {}, extra = null }) {
   if (members.length === 0) return null
   return (
     <div className="family-strip" role="tablist" aria-label="Visa för">
@@ -20,6 +20,7 @@ export default function FamilyStrip({ members, focus, setFocus, counts = {} }) {
           <span className="fs-name">{m.name}</span>
         </button>
       ))}
+      {extra && <span className="fs-extra">{extra}</span>}
     </div>
   )
 }

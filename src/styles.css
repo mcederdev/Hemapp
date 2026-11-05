@@ -480,3 +480,8 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 .setup-opts { display: flex; flex-direction: column; gap: 8px; }
 .setup-opt { white-space: normal; width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); }
 .setup-opt.on { border-color: var(--accent); }
+.fs-extra { margin-left: auto; display: flex; align-items: flex-start; padding: 2px 2px 0 8px; }
+.note-mini { width: 50px; height: 50px; padding: 4px; border: none; border-radius: 3px 3px 10px 3px; background: #ffe98a; color: #5a4f1a;
+  box-shadow: 0 2px 5px rgba(0,0,0,.14); transform: rotate(-4deg); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: .68rem; font-weight: 700; line-height: 1; gap: 1px; }
+.note-mini span { font-size: 1.3rem; font-weight: 600; }
+.note-mini:active { transform: rotate(0) scale(.95); }

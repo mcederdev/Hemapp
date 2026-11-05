@@ -9,9 +9,19 @@ const COLORS = { yellow: '#ffe98a', pink: '#ffc4d6', blue: '#c4e0ff', green: '#c
 const STICKERS = ['❤️', '💕', '😘', '🥰', '🤗', '⭐', '🌟', '🎉', '👏', '💪', '☀️', '🌈', '🌸', '☕', '🍕', '🐶', '😂', '🙏']
 
 // Lappar på kylskåpet: korta meddelanden till familjen
-export default function Notes({ householdId, members, me, big = false }) {
+const blank = () => ({ text: '', color: 'yellow', until: '', sticker: '', to: '' })
+
+// Liten post-it-knapp för att sätta upp en ny lapp (ligger i familjeremsan på Idag)
+export function NoteButton({ onClick }) {
+  return <button className="note-mini" onClick={onClick} aria-label="Ny lapp"><span>+</span>Lapp</button>
+}
+
+export default function Notes({ householdId, members, me, big = false, open = false, setOpen = null }) {
   const notes = useTable('notes', householdId)
-  const [adding, setAdding] = useState(null)
+  const [own, setOwn] = useState(null)
+  // Formuläret kan öppnas utifrån (knappen i familjeremsan)
+  const adding = setOpen ? (open ? (own || blank()) : null) : own
+  const setAdding = (v) => { setOwn(v); if (setOpen && !v) setOpen(false) }
   const t = today()
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
   const visible = notes.rows.filter((n) => !n.until || n.until >= t)
@@ -23,7 +33,7 @@ export default function Notes({ householdId, members, me, big = false }) {
   }
   return (
     <>
-      <div className={`notes ${big ? 'big' : ''}`}>
+      {(visible.length > 0 || (!big && !setOpen)) && <div className={`notes ${big ? 'big' : ''}`}>
         {visible.map((n) => (
           <div key={n.id} className="note" style={{ background: COLORS[n.color] || COLORS.yellow }}>
             <button className="note-x" onClick={() => notes.remove(n.id)} aria-label="Ta bort lappen">✕</button>
@@ -33,8 +43,8 @@ export default function Notes({ householdId, members, me, big = false }) {
             <span className="note-meta">{byId[n.author] && <MemberTag member={byId[n.author]} size={18} />}{n.until && <span>till {prettyDay(n.until)}</span>}</span>
           </div>
         ))}
-        {!big && <button className="note add" onClick={() => setAdding({ text: '', color: 'yellow', until: '', sticker: '', to: '' })}>+ Lapp</button>}
-      </div>
+        {!big && !setOpen && <button className="note add" onClick={() => setAdding(blank())}>+ Lapp</button>}
+      </div>}
       {adding && (
         <Sheet title="Ny lapp" onClose={() => setAdding(null)}>
           <form className="stack" onSubmit={save}>
