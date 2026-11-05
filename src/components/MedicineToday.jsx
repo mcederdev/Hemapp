@@ -16,6 +16,7 @@ export default function MedicineToday({ householdId, members, people, me, custod
   const t = today()
   const doses = useTable('medicine_takes', householdId, 'taken_at', ['day', t])
   const [sent, setSent] = useState({})
+  const [showTaken, setShowTaken] = useState(false)
   const byId = Object.fromEntries((people || members).map((m) => [m.id, m]))
   const nowHM = new Date().toTimeString().slice(0, 5)
   const late = (time) => { const [h, m] = time.split(':').map(Number); return nowHM >= `${String(Math.min(23, h + 2)).padStart(2, '0')}:${String(m).padStart(2, '0')}` }
@@ -50,7 +51,7 @@ export default function MedicineToday({ householdId, members, people, me, custod
     <div className="card compact med-today">
       <div className="card-head"><strong>💊 Medicin idag</strong><span className="muted small">{rows.filter((r) => r.dose).length} av {rows.length}</span></div>
       <ul className="list plain">
-        {rows.map((r) => (
+        {rows.filter((r) => showTaken || !r.dose).map((r) => (
           <li key={r.m.id + r.slot} className={`row med-dose ${r.dose ? 'taken' : r.late ? 'late' : ''}`}>
             <Check checked={!!r.dose} onChange={() => take(r)} label={`${r.dose ? 'Ångra' : 'Bocka av'} ${r.m.name} ${r.label}`} />
             <MemberTag member={who(r.m)} size={24} />
@@ -62,6 +63,11 @@ export default function MedicineToday({ householdId, members, people, me, custod
           </li>
         ))}
       </ul>
+      {rows.some((r) => r.dose) && (
+        <button className="link small med-taken" onClick={() => setShowTaken(!showTaken)}>
+          {showTaken ? 'Dölj tagna' : `✓ ${rows.every((r) => r.dose) ? 'All medicin är tagen idag' : (rows.filter((r) => r.dose).length === 1 ? '1 tagen' : `${rows.filter((r) => r.dose).length} tagna`)} · visa`}
+        </button>
+      )}
     </div>
   )
 }
