@@ -26,6 +26,8 @@ export default function Medicines({ householdId, members }) {
     // Tider: dygnsdosen blir summan av alla tider (så räknas flaskan som förut)
     const times = timesOf({ times: (edit.times || []).map((x) => ({ time: x.time, amount: num(x.amount) })) })
     if (!times.length) return alert('Skriv in minst en tid och mängd.')
+    const others = (edit.hide_today || []).filter((h) => h !== householdId)
+    v.hide_today = edit.showToday === false ? [...others, householdId] : others
     Object.assign(v, { times, dose: times.reduce((a, x) => a + x.amount, 0), doses_per_day: 1, dose_morning: null, dose_evening: null })
     if (edit.id) await meds.update(edit.id, v)
     else await meds.insert({ ...v, bottle_size: full, opened_on: edit.opened_on || t, spare: Number(edit.spare) || 0 })
@@ -63,10 +65,10 @@ export default function Medicines({ householdId, members }) {
           return (
             <li key={m.id} className="col med">
               <div className="row between w100">
-                <span className="row tap grow" onClick={() => setEdit({ ...m, full_size: m.full_size || m.bottle_size, times: m.times?.length ? m.times : [{ amount: m.dose, time: '08:00' }] })}>
+                <span className="row tap grow" onClick={() => setEdit({ ...m, full_size: m.full_size || m.bottle_size, times: m.times?.length ? m.times : [{ amount: m.dose, time: '08:00' }], showToday: !(m.hide_today || []).includes(householdId) })}>
                   <span className="big-emoji">💊</span>
                   <span><strong>{m.name}</strong>
-                    <div className="muted small">{timesOf(m).length ? timesOf(m).map((x) => `${fmtN(x.amount)} ${m.unit} kl ${x.time}`).join(' · ') : `${fmtN(m.dose)} ${m.unit} × ${fmtN(m.doses_per_day)} om dagen`}{m.note ? ` · ${m.note}` : ''}</div></span>
+                    <div className="muted small">{timesOf(m).length ? timesOf(m).map((x) => `${fmtN(x.amount)} ${m.unit} kl ${x.time}`).join(' · ') : `${fmtN(m.dose)} ${m.unit} × ${fmtN(m.doses_per_day)} om dagen`}{m.note ? ` · ${m.note}` : ''}{(m.hide_today || []).includes(householdId) ? ' · visas inte på Idag' : ''}</div></span>
                 </span>
                 <span className="med-spare" title={`${spare} ${m.unit === 'st' ? 'askar' : 'flaskor'} hemma`}>
                   <button className="icon-btn" disabled={spare === 0} onClick={() => meds.update(m.id, { spare: spare - 1 })} aria-label="En mindre hemma">−</button>
@@ -119,7 +121,8 @@ export default function Medicines({ householdId, members }) {
               </div>
             ))}
             <button type="button" className="link small" onClick={() => setEdit({ ...edit, times: [...(edit.times || []), { amount: edit.times?.[0]?.amount || 1, time: '20:00' }] })}>+ Lägg till en tid</button>
-            <p className="muted small">Varje tid syns på Idag. Den som bockar av syns för alla och resten av familjen får en notis.</p>
+            <label className="row"><input type="checkbox" checked={edit.showToday !== false} onChange={(e) => setEdit({ ...edit, showToday: e.target.checked })} /> Visa på Idag och bocka av där</label>
+            {edit.showToday !== false && <p className="muted small">Varje tid syns på Idag. Den som bockar av syns för alla och resten av familjen får en notis.</p>}
             {!edit.id && <label className="field"><span className="muted small">Oöppnade hemma</span><input inputMode="numeric" value={edit.spare} onChange={(e) => setEdit({ ...edit, spare: e.target.value })} /></label>}
             {!edit.id && <label className="field"><span className="muted small">Flaskan öppnades</span><input type="date" value={edit.opened_on} max={today()} onChange={(e) => setEdit({ ...edit, opened_on: e.target.value })} /></label>}
             <label className="field"><span className="muted small">Påminn</span>
