@@ -123,7 +123,8 @@ function FoodStats({ householdId }) {
   const planned = meals.rows.filter((m) => m.day >= addDays(t, -28) && m.day <= t).length
   return (
     <div>
-      <div className="stat-tiles">
+      <FoodSpend householdId={householdId} />
+      <div className="stat-tiles mt">
         <div className="stat-tile"><strong>{dishCount.size}</strong><span>olika rätter i år</span></div>
         <div className="stat-tile"><strong>{Math.round((planned / 28) * 100)} %</strong><span>planerade middagar (4 v)</span></div>
         <div className="stat-tile"><strong>{catalog.rows.length}</strong><span>varor ni köpt</span></div>
@@ -142,12 +143,12 @@ function FoodStats({ householdId }) {
   )
 }
 
-function Bar({ label, n, max }) {
+function Bar({ label, n, max, fmt = (x) => x }) {
   return (
     <div className="bar-row">
       <span className="bar-label">{label}</span>
       <span className="bar-track"><i style={{ width: `${(n / max) * 100}%`, background: 'var(--accent)' }} /></span>
-      <span className="bar-n">{n}</span>
+      <span className="bar-n">{fmt(n)}</span>
     </div>
   )
 }
@@ -156,4 +157,48 @@ function isoWeek(s) {
   const d = new Date(s + 'T00:00'); d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7))
   const jan4 = new Date(d.getFullYear(), 0, 4)
   return 1 + Math.round(((d - jan4) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7)
+}
+
+const kr = (n) => Math.round(n).toLocaleString('sv-SE') + ' kr'
+// Matkostnad: vad handlingen kostat per månad (fylls i när man trycker "Klar med handlingen")
+function FoodSpend({ householdId }) {
+  const spend = useTable('grocery_spend', householdId, 'day')
+  const [amount, setAmount] = useState('')
+  const t = today()
+  const months = Array.from({ length: 6 }, (_, i) => { const d = new Date(t + 'T12:00'); d.setDate(1); d.setMonth(d.getMonth() - (5 - i)); return d.toISOString().slice(0, 7) })
+  const sum = (m) => spend.rows.filter((r) => r.day.slice(0, 7) === m).reduce((a, r) => a + Number(r.amount), 0)
+  const sums = months.map((m) => [m, sum(m)])
+  const max = Math.max(1, ...sums.map((x) => x[1]))
+  const prev = sums.slice(0, 5).filter((x) => x[1] > 0)
+  const avg = prev.length ? prev.reduce((a, x) => a + x[1], 0) / prev.length : 0
+  const add = async (e) => {
+    e.preventDefault()
+    const n = Number(amount.replace(/\s/g, '').replace(',', '.'))
+    if (n > 0) await spend.insert({ amount: n, day: t })
+    setAmount('')
+  }
+  const name = (m) => new Date(m + '-15T12:00').toLocaleDateString('sv-SE', { month: 'short' }).replace('.', '')
+  return (
+    <div className="card">
+      <strong>Matkostnad</strong>
+      <div className="stat-tiles mt">
+        <div className="stat-tile"><strong>{kr(sums[5][1])}</strong><span>den här månaden</span></div>
+        <div className="stat-tile"><strong>{kr(sums[4][1])}</strong><span>förra månaden</span></div>
+        <div className="stat-tile"><strong>{avg ? kr(avg) : '–'}</strong><span>snitt per månad</span></div>
+      </div>
+      {spend.rows.length === 0 && <p className="muted small">Efter "Jag handlar nu" frågar appen vad det kostade. Du kan också skriva in ett kvitto här.</p>}
+      <div className="bars mt">{sums.map(([m, n]) => <Bar key={m} label={name(m)} n={n} max={max} fmt={kr} />)}</div>
+      <form className="row mt" onSubmit={add}>
+        <input inputMode="decimal" placeholder="Lägg till kvitto (kr)" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <button disabled={!amount.trim()}>Lägg till</button>
+      </form>
+      {spend.rows.length > 0 && (
+        <ul className="list plain mt small">
+          {[...spend.rows].reverse().slice(0, 5).map((r) => (
+            <li key={r.id} className="row between"><span className="muted">{r.day.slice(5).replace('-', '/')} {r.store || ''}</span><span className="row">{kr(r.amount)}<button className="icon-btn" onClick={() => confirm('Ta bort kvittot?') && spend.remove(r.id)} aria-label="Ta bort">✕</button></span></li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }

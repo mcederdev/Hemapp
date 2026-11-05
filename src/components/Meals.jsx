@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTable } from '../useTable'
+import { suggestWeek, expiringSoon, usesItems } from '../lib/suggest'
 import { COMMON_DISHES } from '../lib/defaults'
 import { addDays, startOfWeek, today, weekdayName, parseDay } from '../lib/dates'
 import Icon from './Icon'
@@ -91,6 +92,8 @@ function WeekCards({ days, t, planFor, all, plan, onPick }) {
 export default function Meals({ householdId, me }) {
   const dishes = useTable('dishes', householdId)
   const plan = useTable('meal_plan', householdId, 'day')
+  const pantry = useTable('pantry_items', householdId, 'best_before')
+  const dishItems = useTable('dish_items', householdId, 'dish')
   const [week, setWeek] = useState(startOfWeek(today()))
   const [picking, setPicking] = useState(null) // datum som väljs
   const [view, setView] = useState('week')
@@ -109,11 +112,10 @@ export default function Meals({ householdId, me }) {
     setPicking(null)
   }
   const fillWeek = async () => {
-    const recent = new Set(plan.rows.filter((p) => p.day >= addDays(week, -14)).map((p) => p.dish))
-    const pool = shuffle(all.filter((d) => !recent.has(d.name)))
-    const empty = days.filter((d) => !planFor(d) && d >= t)
-    await plan.insert(empty.map((day, i) => ({ day, dish: (pool[i] || shuffle(all)[0]).name })))
+    const picks = suggestWeek({ all, plan: plan.rows, days, today: t, pantry: pantry.rows, dishItems: dishItems.rows })
+    if (picks.length) await plan.insert(picks.map(({ day, dish }) => ({ day, dish })))
   }
+  const soon = expiringSoon(pantry.rows, t)
 
   return (
     <section>
@@ -136,11 +138,12 @@ export default function Meals({ householdId, me }) {
             if (!next) return null
             const recent = new Set(plan.rows.filter((p) => p.day >= addDays(t, -14)).map((p) => p.dish.toLowerCase()))
             const fresh = all.filter((d) => !recent.has(d.name.toLowerCase())).slice(0, 40)
-            const picks = seeded(fresh, next).slice(0, 3)
+            const usingSoon = soon.length ? fresh.filter((d) => usesItems(d.name, soon, dishItems.rows).length) : []
+            const picks = [...seeded(usingSoon, next).slice(0, 2), ...seeded(fresh, next)].filter((d, i, a) => a.findIndex((x) => x.name === d.name) === i).slice(0, 3)
             return picks.length > 0 && (
               <div className="card mt">
                 <strong className="cap">Förslag till {weekdayName(next)}</strong>
-                <p className="muted small">Ni har inte ätit de här på två veckor</p>
+                <p className="muted small">{usingSoon.length ? `Använd det som snart går ut: ${soon.slice(0, 3).map((x) => x.name.toLowerCase()).join(', ')}` : 'Ni har inte ätit de här på två veckor'}</p>
                 <div className="chips">{picks.map((d) => <button key={d.name} className="chip" style={{ '--c': dishColor(d.category) }} onClick={() => setDish(next, d.name)}>{d.name}</button>)}</div>
               </div>
             )
@@ -149,7 +152,8 @@ export default function Meals({ householdId, me }) {
             const upcoming = days.filter((d) => d >= t).map(planFor).filter(Boolean).map((p) => p.dish)
             return upcoming.length > 0 && <button className="wide" onClick={() => setShopFor([...new Set(upcoming)])}><Icon name="cart" size={18} /> Handla till veckans middagar ({upcoming.length})</button>
           })()}
-          <button className="primary wide" onClick={fillWeek}><Icon name="dice" size={18} /> Fyll tomma dagar med förslag</button>
+          <button className="primary wide" onClick={fillWeek}><Icon name="dice" size={18} /> Föreslå veckan</button>
+          <p className="muted small center-text">Fyller tomma dagar med sådant ni gillar och inte ätit på två veckor{soon.length ? ', och använder det som snart går ut' : ''}.</p>
           <Fab onClick={() => setPicking(days.find((d) => d >= t && !planFor(d)) || (days.includes(t) ? t : days[0]))} label="Välj middag" />
         </>
       )}

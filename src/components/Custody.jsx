@@ -1,3 +1,4 @@
+import { MemberTag } from './MemberPicker'
 import { useState } from 'react'
 import { today, addDays, prettyDay, parseDay, iso } from '../lib/dates'
 import { withUs, nextHandover, isHandover } from '../lib/custody'
@@ -42,7 +43,7 @@ export function CustodyLine({ custody, members, me, linked, big = false }) {
         const s = custodyStatus(c, me, linked)
         return (
           <div key={c.id} className="row custody-item">
-            <span className="avatar" style={{ background: kid.color, width: big ? 34 : 26, height: big ? 34 : 26 }}>{kid.short || kid.name[0]}</span>
+            <MemberTag member={kid} size={big ? 34 : 26} />
             <span className="grow"><strong>{kid.name}</strong> är {s.here ? 'hos oss' : `hos ${s.other}`}
               <span className="muted"> · {s.nextHere ? 'kommer' : 'åker'} {dayWord(s.next.date)} kl {s.next.time}</span></span>
             <PackChip kid={kid} c={c} me={me} linked={linked} items={items} onClick={() => setPackFor(kid)} />

@@ -11,6 +11,10 @@
   --line: #333735; --accent: #5fb39a; --accent-text: #0e1a16; color-scheme: dark; }
 :root[data-theme="light"] { color-scheme: light; }
 * { box-sizing: border-box; }
+/* Egen färg för hushållet (sätts från appen) */
+:root[style*="--accent-light"] { --accent: var(--accent-light); --accent-text: var(--accent-light-text); }
+@media (prefers-color-scheme: dark) { :root[style*="--accent-dark"]:not([data-theme="light"]) { --accent: var(--accent-dark); --accent-text: var(--accent-dark-text); } }
+:root[data-theme="dark"][style*="--accent-dark"] { --accent: var(--accent-dark); --accent-text: var(--accent-dark-text); }
 html, body { margin: 0; background: var(--bg); color: var(--text);
   font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 h1 { font-size: 1.6rem; margin: 0 0 .5rem; }
@@ -411,7 +415,7 @@ html.kiosk body { overflow: hidden; }
 .mval { font-size: .65rem; color: var(--muted); }
 .mlabel { font-size: .65rem; color: var(--muted); }
 .bars { display: grid; gap: 6px; }
-.bar-row { display: grid; grid-template-columns: 9em 1fr 2em; gap: 8px; align-items: center; font-size: .88rem; }
+.bar-row { display: grid; grid-template-columns: 9em 1fr minmax(2em, auto); gap: 8px; align-items: center; font-size: .88rem; }
 .bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-track { height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; }
 .bar-track i { display: block; height: 100%; border-radius: 5px; }
@@ -550,3 +554,44 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 :root[data-theme="dark"] .warn-line { background: #3a2f10; color: #ffd98a; }
 .holidays { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
 .card-inset { background: var(--bg); border-radius: 12px; padding: 10px; }
+
+/* Väder */
+.weather { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.weather .w-icon { font-size: 2.4rem; line-height: 1; }
+.weather .w-temp { font-size: 1.5rem; font-weight: 700; }
+.weather + .k-exit { margin-left: 8px; }
+
+/* Köksskärmens nattläge */
+.kitchen.night { background: #000; color: #9a9a9a; align-items: center; justify-content: center; text-align: center; gap: 10px; cursor: pointer; }
+.kitchen.night .n-clock { font-size: min(26vw, 13rem); font-weight: 200; font-variant-numeric: tabular-nums; line-height: 1; color: #bdbdbd; }
+.kitchen.night .n-date { font-size: 1.4rem; }
+.kitchen.night .weather { margin: 8px 0 0; color: #9a9a9a; }
+.kitchen.night .weather .muted { color: #777; }
+.kitchen.night .n-next { max-width: 40em; font-size: 1.1rem; }
+.kitchen.night .n-hint { position: fixed; bottom: 18px; font-size: .85rem; color: #555; margin: 0; }
+
+/* Profilbilder */
+.avatar.pic { overflow: hidden; padding: 0; }
+.avatar.pic img, .avatar-edit img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; }
+.avatar-edit { position: relative; border-radius: 50%; padding: 0; border: none; color: #fff; font-weight: 700; flex: none; display: grid; place-items: center; }
+.avatar-edit i { position: absolute; right: -4px; bottom: -4px; font-size: .7rem; font-style: normal; background: var(--card); border: 1px solid var(--line); border-radius: 50%; width: 18px; height: 18px; display: grid; place-items: center; }
+.avatar-edit.busy { opacity: .5; }
+
+/* Offline */
+.offline-bar { position: sticky; top: 0; z-index: 30; background: #444; color: #fff; text-align: center; font-size: .85rem; padding: calc(env(safe-area-inset-top) + 4px) 8px 4px; }
+
+.season { font-weight: 400; }
+.app.guest main { padding-bottom: 2rem; }
+.sm-cost { max-width: 420px; margin: auto; padding: 24px 18px; width: 100%; box-sizing: border-box; }
+.big-input { font-size: 1.6rem; text-align: center; }
+/* Humör */
+.mood .mood-row { display: flex; justify-content: space-between; gap: 6px; margin: 10px 0; }
+.mood .mood-row button { flex: 1; font-size: 2rem; padding: .35rem 0; border-radius: 14px; background: var(--bg); border: 2px solid transparent; }
+.mood .mood-row button.on { border-color: var(--c, var(--accent)); background: var(--card); transform: scale(1.06); }
+.mood-week { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; margin-top: 4px; }
+.mood-week span { display: grid; gap: 2px; }
+.mood-week i { font-style: normal; font-size: 1.2rem; min-height: 1.5rem; }
+.app.own-accent[data-tab] { --accent: var(--accent-light); --accent-text: var(--accent-light-text); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .app.own-accent[data-tab] { --accent: var(--accent-dark); --accent-text: var(--accent-dark-text); } }
+:root[data-theme="dark"] .app.own-accent[data-tab] { --accent: var(--accent-dark); --accent-text: var(--accent-dark-text); }
+.bar-n { white-space: nowrap; }

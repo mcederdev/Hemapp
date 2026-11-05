@@ -1,3 +1,4 @@
+import { MemberTag } from './MemberPicker'
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { useTable } from '../useTable'
@@ -6,9 +7,10 @@ import Sheet, { Fab } from './Sheet'
 import Icon from './Icon'
 import { getTheme, setTheme } from '../lib/theme'
 import { CustodyEditor } from './Custody'
+import { AvatarUpload, AccentPicker, PlacePicker, Guests, ExportData } from './FamilyExtras'
 import { pushSupport, currentSubscription, enablePush, disablePush } from '../lib/push'
 
-export default function Family({ me, householdId, members, membersTable, household, households, linked, custody, custodyTable, custodyExc }) {
+export default function Family({ me, householdId, members, membersTable, household, households, linked, custody, custodyTable, custodyExc, guests, guestsTable }) {
   const [childName, setChildName] = useState('')
   const [adding, setAdding] = useState(false)
   const templates = useTable('chore_templates', householdId)
@@ -25,7 +27,7 @@ export default function Family({ me, householdId, members, membersTable, househo
     <section>
       <h2>{household?.name || 'Familjen'}</h2>
       <Notifications me={me} household={household} households={households} />
-      <ThemePicker />
+      <ThemePicker household={household} households={households} />
 
       <div className="card stack">
         <h3>Medlemmar</h3>
@@ -33,7 +35,7 @@ export default function Family({ me, householdId, members, membersTable, househo
           {members.map((m) => m.household_id !== householdId ? (
             <li key={m.id} className="col">
               <div className="row between w100">
-                <span className="row"><span className="avatar" style={{ background: m.color, width: 26, height: 26 }}>{m.short}</span><span>{m.name}</span></span>
+                <span className="row"><MemberTag member={m} size={26} /><span>{m.name}</span></span>
                 <span className="muted small">Delas med {linked?.households.find((h) => h.household_id === m.household_id)?.name || 'andra hushållet'}</span>
               </div>
               <CustodyEditor child={m} custody={custody} table={custodyTable} me={me} linked={linked} excTable={custodyExc} />
@@ -42,6 +44,7 @@ export default function Family({ me, householdId, members, membersTable, househo
             <li key={m.id} className="col">
               <div className="row between w100">
                 <span className="row">
+                  <AvatarUpload member={m} householdId={householdId} membersTable={membersTable} size={36} />
                   <input type="color" value={m.color} onChange={(e) => membersTable.update(m.id, { color: e.target.value })} aria-label="Färg" />
                   <span>{m.name}{m.id === me.id && ' (du)'}</span>
                 </span>
@@ -64,12 +67,17 @@ export default function Family({ me, householdId, members, membersTable, househo
       {household && (
         <div className="card stack">
           <h3>Bjud in den andra föräldern</h3>
-          <p>Hen skapar ett konto i appen, väljer <em>Gå med med kod</em> och skriver:</p>
+          <p>Hen skapar ett konto i appen, väljer <em>Gå med i min familj</em> och skriver:</p>
           <p className="code">{household.invite_code}</p>
+          <button className="link" onClick={() => confirm('Göra en ny kod? Den gamla slutar fungera. De som redan är med påverkas inte.') &&
+            households.update(household.id, { invite_code: Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, '0')).join('').toUpperCase() })}>Gör en ny kod</button>
         </div>
       )}
 
       <SharedCustody members={members} householdId={householdId} linked={linked} membersTable={membersTable} />
+      <Guests guests={guests || []} guestsTable={guestsTable} />
+      <PlacePicker household={household} households={households} />
+      <ExportData householdId={householdId} household={household} />
 
       {templates.rows.length > 0 && (
         <div className="card stack">
@@ -144,7 +152,7 @@ function Notifications({ me, household, households }) {
   )
 }
 
-function ThemePicker() {
+function ThemePicker({ household, households }) {
   const [theme, set] = useState(getTheme())
   const pick = (t) => { set(t); setTheme(t) }
   return (
@@ -155,6 +163,7 @@ function ThemePicker() {
           <button key={v} className={theme === v ? 'active' : ''} onClick={() => pick(v)}>{l}</button>
         ))}
       </div>
+      <AccentPicker household={household} households={households} />
     </div>
   )
 }

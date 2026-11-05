@@ -17,19 +17,19 @@ export function NoteButton({ onClick }) {
   return <button className="note-mini" onClick={onClick} aria-label="Ny lapp"><span>+</span>Lapp</button>
 }
 
-export default function Notes({ householdId, members, me, big = false, open = false, setOpen = null }) {
+export default function Notes({ householdId, members, me, guests = [], guest = null, big = false, open = false, setOpen = null }) {
   const notes = useTable('notes', householdId)
   const [own, setOwn] = useState(null)
   // Formuläret kan öppnas utifrån (knappen i familjeremsan)
   const adding = setOpen ? (open ? (own || blank()) : null) : own
   const setAdding = (v) => { setOwn(v); if (setOpen && !v) setOpen(false) }
   const t = today()
-  const byId = Object.fromEntries(members.map((m) => [m.id, m]))
+  const byId = Object.fromEntries([...members, ...guests.map((g) => ({ ...g, short: g.name.slice(0, 1).toUpperCase(), role: 'guest' }))].map((m) => [m.id, m]))
   const visible = notes.rows.filter((n) => !n.until || n.until >= t)
   const save = async (e) => {
     e.preventDefault()
     if (!adding.text.trim() && !adding.sticker) return
-    await notes.insert({ text: adding.text.trim(), sticker: adding.sticker || null, to_member: adding.to || null, color: adding.color, author: me?.id || null, until: adding.until || null })
+    await notes.insert({ text: adding.text.trim(), sticker: adding.sticker || null, to_member: adding.to || null, color: adding.color, author: guest ? null : me?.id || null, ...(guest ? { guest_author: guest.id } : {}), until: adding.until || null })
     setAdding(null)
   }
   return (
@@ -37,11 +37,11 @@ export default function Notes({ householdId, members, me, big = false, open = fa
       {(visible.length > 0 || (!big && !setOpen)) && <div className={`notes ${big ? 'big' : ''}`}>
         {visible.map((n) => (
           <div key={n.id} className="note" style={{ background: COLORS[n.color] || COLORS.yellow }}>
-            <button className="note-x" onClick={() => notes.remove(n.id)} aria-label="Ta bort lappen">✕</button>
+            {!guest && <button className="note-x" onClick={() => notes.remove(n.id)} aria-label="Ta bort lappen">✕</button>}
             {byId[n.to_member] && <span className="note-to">Till {byId[n.to_member].name}</span>}
             {n.sticker && <span className={`note-sticker ${n.text ? '' : 'solo'}`}>{n.sticker}</span>}
             {n.text && <p>{n.text}</p>}
-            <span className="note-meta">{byId[n.author] && <MemberTag member={byId[n.author]} size={18} />}{n.until && <span>till {prettyDay(n.until)}</span>}</span>
+            <span className="note-meta">{byId[n.author || n.guest_author] && <MemberTag member={byId[n.author || n.guest_author]} size={18} />}{n.until && <span>till {prettyDay(n.until)}</span>}</span>
           </div>
         ))}
         {!big && !setOpen && <button className="note add" onClick={() => setAdding(blank())}>+ Lapp</button>}
@@ -57,7 +57,7 @@ export default function Notes({ householdId, members, me, big = false, open = fa
               <div className="chips">
                 <span className="muted small">Till:</span>
                 <button type="button" className={`chip ${!adding.to ? 'on' : ''}`} onClick={() => setAdding({ ...adding, to: '' })}>Alla</button>
-                {members.filter((m) => m.id !== me?.id && m.household_id === me?.household_id).map((m) => <button type="button" key={m.id} className={`chip ${adding.to === m.id ? 'on' : ''}`} onClick={() => setAdding({ ...adding, to: m.id })}>{m.name}</button>)}
+                {members.filter((m) => m.id !== me?.id && m.household_id === (me?.household_id || guest?.household_id)).map((m) => <button type="button" key={m.id} className={`chip ${adding.to === m.id ? 'on' : ''}`} onClick={() => setAdding({ ...adding, to: m.id })}>{m.name}</button>)}
               </div>
             )}
             <div className="row">
@@ -77,8 +77,12 @@ export function Soon({ householdId, go, bare = false }) {
   const reminders = useTable('reminders', householdId, 'due_date')
   const birthdays = useTable('birthdays', householdId)
   const meds = useTable('medicines', householdId)
+  const pantry = useTable('pantry_items', householdId, 'best_before')
+  const subs = useTable('subscriptions', householdId)
   const t = today()
   const items = [
+    ...pantry.rows.filter((x) => x.best_before).map((x) => ({ id: x.id, emoji: '🥛', text: `${x.name} ${daysUntil(t, x.best_before) < 0 ? 'har gått ut' : 'går ut'}`, n: daysUntil(t, x.best_before), show: daysUntil(t, x.best_before) <= 1 })),
+    ...subs.rows.filter((x) => x.cancel_by).map((x) => ({ id: x.id, emoji: '✂️', text: `Säg upp ${x.name}`, n: daysUntil(t, x.cancel_by), show: daysUntil(t, x.cancel_by) <= 7 && daysUntil(t, x.cancel_by) >= -1 })),
     ...meds.rows.map((m) => { const s = medicineStatus(m, t); return { id: m.id, emoji: '💊', text: `${m.name} ${s.left <= 0 ? 'är slut' : 'tar slut'}`, n: s.daysLeft, show: s.daysLeft <= m.remind_days } }),
     ...reminders.rows.map((r) => ({ id: r.id, emoji: r.emoji, text: r.title, n: daysUntil(t, r.due_date), show: daysUntil(t, r.due_date) <= Math.max(r.remind_days, 0) })),
     ...birthdays.rows.map((b) => { const x = nextBirthday(b.day, t); return { id: b.id, emoji: '🎂', text: `${b.name}${b.year_known ? ` fyller ${x.age}` : ' fyller år'}`, n: x.daysLeft, show: x.daysLeft <= Math.max(b.remind_days, 0) } })

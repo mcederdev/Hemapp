@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import Weather from './Weather'
 import { useTable } from '../useTable'
 import { expandEvents, dayList, timeOf, shortLine } from '../lib/events'
 import { today, parseDay, addDays, startOfWeek, weekdayName } from '../lib/dates'
@@ -15,7 +16,7 @@ import { CustodyLine } from './Custody'
 import Messages from './Messages'
 
 // Köksskärm för en iPad på kylskåpet: klocka, dagen, sysslor, mat och inköp på en skärm
-export default function Kitchen({ householdId, members, people, me, onExit, custody, linked }) {
+export default function Kitchen({ householdId, members, people, me, onExit, custody, linked, guests, household }) {
   useWakeLock(true)
   const now = useNow(15000)
   const events = useTable('events', householdId, 'starts_at')
@@ -36,7 +37,24 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
   const defaultList = lists.rows.find((l) => l.is_default)
   const toBuy = items.rows.filter((i) => !i.done && i.list_id === defaultList?.id)
   const week = Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(t), i))
+  // Nattläge 21–06: bara klockan, dämpat. Tryck för att visa allt en stund.
+  const [awakeUntil, setAwakeUntil] = useState(0)
+  const h = now.getHours()
+  const night = (h >= 21 || h < 6) && Date.now() > awakeUntil
   const catOf = (dish) => [...dishes.rows, ...COMMON_DISHES].find((d) => d.name.toLowerCase() === dish?.toLowerCase())?.category
+
+  if (night) {
+    const tmr = h >= 21 ? tomorrow : dayList(expandEvents(events.rows, d0, d1), d0)
+    return (
+      <div className="kitchen night" onClick={() => setAwakeUntil(Date.now() + 2 * 60000)}>
+        <div className="n-clock">{timeOf(now)}</div>
+        <div className="n-date cap">{now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+        <Weather household={household} tomorrow={h >= 21} />
+        {tmr.length > 0 && <p className="n-next">{h >= 21 ? 'Imorgon' : 'Idag'}: {tmr.map(shortLine).join(', ')}</p>}
+        <p className="n-hint">Tryck för att visa allt</p>
+      </div>
+    )
+  }
 
   return (
     <div className="kitchen">
@@ -46,6 +64,7 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
           <div className="k-date cap">{now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
           <div className="muted">Middag: <strong>{dinner?.dish || 'inte bestämd'}</strong></div>
         </div>
+        <Weather household={household} />
         <button className="k-exit" onClick={onExit} aria-label="Stäng köksskärmen">✕</button>
       </header>
 
@@ -95,12 +114,12 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
 
         <section className="k-card k-notes">
           <h3>Lappar</h3>
-          <Notes householdId={householdId} members={members} me={me} big />
+          <Notes householdId={householdId} members={members} me={me} guests={guests} big />
         </section>
 
         <section className="k-card k-msgs">
           <h3>Meddelanden</h3>
-          <Messages me={me} householdId={householdId} people={people} linked={linked} compact />
+          <Messages me={me} householdId={householdId} people={people} guests={guests} linked={linked} compact />
         </section>
 
         <section className="k-card k-shop">

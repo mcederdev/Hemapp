@@ -6,10 +6,25 @@ import { monthStart, addMonths, monthName, today } from '../lib/dates'
 import MemberPicker from './MemberPicker'
 import SwipeRow from './Swipe'
 import Sheet, { Fab } from './Sheet'
+import Subscriptions from './Subscriptions'
 
 const kr = (n) => Math.round(n).toLocaleString('sv-SE') + ' kr'
 
-export default function Finance({ householdId, members, membersTable, go }) {
+export default function Finance(props) {
+  const [view, setView] = useState(() => { try { return localStorage.getItem('financeView') || 'bills' } catch { return 'bills' } })
+  const pick = (v) => { setView(v); try { localStorage.setItem('financeView', v) } catch { /* */ } }
+  return (
+    <>
+      <div className="seg mb fin-seg">
+        <button className={view === 'bills' ? 'active' : ''} onClick={() => pick('bills')}>Räkningar</button>
+        <button className={view === 'subs' ? 'active' : ''} onClick={() => pick('subs')}>Abonnemang</button>
+      </div>
+      {view === 'bills' ? <Bills {...props} /> : <section><h2>Abonnemang</h2><Subscriptions householdId={props.householdId} members={props.members} /></section>}
+    </>
+  )
+}
+
+function Bills({ householdId, members, membersTable, go }) {
   const bills = useTable('bills', householdId)
   const settlements = useTable('settlements', householdId, 'month')
   const parents = members.filter((m) => m.role === 'parent')

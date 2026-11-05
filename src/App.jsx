@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase, isConfigured } from './supabase'
-import { useTable } from './useTable'
+import { useTable, pendingCount } from './useTable'
 import { useLinked } from './useLinked'
 import Car from './components/Car'
 import Messages, { lastSeen } from './components/Messages'
 import Medicines from './components/Medicines'
 import Landing from './components/Landing'
+import GuestHome from './components/GuestHome'
 import Setup from './components/Setup'
 import Shopping from './components/Shopping'
 import Chores from './components/Chores'
@@ -21,6 +22,7 @@ import Stats from './components/Stats'
 import Reminders from './components/Reminders'
 import Icon from './components/Icon'
 import { withInitials } from './components/MemberPicker'
+import { applyAccent } from './lib/accent'
 
 const TABS = [
   { id: 'today', label: 'Idag', icon: 'home' },
@@ -46,17 +48,31 @@ const MORE = [
 export default function App() {
   const [session, setSession] = useState(undefined)
   const [me, setMe] = useState(undefined)
+  const [guest, setGuest] = useState(null)
 
   useEffect(() => {
     if (!isConfigured) return
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    const { data } = supabase.auth.onAuthStateChange((e, s) => {
+      setSession(s)
+      // Utloggad: rensa sparade kopior i telefonen
+      if (e === 'SIGNED_OUT') { try { Object.keys(localStorage).filter((k) => k.startsWith('cache:') || k === 'outbox' || k === 'me').forEach((k) => localStorage.removeItem(k)) } catch { /* */ } }
+    })
     return () => data.subscription.unsubscribe()
   }, [])
 
   const loadMe = async () => {
     if (!session) return setMe(undefined)
-    const { data } = await supabase.from('members').select('*').eq('user_id', session.user.id).maybeSingle()
+    // Snabb start: visa den sparade kopian direkt medan vi frågar servern
+    const cached = (() => { try { return JSON.parse(localStorage.getItem('me') || 'null') } catch { return null } })()
+    if (cached?.user_id === session.user.id) setMe((m) => m ?? cached)
+    const { data, error } = await supabase.from('members').select('*').eq('user_id', session.user.id).maybeSingle()
+    if (error && cached?.user_id === session.user.id) return // utan nät: behåll kopian
+    if (!data) {
+      const { data: g } = await supabase.from('guests').select('*').eq('user_id', session.user.id).maybeSingle()
+      if (g) { setMe(null); setGuest(g); return }
+    }
+    try { localStorage.setItem('me', JSON.stringify(data)) } catch { /* */ }
     setMe(data)
   }
   useEffect(() => { loadMe() }, [session])
@@ -72,6 +88,7 @@ export default function App() {
   if (session === undefined) return <div className="center">Laddar…</div>
   if (!session) return <Landing />
   if (me === undefined) return <div className="center">Laddar…</div>
+  if (!me && guest) return <GuestHome guest={guest} />
   if (!me) return <Setup onDone={loadMe} />
   return <Home me={me} />
 }
@@ -89,6 +106,7 @@ function Home({ me }) {
   const custodyExc = useTable('custody_exceptions', me.household_id, 'from_date')
   const custody = { ...custodyRaw, rows: custodyRaw.rows.map((c) => ({ ...c, exceptions: custodyExc.rows.filter((e) => e.custody_id === c.id) })) }
   const messages = useTable('messages', me.household_id, 'created_at')
+  const guestsT = useTable('guests', me.household_id)
   // Familjeremsan: vald person filtrerar Idag, Kalender och Sysslor
   const [focus, setFocusState] = useState(() => localStorageGet('focus') || null)
   const setFocus = (id) => { setFocusState(id); localStorageSet('focus', id || '') }
@@ -97,17 +115,28 @@ function Home({ me }) {
   const all = withInitials(members.rows)
   // Alla personer vi kan behöva visa namn för, även föräldrar i det andra hushållet
   const people = withInitials([...members.rows, ...linked.people.filter((p) => !members.rows.some((m) => m.id === p.id)).map((p) => ({ ...p, role: 'parent', linked: true }))])
-  const props = { me, householdId: me.household_id, members: all, people, linked, custody: custody.rows, custodyTable: custodyRaw, custodyExc, membersTable: members, household, households, go: pick,
+  const props = { me, householdId: me.household_id, members: all, people, linked, custody: custody.rows, custodyTable: custodyRaw, custodyExc, membersTable: members, household, households, go: pick, guests: guestsT.rows, guestsTable: guestsT,
     focus: all.some((m) => m.id === focus) ? focus : null, setFocus }
+  useEffect(() => { applyAccent(household?.theme?.accent) }, [household?.theme?.accent])
   const active = MORE.some((m) => m.id === tab) ? 'more' : tab
   const seen = lastSeen()
   const unread = tab === 'messages' ? 0 : messages.rows.filter((m) => m.author !== me.id && m.created_at > seen).length
   const badge = { messages: unread }
 
+  const [online, setOnline] = useState(navigator.onLine)
+  const [pending, setPending] = useState(pendingCount())
+  useEffect(() => {
+    const up = () => { setOnline(navigator.onLine); setPending(pendingCount()) }
+    for (const e of ['online', 'offline', 'outbox-changed', 'outbox-flushed']) window.addEventListener(e, up)
+    return () => { for (const e of ['online', 'offline', 'outbox-changed', 'outbox-flushed']) window.removeEventListener(e, up) }
+  }, [])
+  const offlineBar = !online || pending ? <div className="offline-bar">{online ? `Skickar ${pending} ändringar…` : `Ingen anslutning${pending ? ` · ${pending} ändringar skickas sen` : ''}`}</div> : null
+
   if (tab === 'kitchen') return <Kitchen {...props} onExit={() => pick('today')} />
 
   return (
-    <div className="app" data-tab={tab}>
+    <div className={`app ${household?.theme?.accent ? 'own-accent' : ''}`} data-tab={tab}>
+      {offlineBar}
       <main>
         {tab === 'today' && <Today {...props} />}
         {tab === 'more' && (

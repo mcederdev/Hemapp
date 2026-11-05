@@ -17,7 +17,9 @@ export default function Setup({ onDone }) {
       await supabase.auth.signOut()
       return
     }
-    let { error } = mode === 'join'
+    let { error } = mode === 'guest'
+      ? await supabase.rpc('accept_guest_invite', { code, my_name: name })
+      : mode === 'join'
       ? await supabase.rpc('join_household', { code, my_name: name })
       : await supabase.rpc('create_household', { household_name: household, my_name: name })
     // Delad vårdnad: eget hushåll som kopplas till det som skickade koden
@@ -43,15 +45,16 @@ export default function Setup({ onDone }) {
         <div className="setup-opts" role="radiogroup">
           {[['create', '🏠 Ny familj', 'Ni är först i familjen att använda appen'],
             ['join', '👋 Gå med i min familj', 'Någon i ditt hushåll har redan skapat familjen och gett dig en kod'],
-            ['link', '🔁 Delad vårdnad', 'Du har ett eget hem, och barnet bor växelvis hos dig och den andra föräldern']].map(([v, t, d]) => (
+            ['link', '🔁 Delad vårdnad', 'Du har ett eget hem, och barnet bor växelvis hos dig och den andra föräldern'],
+            ['guest', '👵 Jag är gäst', 'Du är t.ex. mor- eller farförälder och har fått en kod (G…) från familjen']].map(([v, t, d]) => (
             <button type="button" key={v} role="radio" aria-checked={mode === v} className={`setup-opt ${mode === v ? 'on' : ''}`} onClick={() => setMode(v)}>
               <strong>{t}</strong><span className="muted small">{d}</span>
             </button>
           ))}
         </div>
-        <input placeholder="Ditt namn (t.ex. Pappa eller Magnus)" value={name} onChange={(e) => setName(e.target.value)} required />
-        {mode !== 'join' && <input placeholder="Hushållets namn (t.ex. Familjen Ek)" value={household} onChange={(e) => setHousehold(e.target.value)} required />}
-        {mode !== 'create' && <input placeholder={mode === 'link' ? 'Kod från andra vårdnadshavaren (D…)' : 'Inbjudningskod'} value={code} onChange={(e) => setCode(e.target.value)} required />}
+        <input placeholder={mode === 'guest' ? 'Ditt namn (t.ex. Mormor)' : 'Ditt namn (t.ex. Pappa eller Magnus)'} value={name} onChange={(e) => setName(e.target.value)} required />
+        {mode !== 'join' && mode !== 'guest' && <input placeholder="Hushållets namn (t.ex. Familjen Ek)" value={household} onChange={(e) => setHousehold(e.target.value)} required />}
+        {mode !== 'create' && <input placeholder={mode === 'link' ? 'Kod från andra vårdnadshavaren (D…)' : mode === 'guest' ? 'Gästkod (G…)' : 'Inbjudningskod'} value={code} onChange={(e) => setCode(e.target.value)} required />}
         <button className="primary">Fortsätt</button>
         <button type="button" className="link" onClick={() => supabase.auth.signOut()}>Logga ut</button>
         {msg && <p className="error">{msg}</p>}

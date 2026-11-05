@@ -4,6 +4,7 @@ import { startOfWeek, addDays, today, prettyDay } from '../lib/dates'
 import { completeChore } from './Chores'
 import Sheet from './Sheet'
 import { buzz } from './Swipe'
+import Mood from './Mood'
 
 const DEFAULT_ROUTINES = {
   morning: [['🪥', 'Borsta tänderna'], ['👕', 'Klä på dig'], ['🥣', 'Äta frukost'], ['🛏️', 'Bädda sängen'], ['🎒', 'Packa väskan'], ['👟', 'Skor på']],
@@ -97,7 +98,9 @@ export default function Kids({ householdId, members, household, households, memb
         </div>
       </div>
 
-      <div className="seg mb">
+      <Mood householdId={householdId} kid={kid} />
+
+      <div className="seg mb mt">
         <button className={part === 'morning' ? 'active' : ''} onClick={() => setPart('morning')}>☀️ Morgon</button>
         <button className={part === 'evening' ? 'active' : ''} onClick={() => setPart('evening')}>🌙 Kväll</button>
       </div>

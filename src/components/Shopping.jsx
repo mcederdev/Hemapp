@@ -6,6 +6,7 @@ import Sheet, { Fab } from './Sheet'
 import SwipeRow, { Check } from './Swipe'
 import { MemberTag } from './MemberPicker'
 import ShopMode from './ShopMode'
+import Pantry from './Pantry'
 import Icon from './Icon'
 import { checkOff } from '../lib/refill'
 
@@ -71,6 +72,7 @@ export default function Shopping({ householdId, me, members }) {
       <div className="seg">
         <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}>Lista</button>
         <button className={view === 'home' ? 'active' : ''} onClick={() => setView('home')}>Slut hemma</button>
+        <button className={view === 'pantry' ? 'active' : ''} onClick={() => setView('pantry')}>Skafferi</button>
         <button className={view === 'lists' ? 'active' : ''} onClick={() => setView('lists')}>Listor</button>
       </div>
 
@@ -78,7 +80,7 @@ export default function Shopping({ householdId, me, members }) {
         <>
           {todo.length > 0 && <button className="primary wide shop-now" onClick={() => setShopping(true)}><Icon name="cart" size={18} /> Jag handlar nu</button>}
           <div className="mt" />
-          {shopping && <ShopMode list={list} items={items} lists={lists.rows} onClose={() => setShopping(false)} />}
+          {shopping && <ShopMode list={list} items={items} lists={lists.rows} householdId={householdId} me={me} onClose={() => setShopping(false)} />}
           <Fab onClick={() => setAdding(true)} label="Lägg till vara" />
           {adding && (
             <Sheet title={`Lägg till i ${list.name}`} onClose={() => { setAdding(false); setText('') }}>
@@ -148,6 +150,7 @@ export default function Shopping({ householdId, me, members }) {
       )}
 
       {view === 'home' && <OutAtHome catalog={catalog} items={items} add={(n) => add(n, refillList || defaultList)} defaultList={refillList || defaultList} />}
+      {view === 'pantry' && <Pantry householdId={householdId} onOut={(n) => add(n, refillList || defaultList)} />}
       {view === 'lists' && <Lists lists={lists} items={items} onOpen={(id) => { setListId(id); setView('list') }} />}
     </section>
   )

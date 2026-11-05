@@ -1,3 +1,4 @@
+import { seasonEmoji } from '../lib/accent'
 import { useState } from 'react'
 import { useNow } from '../lib/useNow'
 import { useTable } from '../useTable'
@@ -34,7 +35,7 @@ export function buildFlow({ events, day, dinner, now, focus, withDinner = true }
   return { allDay, flow: timed, d0 }
 }
 
-export default function Today({ householdId, members, people, go, me, focus, setFocus, custody, linked }) {
+export default function Today({ householdId, members, people, go, me, focus, setFocus, custody, linked, household, guests }) {
   const events = useTable('events', householdId, 'starts_at')
   const chores = useTable('chores', householdId)
   const meals = useTable('meal_plan', householdId, 'day')
@@ -82,14 +83,14 @@ export default function Today({ householdId, members, people, go, me, focus, set
   return (
     <section className="today">
       <header className="today-head">
-        <h2>{greet}, {me.name}!</h2>
+        <h2>{greet}, {me.name}!{household?.theme?.season !== false && <span className="season"> {seasonEmoji(today())}</span>}</h2>
         <p className="muted cap">{d0.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </header>
 
       <FamilyStrip members={members} focus={focus} setFocus={setFocus} counts={overdue} extra={<NoteButton onClick={() => setNoteOpen(true)} />} />
-      <Notes householdId={householdId} members={members} me={me} open={noteOpen} setOpen={setNoteOpen} />
+      <Notes householdId={householdId} members={members} me={me} guests={guests} open={noteOpen} setOpen={setNoteOpen} />
       <CustodyLine custody={(custody || []).filter((c) => forFocus(focus, c.child_id))} members={members} me={me} linked={linked} />
-      <Pickups householdId={householdId} members={members} people={people} me={me} custody={custody} events={events.rows} />
+      <Pickups householdId={householdId} members={members} people={[...(people || members), ...(guests || []).map((g) => ({ ...g, role: 'guest', short: g.name.slice(0, 1).toUpperCase() }))]} me={me} custody={custody} events={events.rows} />
 
       <div className="hero">
         <div className="hero-label"><Icon name="food" size={16} /> Middag ikväll</div>

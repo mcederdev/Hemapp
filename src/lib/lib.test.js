@@ -205,3 +205,17 @@ test('medicin: räcker till', () => {
   assert.deepEqual(medicineStatus(m, '2026-11-05'), { left: 60, daysLeft: 6, runsOut: '2026-11-11', share: 0.6 })
   assert.equal(medicineStatus(m, '2026-12-01').left, 0)
 })
+
+import { suggestWeek, expiringSoon } from './suggest.js'
+test('veckoförslag undviker det som ätits nyligen och använder det som går ut', () => {
+  const all = [{ name: 'Tacos', category: 'kott' }, { name: 'Lax', category: 'fisk' }, { name: 'Pannkakor', category: 'veg' }, { name: 'Lasagne', category: 'kott' }]
+  const plan = [{ day: '2026-11-01', dish: 'Tacos' }]
+  const pantry = [{ name: 'Mjölk', best_before: '2026-11-06' }, { name: 'Ris', best_before: '2027-05-01' }]
+  const dishItems = [{ dish: 'Pannkakor', items: ['mjölk', 'ägg', 'mjöl'] }]
+  assert.deepEqual(expiringSoon(pantry, '2026-11-05').map((x) => x.name), ['Mjölk'])
+  const r = suggestWeek({ all, plan, days: ['2026-11-05', '2026-11-06', '2026-11-07'], today: '2026-11-05', pantry, dishItems, random: () => 0 })
+  assert.equal(r[0].dish, 'Pannkakor')
+  assert.deepEqual(r[0].uses, ['Mjölk'])
+  assert.ok(!r.some((x) => x.dish === 'Tacos'))
+  assert.equal(new Set(r.map((x) => x.dish)).size, r.length)
+})
