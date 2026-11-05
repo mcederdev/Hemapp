@@ -21,8 +21,16 @@ function untilDate(v) {
   return z ? new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +s)) : new Date(+y, +mo - 1, +d, +h, +mi, +s)
 }
 
-// Returnerar starttider (Date) för alla förekomster som börjar inom [from, to)
-export function occurrences(start, rruleStr, from, to) {
+// Returnerar starttider (Date) för alla förekomster som börjar inom [from, to).
+// exdates = tillfällen som tagits bort (ISO-strängar eller Date).
+export function occurrences(start, rruleStr, from, to, exdates) {
+  const all = occurrencesAll(start, rruleStr, from, to)
+  if (!exdates?.length) return all
+  const skip = new Set(exdates.map((d) => new Date(d).getTime()))
+  return all.filter((d) => !skip.has(d.getTime()))
+}
+
+function occurrencesAll(start, rruleStr, from, to) {
   const rule = parseRrule(rruleStr)
   const first = new Date(start)
   if (!rule) return first >= from && first < to ? [first] : []
@@ -66,7 +74,11 @@ export function occurrences(start, rruleStr, from, to) {
   return out
 }
 
-// Bygger en enkel RRULE från appens val
-export function simpleRrule(freq) {
-  return { weekdays: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', weekly: 'FREQ=WEEKLY', biweekly: 'FREQ=WEEKLY;INTERVAL=2', monthly: 'FREQ=MONTHLY', daily: 'FREQ=DAILY', yearly: 'FREQ=YEARLY' }[freq] || null
+// Bygger en enkel RRULE från appens val, ev. med slutdatum (YYYY-MM-DD)
+export function simpleRrule(freq, until) {
+  const base = simpleBase(freq)
+  return base && until ? `${base};UNTIL=${until.replaceAll('-', '')}T235959` : base
+}
+function simpleBase(freq) {
+  return { weekdays: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', weekdays2: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,TU,WE,TH,FR', weekly: 'FREQ=WEEKLY', biweekly: 'FREQ=WEEKLY;INTERVAL=2', monthly: 'FREQ=MONTHLY', daily: 'FREQ=DAILY', yearly: 'FREQ=YEARLY' }[freq] || null
 }

@@ -44,14 +44,16 @@ function splitTime(t) {
 export function describe(rrule) {
   const r = parseRrule(rrule)
   if (!r) return ''
-  if (r.FREQ === 'WEEKLY' && r.BYDAY && (!r.INTERVAL || r.INTERVAL === '1')) {
-    const d = r.BYDAY.split(',').map((x) => x.slice(-2)).sort().join(',')
-    if (d === 'FR,MO,TH,TU,WE') return 'vardagar'
-    if (d === 'SA,SU') return 'helger'
-  }
   const n = Number(r.INTERVAL || 1)
-  const base = { DAILY: 'dag', WEEKLY: 'vecka', MONTHLY: 'månad', YEARLY: 'år' }[r.FREQ] || ''
-  if (n === 1) return `varje ${base}`
-  if (n === 2) return base === 'år' ? 'vartannat år' : `varannan ${base}`
-  return `var ${n}:e ${base}`
+  let text
+  const d = r.FREQ === 'WEEKLY' && r.BYDAY ? r.BYDAY.split(',').map((x) => x.slice(-2)).sort().join(',') : ''
+  if (d === 'FR,MO,TH,TU,WE') text = n === 1 ? 'vardagar' : n === 2 ? 'vardagar varannan vecka' : `vardagar var ${n}:e vecka`
+  else if (d === 'SA,SU') text = n === 1 ? 'helger' : n === 2 ? 'helger varannan vecka' : `helger var ${n}:e vecka`
+  else {
+    const base = { DAILY: 'dag', WEEKLY: 'vecka', MONTHLY: 'månad', YEARLY: 'år' }[r.FREQ] || ''
+    text = n === 1 ? `varje ${base}` : n === 2 ? (base === 'år' ? 'vartannat år' : `varannan ${base}`) : `var ${n}:e ${base}`
+  }
+  const u = r.UNTIL?.match(/^(\d{4})(\d{2})(\d{2})/)
+  if (u) text += ` till ${new Date(+u[1], +u[2] - 1, +u[3]).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })}`
+  return text
 }

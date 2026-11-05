@@ -13,7 +13,7 @@ import FamilyStrip, { forFocus } from './FamilyStrip'
 import DayColumns from './DayColumns'
 
 const REPEATS = [
-  { v: '', label: 'Upprepa inte' }, { v: 'daily', label: 'Varje dag' }, { v: 'weekdays', label: 'Vardagar (mån–fre)' }, { v: 'weekly', label: 'Varje vecka' },
+  { v: '', label: 'Upprepa inte' }, { v: 'daily', label: 'Varje dag' }, { v: 'weekdays', label: 'Vardagar (mån–fre)' }, { v: 'weekdays2', label: 'Vardagar varannan vecka' }, { v: 'weekly', label: 'Varje vecka' },
   { v: 'biweekly', label: 'Varannan vecka' }, { v: 'monthly', label: 'Varje månad' }, { v: 'yearly', label: 'Varje år' }
 ]
 const REMIND = [{ v: 0, label: 'Ingen påminnelse' }, { v: 15, label: '15 min innan' }, { v: 30, label: '30 min innan' }, { v: 60, label: '1 timme innan' }, { v: 120, label: '2 timmar innan' }]
@@ -24,7 +24,7 @@ export default function Calendar({ householdId, members, focus: who, setFocus: s
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [selected, setSelected] = useState(today())
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ title: '', date: today(), time: '', endTime: '', member: null, location: '', repeat: '', remind: 30 })
+  const [form, setForm] = useState({ title: '', date: today(), time: '', endTime: '', member: null, location: '', repeat: '', until: '', remind: 30 })
   const [importMember, setImportMember] = useState(null)
   const [msg, setMsg] = useState('')
   const [mode, setMode] = useState(() => { try { return localStorage.getItem('calMode') || 'week' } catch { return 'week' } })
@@ -58,9 +58,9 @@ export default function Calendar({ householdId, members, focus: who, setFocus: s
     const ends = form.endTime ? new Date(`${form.date}T${form.endTime}`) : null
     events.insert({
       title: form.title.trim(), starts_at: starts.toISOString(), ends_at: ends?.toISOString() || null, all_day: allDay,
-      member_id: form.member, location: form.location || null, rrule: simpleRrule(form.repeat), remind_minutes: allDay ? 0 : Number(form.remind)
+      member_id: form.member, location: form.location || null, rrule: simpleRrule(form.repeat, form.until), remind_minutes: allDay ? 0 : Number(form.remind)
     })
-    setForm({ ...form, title: '', time: '', endTime: '', location: '', repeat: '' })
+    setForm({ ...form, title: '', time: '', endTime: '', location: '', repeat: '', until: '' })
     setShowForm(false)
   }
 
@@ -89,9 +89,22 @@ export default function Calendar({ householdId, members, focus: who, setFocus: s
   }
   const switchMode = (m) => { setMode(m); try { localStorage.setItem('calMode', m) } catch { /* ignoreras */ } }
   const dots = (d) => dayList(occ, d).slice(0, 4).map((o) => <i key={o.key} style={{ background: byId[o.member_id]?.color || 'var(--accent)' }} />)
+  const [removing, setRemoving] = useState(null)
   const removeEvent = (o) => {
-    const msg = o.rrule ? `Ta bort "${o.title}" och alla dess upprepningar?` : `Ta bort "${o.title}"?`
-    if (confirm(msg)) events.remove(o.id)
+    if (o.rrule) return setRemoving(o)
+    if (confirm(`Ta bort "${o.title}"?`)) events.remove(o.id)
+  }
+  // Bara detta tillfälle: spara det som undantag
+  const removeOne = (o) => { events.update(o.id, { exdates: [...(o.exdates || []), o.start.toISOString()] }); setRemoving(null) }
+  // Detta och framtida: låt upprepningen sluta dagen innan
+  const removeFuture = (o) => {
+    const first = new Date(o.starts_at)
+    if (o.start.getTime() <= first.getTime()) { events.remove(o.id); return setRemoving(null) }
+    const prev = new Date(o.start); prev.setDate(prev.getDate() - 1)
+    const until = iso(prev).replaceAll('-', '') + 'T235959'
+    const rule = o.rrule.split(';').filter((p) => !/^(UNTIL|COUNT)=/i.test(p)).join(';') + `;UNTIL=${until}`
+    events.update(o.id, { rrule: rule })
+    setRemoving(null)
   }
 
   return (
@@ -161,6 +174,9 @@ export default function Calendar({ householdId, members, focus: who, setFocus: s
           </div>
           <div className="row">
             <select value={form.repeat} onChange={(e) => setForm({ ...form, repeat: e.target.value })}>{REPEATS.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}</select>
+            {form.repeat && <label className="field"><span className="muted small">Slutar (valfritt)</span><input type="date" value={form.until} min={form.date} onChange={(e) => setForm({ ...form, until: e.target.value })} /></label>}
+          </div>
+          <div className="row">
             {form.time && <select value={form.remind} onChange={(e) => setForm({ ...form, remind: e.target.value })}>{REMIND.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}</select>}
           </div>
           <button className="primary">Spara</button>
@@ -171,6 +187,17 @@ export default function Calendar({ householdId, members, focus: who, setFocus: s
       {mode === 'day'
         ? <DayColumns occ={selOcc} day={selDate} members={who ? members.filter((m) => m.id === who) : members} onRemove={removeEvent} />
         : <EventList list={selOcc} day={selDate} byId={byId} onRemove={removeEvent} empty="Inget denna dag." />}
+
+      {removing && (
+        <Sheet title={`Ta bort "${removing.title}"`} onClose={() => setRemoving(null)}>
+          <p className="muted small">Det här är en återkommande händelse. Vad vill du ta bort?</p>
+          <div className="stack">
+            <button onClick={() => removeOne(removing)}>Bara {removing.start.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'short' })}</button>
+            <button onClick={() => removeFuture(removing)}>Detta och alla framtida</button>
+            <button className="danger" onClick={() => { events.remove(removing.id); setRemoving(null) }}>Alla tillfällen</button>
+          </div>
+        </Sheet>
+      )}
 
       <h3>Kommande två veckor</h3>
       {groupByDay(upcoming).map(([day, evs]) => (

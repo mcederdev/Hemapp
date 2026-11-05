@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
     for (const e of events ?? []) {
       if (e.all_day || !e.remind_minutes) continue
       const windowEnd = new Date(now.getTime() + e.remind_minutes * 60000)
-      const occ = occurrences(new Date(e.starts_at), e.rrule, now, windowEnd)
+      const occ = occurrences(new Date(e.starts_at), e.rrule, now, windowEnd, e.exdates)
       for (const o of occ) {
         if (e.reminded_at && new Date(e.reminded_at).getTime() >= o.getTime()) continue
         const who = nameOf(e.member_id)
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
       const dur = (e: { starts_at: string; ends_at: string | null }) => (e.ends_at ? new Date(e.ends_at).getTime() - new Date(e.starts_at).getTime() : 0)
       // Händelser som började igår och fortsätter idag
       const continuing = (events ?? []).filter((e) => !e.all_day && e.ends_at).flatMap((e) =>
-        occurrences(new Date(e.starts_at), e.rrule, new Date(dayStart.getTime() - dur(e)), dayStart)
+        occurrences(new Date(e.starts_at), e.rrule, new Date(dayStart.getTime() - dur(e)), dayStart, e.exdates)
           .map((o) => new Date(o.getTime() + dur(e)))
           .filter((end) => end > dayStart)
           .map((end) => `Dag2 ${e.title} till ${time(end)}`))
@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
         ...(events ?? []).flatMap((e) =>
           e.all_day
             ? (new Date(e.starts_at) < dayEnd && new Date(e.ends_at ?? e.starts_at) > dayStart && !(continuing.length && e.title.trim().toLowerCase() === 'dag2') ? [`${e.title} (heldag)`] : [])
-            : occurrences(new Date(e.starts_at), e.rrule, dayStart, dayEnd).map((o) => `${time(o)}${e.ends_at ? '–' + time(new Date(o.getTime() + dur(e))) : ''} ${e.title}`))
+            : occurrences(new Date(e.starts_at), e.rrule, dayStart, dayEnd, e.exdates).map((o) => `${time(o)}${e.ends_at ? '–' + time(new Date(o.getTime() + dur(e))) : ''} ${e.title}`))
       ]
       const { data: chores } = await db.from('chores').select('title, assigned_to').eq('household_id', h.id).eq('done', false).lte('due_date', todayLocal)
       const { data: meal } = await db.from('meal_plan').select('dish').eq('household_id', h.id).eq('day', todayLocal).maybeSingle()

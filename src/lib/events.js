@@ -8,7 +8,7 @@ export function expandEvents(events, from, to) {
     const dur = e.ends_at ? new Date(e.ends_at) - start : 0
     // Heldagshändelser över flera dagar: räkna med dem om de överlappar
     const searchFrom = new Date(from.getTime() - Math.max(0, dur))
-    for (const o of occurrences(start, e.rrule, searchFrom, to)) {
+    for (const o of occurrences(start, e.rrule, searchFrom, to, e.exdates)) {
       const end = dur ? new Date(o.getTime() + dur) : null
       if ((end || o) < from && o < from) continue
       out.push({ ...e, start: o, end, key: `${e.id}-${o.getTime()}` })
