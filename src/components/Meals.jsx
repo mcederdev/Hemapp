@@ -34,7 +34,7 @@ function WeekCards({ days, t, planFor, all, plan, onPick }) {
   // Börja med dagens kort längst till vänster
   useEffect(() => {
     const el = strip.current?.querySelector('.meal-card.today') || strip.current?.querySelector('.meal-card:not(.past)')
-    if (el) strip.current.scrollLeft = el.offsetLeft - strip.current.offsetLeft - 2
+    if (el) strip.current.scrollLeft = el.offsetLeft - strip.current.offsetLeft - 8
   }, [days[0]])
   const cat = (dish) => all.find((d) => d.name.toLowerCase() === dish?.toLowerCase())?.category
 
