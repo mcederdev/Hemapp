@@ -11,6 +11,8 @@ import EventRow from './EventRow'
 import FamilyStrip, { forFocus } from './FamilyStrip'
 import SwipeRow, { Check } from './Swipe'
 import Icon from './Icon'
+import ShopForDishes from './ShopForDishes'
+import Notes, { Soon } from './Notes'
 
 // Bygger dagens flöde: händelser och middag i tidsordning, med nu-linjen på rätt plats
 export function buildFlow({ events, day, dinner, now, focus, withDinner = true }) {
@@ -38,6 +40,7 @@ export default function Today({ householdId, members, go, me, focus, setFocus })
   const items = useTable('shopping_items', householdId)
   const lists = useTable('shopping_lists', householdId)
   const [picking, setPicking] = useState(false)
+  const [shopFor, setShopFor] = useState(null)
   const now = useNow()
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
 
@@ -81,12 +84,14 @@ export default function Today({ householdId, members, go, me, focus, setFocus })
       </header>
 
       <FamilyStrip members={members} focus={focus} setFocus={setFocus} counts={overdue} />
+      <Notes householdId={householdId} members={members} me={me} />
 
       <div className="hero">
         <div className="hero-label"><Icon name="food" size={16} /> Middag ikväll</div>
         <div className="hero-dish">{dinner ? dinner.dish : 'Inte bestämt än'}</div>
         <div className="row">
           <button className="hero-btn" onClick={() => setPicking(true)}><Icon name="dice" size={18} /> {dinner ? 'Byt' : 'Tips'}</button>
+          {dinner && <button className="hero-btn" onClick={() => setShopFor([dinner.dish])}><Icon name="cart" size={18} /> Varor</button>}
           <button className="hero-btn ghost" onClick={() => go('meals')}>Veckomeny</button>
         </div>
       </div>
@@ -152,6 +157,8 @@ export default function Today({ householdId, members, go, me, focus, setFocus })
         </ul>
       </div>
 
+      <Soon householdId={householdId} go={go} />
+
       <div className="card compact">
         <button className="card-head" onClick={() => go('shopping')}>
           <span className="row"><Icon name="cart" size={18} /> <strong>Handla</strong>{toBuy.length > 0 && <span className="count">{toBuy.length}</span>}</span>
@@ -163,6 +170,7 @@ export default function Today({ householdId, members, go, me, focus, setFocus })
         {otherLists.map((l) => <p key={l.id} className="muted small pad">{l.name} · {parseDay(l.for_date).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })}</p>)}
       </div>
 
+      {shopFor && <ShopForDishes householdId={householdId} me={me} dishes={shopFor} onClose={() => setShopFor(null)} />}
       {picking && <Picker day={t} all={allDishes} onPick={setDinner} onClose={() => setPicking(false)} />}
     </section>
   )

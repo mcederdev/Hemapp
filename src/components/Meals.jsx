@@ -5,6 +5,7 @@ import { addDays, startOfWeek, today, weekdayName, parseDay } from '../lib/dates
 import Icon from './Icon'
 import SwipeRow, { buzz } from './Swipe'
 import Sheet, { Fab } from './Sheet'
+import ShopForDishes from './ShopForDishes'
 
 const shuffle = (a) => [...a].sort(() => Math.random() - 0.5)
 // Samma "slumpade" ordning hela dagen så att förslagen inte hoppar runt vid varje uppdatering
@@ -87,12 +88,13 @@ function WeekCards({ days, t, planFor, all, plan, onPick }) {
   )
 }
 
-export default function Meals({ householdId }) {
+export default function Meals({ householdId, me }) {
   const dishes = useTable('dishes', householdId)
   const plan = useTable('meal_plan', householdId, 'day')
   const [week, setWeek] = useState(startOfWeek(today()))
   const [picking, setPicking] = useState(null) // datum som väljs
   const [view, setView] = useState('week')
+  const [shopFor, setShopFor] = useState(null)
 
   const own = dishes.rows.map((d) => ({ ...d, own: true }))
   const all = [...own, ...COMMON_DISHES.filter((c) => !own.some((o) => o.name.toLowerCase() === c.name.toLowerCase()))]
@@ -143,12 +145,17 @@ export default function Meals({ householdId }) {
               </div>
             )
           })()}
+          {(() => {
+            const upcoming = days.filter((d) => d >= t).map(planFor).filter(Boolean).map((p) => p.dish)
+            return upcoming.length > 0 && <button className="wide" onClick={() => setShopFor([...new Set(upcoming)])}><Icon name="cart" size={18} /> Handla till veckans middagar ({upcoming.length})</button>
+          })()}
           <button className="primary wide" onClick={fillWeek}><Icon name="dice" size={18} /> Fyll tomma dagar med förslag</button>
           <Fab onClick={() => setPicking(days.find((d) => d >= t && !planFor(d)) || (days.includes(t) ? t : days[0]))} label="Välj middag" />
         </>
       )}
 
       {view === 'dishes' && <Dishes dishes={dishes} all={all} />}
+      {shopFor && <ShopForDishes householdId={householdId} me={me} dishes={shopFor} title="Handla till veckan" onClose={() => setShopFor(null)} />}
       {picking && <Picker day={picking} all={all} onPick={(dish) => setDish(picking, dish)} onClose={() => setPicking(null)} />}
     </section>
   )

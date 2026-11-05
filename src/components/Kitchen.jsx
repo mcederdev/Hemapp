@@ -9,6 +9,7 @@ import { MemberTag } from './MemberPicker'
 import { dishColor } from './Meals'
 import { COMMON_DISHES } from '../lib/defaults'
 import EventRow from './EventRow'
+import Notes, { Soon } from './Notes'
 
 // Köksskärm för en iPad på kylskåpet: klocka, dagen, sysslor, mat och inköp på en skärm
 export default function Kitchen({ householdId, members, me, onExit }) {
@@ -87,6 +88,12 @@ export default function Kitchen({ householdId, members, me, onExit }) {
               )
             })}
           </ul>
+        </section>
+
+        <section className="k-card k-notes">
+          <h3>Lappar</h3>
+          <Notes householdId={householdId} members={members} me={me} big />
+          <Soon householdId={householdId} go={() => {}} />
         </section>
 
         <section className="k-card k-shop">

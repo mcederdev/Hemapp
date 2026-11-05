@@ -151,3 +151,11 @@ test('kategorier', () => {
   assert.equal(rulePrefix('M1LR09'), 'M1LR')
   assert.equal(rulePrefix('Skola'), null)
 })
+import { nextBirthday, advance } from './yearly.js'
+test('födelsedagar och påminnelser', () => {
+  assert.deepEqual(nextBirthday('2018-11-20', '2026-11-05'), { date: '2026-11-20', daysLeft: 15, age: 8 })
+  assert.deepEqual(nextBirthday('2018-03-01', '2026-11-05'), { date: '2027-03-01', daysLeft: 116, age: 9 })
+  assert.equal(nextBirthday('2016-02-29', '2027-01-01').date, '2027-02-28')
+  assert.equal(advance('2026-01-31', 1), '2026-02-28')
+  assert.equal(advance('2026-04-01', 12), '2027-04-01')
+})

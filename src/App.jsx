@@ -14,6 +14,7 @@ import Kids from './components/Kids'
 import Kitchen from './components/Kitchen'
 import Vab from './components/Vab'
 import Stats from './components/Stats'
+import Reminders from './components/Reminders'
 import Icon from './components/Icon'
 import { withInitials } from './components/MemberPicker'
 
@@ -30,6 +31,7 @@ const MORE = [
   { id: 'kids', label: 'Barnens sida', icon: 'star' },
   { id: 'vab', label: 'VAB & Sjukdagar', icon: 'thermo' },
   { id: 'stats', label: 'Statistik', icon: 'chart' },
+  { id: 'reminders', label: 'Påminnelser & födelsedagar', icon: 'bell' },
   { id: 'kitchen', label: 'Köksskärm (iPad)', icon: 'home' },
   { id: 'family', label: 'Familj & inställningar', icon: 'users' }
 ]
@@ -109,6 +111,7 @@ function Home({ me }) {
         {tab === 'finance' && <Finance {...props} />}
         {tab === 'vab' && <Vab {...props} />}
         {tab === 'stats' && <Stats {...props} />}
+        {tab === 'reminders' && <Reminders {...props} />}
         {tab === 'family' && <Family {...props} />}
       </main>
       <nav className="tabs">

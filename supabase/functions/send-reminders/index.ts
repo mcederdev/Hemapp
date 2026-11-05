@@ -4,6 +4,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.119.0'
 import webpush from 'npm:web-push@3.6.7'
 import { occurrences } from './rrule.js'
 import { planDue } from './plans.js'
+import { nextBirthday, daysUntil } from './yearly.js'
 
 const TZ = 'Europe/Stockholm'
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
@@ -121,6 +122,30 @@ Deno.serve(async (req) => {
       if (parts.length) await send({ title: 'God morgon! Det här händer idag', body: parts.join('\n'), url: '/' })
       await db.from('households').update({ last_morning_push: todayLocal }).eq('id', h.id)
       log.push(`morgon ${h.name}: ${parts.length} rader`)
+    }
+
+    // Årliga påminnelser och födelsedagar (en gång per dag, vid morgontimmen)
+    if (hour >= h.morning_push_hour && h.last_yearly_push !== todayLocal) {
+      const when = (n: number) => (n === 0 ? 'idag' : n === 1 ? 'imorgon' : `om ${n} dagar`)
+      const { data: rems } = await db.from('reminders').select('*').eq('household_id', h.id)
+      for (const r of rems ?? []) {
+        const n = daysUntil(todayLocal, r.due_date)
+        if (n > r.remind_days || r.notified_for === r.due_date) continue
+        await send({ title: `${r.emoji} ${r.title} ${n < 0 ? 'har passerat' : when(n)}`, body: r.note || 'Tryck för att se påminnelsen', url: '/?tab=reminders' })
+        await db.from('reminders').update({ notified_for: r.due_date }).eq('id', r.id)
+      }
+      const { data: bdays } = await db.from('birthdays').select('*').eq('household_id', h.id)
+      for (const b of bdays ?? []) {
+        const x = nextBirthday(b.day, todayLocal)
+        const age = b.year_known ? ` ${x.age} år` : ' år'
+        if (x.daysLeft === 0) {
+          await send({ title: `🎉 Idag fyller ${b.name}${age}!`, body: b.gift_ideas ? `🎁 ${b.gift_ideas}` : 'Glöm inte att gratulera', url: '/?tab=reminders' })
+        } else if (x.daysLeft <= b.remind_days && b.notified_year !== +x.date.slice(0, 4)) {
+          await send({ title: `🎂 ${b.name} fyller${age} ${when(x.daysLeft)}`, body: b.gift_ideas ? `🎁 Idéer: ${b.gift_ideas}` : 'Dags att fixa present?', url: '/?tab=reminders' })
+          await db.from('birthdays').update({ notified_year: +x.date.slice(0, 4) }).eq('id', b.id)
+        }
+      }
+      await db.from('households').update({ last_yearly_push: todayLocal }).eq('id', h.id)
     }
 
     // VAB: påminnelse söndag kväll om dagar som inte är anmälda till Försäkringskassan
