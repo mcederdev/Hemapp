@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { useTable } from '../useTable'
 import { parseIcs } from '../lib/ics'
 import { simpleRrule, parseRrule } from '../lib/rrule'
-import { expandEvents, onDay, timeOf } from '../lib/events'
+import { expandEvents, onDay, timeLabel } from '../lib/events'
 import { iso, today, parseDay } from '../lib/dates'
 import MemberPicker, { MemberTag } from './MemberPicker'
 import Sheet, { Fab } from './Sheet'
@@ -135,13 +135,13 @@ export default function Calendar({ householdId, members }) {
         </Sheet>
       )}
 
-      <EventList list={selOcc} byId={byId} onRemove={removeEvent} empty="Inget denna dag." />
+      <EventList list={selOcc} day={selDate} byId={byId} onRemove={removeEvent} empty="Inget denna dag." />
 
       <h3>Kommande två veckor</h3>
       {groupByDay(upcoming).map(([day, evs]) => (
         <div key={day}>
           <h4 className="day">{day}</h4>
-          <EventList list={evs} byId={byId} onRemove={removeEvent} />
+          <EventList list={evs} day={evs[0].start} byId={byId} onRemove={removeEvent} />
         </div>
       ))}
       {!events.loading && upcoming.length === 0 && <p className="muted">Inget inplanerat.</p>}
@@ -159,7 +159,7 @@ export default function Calendar({ householdId, members }) {
   )
 }
 
-function EventList({ list, byId, onRemove, empty }) {
+function EventList({ list, day, byId, onRemove, empty }) {
   if (list.length === 0) return empty ? <p className="muted">{empty}</p> : null
   return (
     <ul className="list">
@@ -168,7 +168,7 @@ function EventList({ list, byId, onRemove, empty }) {
           <div>
             <div>{o.title}</div>
             <div className="muted small">
-              {o.all_day ? 'Heldag' : timeOf(o.start) + (o.end ? '–' + timeOf(o.end) : '')}
+              {(() => { const l = timeLabel(o, day); return l.time + (l.note ? ` (${l.note})` : '') })()}
               {o.location ? ` · ${o.location}` : ''}
               {o.rrule && ` · 🔁 ${describe(o.rrule)}`}
             </div>

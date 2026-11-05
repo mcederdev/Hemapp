@@ -85,3 +85,18 @@ test('swish-länk', () => {
   assert.equal(data.payee.value, '0701234567')
   assert.equal(data.amount.value, 1234)
 })
+
+import { expandEvents, onDay, timeLabel } from './events.js'
+
+test('händelse över midnatt visar bara sluttid dagen efter', () => {
+  const e = { id: 'x', title: 'M1L494', starts_at: new Date(2026, 10, 4, 19, 23).toISOString(), ends_at: new Date(2026, 10, 5, 11, 5).toISOString(), all_day: false }
+  const day = new Date(2026, 10, 5)
+  const next = new Date(2026, 10, 6)
+  const occ = expandEvents([e], day, next).filter((o) => onDay(o, day))
+  assert.equal(occ.length, 1)
+  assert.equal(timeLabel(occ[0], day).time, '→ 11:05')
+  const yday = new Date(2026, 10, 4)
+  assert.equal(timeLabel(occ[0], yday).time, '19:23 →')
+  const normal = { start: new Date(2026, 10, 5, 15), end: new Date(2026, 10, 5, 16, 30), all_day: false }
+  assert.equal(timeLabel(normal, day).time, '15:00–16:30')
+})

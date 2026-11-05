@@ -1,5 +1,5 @@
 import { useTable } from '../useTable'
-import { expandEvents, onDay, timeOf } from '../lib/events'
+import { expandEvents, onDay, timeOf, timeLabel } from '../lib/events'
 import { today, parseDay } from '../lib/dates'
 import { completeChore } from './Chores'
 import { MemberTag } from './MemberPicker'
@@ -43,15 +43,21 @@ export default function Today({ householdId, members, go, me }) {
         <div className="row between tap" onClick={() => go('calendar')}><h3>📅 Idag</h3><span className="muted">›</span></div>
         {todays.length === 0 && <p className="muted">Inget i kalendern idag.</p>}
         <ul className="plain">
-          {todays.map((o) => (
-            <li key={o.key} className="row between">
-              <span><strong className="time">{o.all_day ? 'Heldag' : timeOf(o.start)}</strong> {o.title}</span>
-              <MemberTag member={byId[o.member_id]} />
-            </li>
-          ))}
+          {todays.map((o) => {
+            const l = timeLabel(o, d0)
+            return (
+              <li key={o.key} className="row between">
+                <span>
+                  <strong className="time">{l.time}</strong> {o.title}
+                  {(l.note || o.location) && <div className="muted small">{[l.note, o.location].filter(Boolean).join(' · ')}</div>}
+                </span>
+                <MemberTag member={byId[o.member_id]} />
+              </li>
+            )
+          })}
         </ul>
         {tomorrows.length > 0 && (
-          <p className="muted small">Imorgon: {tomorrows.map((o) => (o.all_day ? '' : timeOf(o.start) + ' ') + o.title).join(', ')}</p>
+          <p className="muted small">Imorgon: {tomorrows.filter((o) => o.all_day || o.start >= tomorrow).map((o) => (o.all_day ? '' : timeOf(o.start) + ' ') + o.title).join(', ') || 'bara fortsättning från idag'}</p>
         )}
       </div>
 

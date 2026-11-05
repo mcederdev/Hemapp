@@ -1,4 +1,4 @@
-import { occurrences } from './rrule'
+import { occurrences } from './rrule.js'
 
 // Expanderar händelser (inkl. återkommande) till förekomster inom [from, to)
 export function expandEvents(events, from, to) {
@@ -30,3 +30,17 @@ export function onDay(occ, day) {
 }
 
 export const timeOf = (d) => d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
+
+// Tidstext för en förekomst sedd från en viss dag.
+// Händelser som började en tidigare dag visar bara när de slutar.
+export function timeLabel(occ, day) {
+  if (occ.all_day) return { time: 'Heldag', note: '' }
+  const d0 = new Date(day); d0.setHours(0, 0, 0, 0)
+  const d1 = new Date(d0); d1.setDate(d1.getDate() + 1)
+  const startedBefore = occ.start < d0
+  const endsAfter = occ.end && occ.end >= d1
+  if (startedBefore && endsAfter) return { time: 'Hela dagen', note: 'pågår' }
+  if (startedBefore) return { time: `→ ${timeOf(occ.end)}`, note: 'fortsätter från igår' }
+  if (endsAfter) return { time: `${timeOf(occ.start)} →`, note: `slutar ${occ.end.toLocaleDateString('sv-SE', { weekday: 'short' })} ${timeOf(occ.end)}` }
+  return { time: occ.end ? `${timeOf(occ.start)}–${timeOf(occ.end)}` : timeOf(occ.start), note: '' }
+}
