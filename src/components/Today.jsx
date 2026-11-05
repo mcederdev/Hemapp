@@ -13,14 +13,14 @@ import SwipeRow, { Check } from './Swipe'
 import Icon from './Icon'
 
 // Bygger dagens flöde: händelser och middag i tidsordning, med nu-linjen på rätt plats
-export function buildFlow({ events, day, dinner, now, focus }) {
+export function buildFlow({ events, day, dinner, now, focus, withDinner = true }) {
   const d0 = new Date(day); d0.setHours(0, 0, 0, 0)
   const d1 = new Date(d0); d1.setDate(d1.getDate() + 1)
   const occ = dayList(expandEvents(events.filter((e) => forFocus(focus, e.member_id)), d0, d1), d0)
   const allDay = occ.filter((o) => o.all_day || (o.start < d0 && o.end && o.end >= d1))
   const timed = occ.filter((o) => !allDay.includes(o)).map((o) => ({ type: 'event', at: o.start < d0 ? d0 : o.start, end: o.end || o.start, occ: o }))
   const dinnerAt = new Date(d0); dinnerAt.setHours(18, 0, 0, 0)
-  timed.push({ type: 'dinner', at: dinnerAt, end: new Date(dinnerAt.getTime() + 3600000), dinner })
+  if (withDinner) timed.push({ type: 'dinner', at: dinnerAt, end: new Date(dinnerAt.getTime() + 3600000), dinner })
   timed.sort((a, b) => a.at - b.at)
   const isToday = now >= d0 && now < d1
   if (isToday) {
@@ -45,7 +45,7 @@ export default function Today({ householdId, members, go, me, focus, setFocus })
   const d0 = parseDay(t), d1 = new Date(d0); d1.setDate(d1.getDate() + 1)
   const d2 = new Date(d1); d2.setDate(d2.getDate() + 1)
   const dinner = meals.rows.find((m) => m.day === t)
-  const { allDay, flow } = buildFlow({ events: events.rows, day: d0, dinner, now, focus })
+  const { allDay, flow } = buildFlow({ events: events.rows, day: d0, dinner, now, focus, withDinner: false })
   const tomorrows = dayList(expandEvents(events.rows.filter((e) => forFocus(focus, e.member_id)), d1, d2), d1).filter((o) => o.all_day || o.start >= d1)
 
   const mine = chores.rows.filter((c) => forFocus(focus, c.assigned_to))
@@ -80,6 +80,15 @@ export default function Today({ householdId, members, go, me, focus, setFocus })
 
       <FamilyStrip members={members} focus={focus} setFocus={setFocus} counts={overdue} />
 
+      <div className="hero">
+        <div className="hero-label"><Icon name="food" size={16} /> Middag ikväll</div>
+        <div className="hero-dish">{dinner ? dinner.dish : 'Inte bestämt än'}</div>
+        <div className="row">
+          <button className="hero-btn" onClick={() => setPicking(true)}><Icon name="dice" size={18} /> {dinner ? 'Byt' : 'Tips'}</button>
+          <button className="hero-btn ghost" onClick={() => go('meals')}>Veckomeny</button>
+        </div>
+      </div>
+
       <div className="card compact">
         <button className="card-head" onClick={() => go('calendar')}>
           <span className="row"><Icon name="calendar" size={18} /> <strong>{focusName ? `${focusName}s dag` : 'Dagen'}</strong></span>
@@ -106,6 +115,7 @@ export default function Today({ householdId, members, go, me, focus, setFocus })
             return <EventRow key={x.occ.key} occ={x.occ} day={d0} byId={byId} className={past ? 'past' : ''} />
           })}
         </ul>
+        {allDay.length + flow.filter((x) => x.type !== 'now').length === 0 && <p className="muted small pad">Inget i kalendern idag.</p>}
         {tomorrows.length > 0 && <p className="muted small pad">Imorgon: {tomorrows.map(shortLine).join(', ')}</p>}
       </div>
 
