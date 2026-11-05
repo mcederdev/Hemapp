@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase'
+import { isTest, TEST_TABLES } from './lib/testmode'
 
 // Tabeller där delade barns rader från det andra hushållet också ska med.
 // Där sköter databasens behörighetsregler vad vi får se.
@@ -113,7 +114,8 @@ export function useTable(table, householdId, order = 'created_at', where = null)
 
   const insert = async (values) => {
     const base = where ? { [col]: val } : NO_HOUSEHOLD.has(table) ? {} : { household_id: householdId }
-    const list = (Array.isArray(values) ? values : [values]).map((v) => ({ ...base, ...v }))
+    const mark = TEST_TABLES.includes(table) && isTest() ? { is_test: true } : {}
+    const list = (Array.isArray(values) ? values : [values]).map((v) => ({ ...base, ...v, ...mark }))
     if (!navigator.onLine) return queueInsert(list)
     const { data, error } = await supabase.from(table).insert(list).select()
     if (error) {
@@ -129,7 +131,9 @@ export function useTable(table, householdId, order = 'created_at', where = null)
     setRows((r) => [...r, ...withIds])
     return withIds
   }
-  const update = async (id, values) => {
+  const update = async (id, v0) => {
+    // I testläget märks raden som test, utanför testläget blir den riktig igen
+    const values = TEST_TABLES.includes(table) ? { ...v0, is_test: isTest() } : v0
     setRows((r) => r.map((x) => (x.id === id ? { ...x, ...values } : x)))
     if (!navigator.onLine) return queue({ table, op: 'update', id, values })
     const { error } = await supabase.from(table).update(values).eq('id', id)

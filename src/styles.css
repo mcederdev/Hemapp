@@ -633,3 +633,11 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 .arrange-btn { display: block; margin: 0 auto 12px; }
 .order-btns { display: inline-flex; } .order-btns .icon-btn { padding: 2px 6px; }
 button.name-edit { padding: 0; color: inherit; text-align: left; white-space: normal; }
+
+/* Testläge: tydlig randig list överst och färgad ram runt hela appen */
+.test-bar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 700; font-size: .85rem; color: #3a2a00;
+  padding: calc(env(safe-area-inset-top) + 6px) 10px 6px; background: repeating-linear-gradient(45deg, #ffcc33 0 14px, #ffb800 14px 28px); }
+.test-bar button { background: #3a2a00; color: #fff; border: 0; border-radius: 999px; padding: 3px 12px; font-weight: 600; font-size: .8rem; }
+.testmode { box-shadow: inset 0 0 0 4px #ffb800; min-height: 100vh; }
+.testmode .tabs { border-top: 3px solid #ffb800; }
+.count.test-on { background: #ffb800; color: #3a2a00; }

@@ -9,6 +9,7 @@ import Today from './components/Today'
 import Icon from './components/Icon'
 import { withInitials } from './components/MemberPicker'
 import { applyAccent } from './lib/accent'
+import { isTest, setTest, testSince, removeTestData } from './lib/testmode'
 
 // Flikarna laddas först när de öppnas, så att appen startar snabbare
 const Car = lazy(() => import('./components/Car'))
@@ -143,10 +144,30 @@ function Home({ me }) {
   }, [])
   const offlineBar = !online || pending ? <div className="offline-bar">{online ? `Skickar ${pending} ändringar…` : `Ingen anslutning${pending ? ` · ${pending} ändringar skickas sen` : ''}`}</div> : null
 
-  if (tab === 'kitchen') return <Kitchen {...props} onExit={() => pick('today')} />
+  // Testläge: det man gör räknas inte i statistiken och kan tas bort när man avslutar. Gäller bara den här telefonen.
+  const [test, setTestState] = useState(isTest())
+  useEffect(() => { const up = () => setTestState(isTest()); window.addEventListener('testmode-changed', up); return () => window.removeEventListener('testmode-changed', up) }, [])
+  const toggleTest = async () => {
+    if (!test) { if (confirm('Starta testläge? Det du gör nu räknas inte i statistiken, och du kan ta bort det när du avslutar.')) setTest(true); return }
+    if (confirm('Ta bort det som skapades i testläget? (Avbryt = behåll det, men det räknas ändå inte i statistiken)')) {
+      const n = await removeTestData(testSince())
+      alert(`Testläget är avslutat. ${n} ${n === 1 ? 'sak' : 'saker'} togs bort.`)
+    }
+    setTest(false)
+  }
+  // Engångsnollning av statistiken (nov 2026): räkna allt från nu och nollställ mest köpta varor
+  useEffect(() => {
+    if (!household || household.stats_from) return
+    households.update(household.id, { stats_from: new Date().toISOString() })
+    supabase.from('item_catalog').update({ times_added: 0 }).eq('household_id', me.household_id).gt('times_added', 0).then(() => {})
+  }, [household?.id, household?.stats_from])
+  const testBar = test ? <div className="test-bar"><span>🧪 TESTLÄGE · räknas inte i statistiken</span><button onClick={toggleTest}>Avsluta</button></div> : null
+
+  if (tab === 'kitchen') return <div className={test ? 'testmode' : ''}>{testBar}<Kitchen {...props} onExit={() => pick('today')} /></div>
 
   return (
-    <div className={`app ${household?.theme?.accent ? 'own-accent' : ''}`} data-tab={tab}>
+    <div className={`app ${household?.theme?.accent ? 'own-accent' : ''} ${test ? 'testmode' : ''}`} data-tab={tab}>
+      {testBar}
       {offlineBar}
       <main>
         <Suspense fallback={<p className="muted pad">Laddar…</p>}>
@@ -158,7 +179,9 @@ function Home({ me }) {
               {MORE.map((m) => (
                 <li key={m.id} className="tap" onClick={() => pick(m.id)}><span className="row"><Icon name={m.icon} /> {m.label}{badge[m.id] > 0 && <span className="count">{badge[m.id]}</span>}</span><Icon name="chevron" size={18} className="muted" /></li>
               ))}
+              <li className="tap" onClick={toggleTest}><span className="row">🧪 Testläge{test && <span className="count test-on">PÅ</span>}</span><span className="muted small">{test ? 'Avsluta' : 'Starta'}</span></li>
             </ul>
+            <p className="muted small">I testläget räknas inget du gör i statistiken eller i barnens stjärnor. Gäller bara den här telefonen.</p>
           </section>
         )}
         {tab === 'kids' && <Kids {...props} />}

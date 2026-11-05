@@ -3,9 +3,11 @@ import { useTable } from '../useTable'
 import { today, startOfWeek, addDays } from '../lib/dates'
 import { MemberTag } from './MemberPicker'
 import VabStats from './VabStats'
+import { counts } from '../lib/testmode'
 
 // Statistiksidan: sysslor, sjukdagar och VAB, mat och handling
-export default function Stats({ householdId, members, people }) {
+export default function Stats({ householdId, members, people, household }) {
+  const from = household?.stats_from
   const [view, setView] = useState('chores')
   const vab = useTable('vab_days', householdId, 'day')
   return (
@@ -17,18 +19,19 @@ export default function Stats({ householdId, members, people }) {
         <button className={view === 'food' ? 'active' : ''} onClick={() => setView('food')}>Mat</button>
         <button className={view === 'pickups' ? 'active' : ''} onClick={() => setView('pickups')}>Hämta</button>
       </div>
-      {view === 'chores' && <ChoreStats householdId={householdId} members={members} />}
-      {view === 'sick' && <VabStats rows={vab.rows} members={people || members} />}
-      {view === 'food' && <FoodStats householdId={householdId} />}
-      {view === 'pickups' && <PickupStats householdId={householdId} people={people || members} />}
+      {view === 'chores' && <ChoreStats householdId={householdId} members={members} since={from} />}
+      {view === 'sick' && <VabStats rows={vab.rows.filter((r) => counts(r, 'day', from))} members={people || members} />}
+      {view === 'food' && <FoodStats householdId={householdId} since={from} />}
+      {view === 'pickups' && <PickupStats householdId={householdId} people={people || members} since={from} />}
     </section>
   )
 }
 
 const PERIODS = [['week', 'Vecka'], ['month', 'Månad'], ['year', 'År']]
 
-function ChoreStats({ householdId, members }) {
-  const chores = useTable('chores', householdId)
+function ChoreStats({ householdId, members, since }) {
+  const choresT = useTable('chores', householdId)
+  const chores = { rows: choresT.rows.filter((c) => !c.done || counts(c, 'done_at', since)) }
   const [period, setPeriod] = useState('month')
   const t = today()
   const from = period === 'week' ? startOfWeek(t) : period === 'month' ? t.slice(0, 7) + '-01' : t.slice(0, 4) + '-01-01'
@@ -112,8 +115,9 @@ function ChoreStats({ householdId, members }) {
   )
 }
 
-function FoodStats({ householdId }) {
-  const meals = useTable('meal_plan', householdId, 'day')
+function FoodStats({ householdId, since }) {
+  const mealsT = useTable('meal_plan', householdId, 'day')
+  const meals = { rows: mealsT.rows.filter((m) => counts(m, 'day', since)) }
   const catalog = useTable('item_catalog', householdId)
   const t = today()
   const year = meals.rows.filter((m) => m.day >= addDays(t, -365) && m.day <= t)
@@ -125,7 +129,7 @@ function FoodStats({ householdId }) {
   const planned = meals.rows.filter((m) => m.day >= addDays(t, -28) && m.day <= t).length
   return (
     <div>
-      <FoodSpend householdId={householdId} />
+      <FoodSpend householdId={householdId} since={since} />
       <div className="stat-tiles mt">
         <div className="stat-tile"><strong>{dishCount.size}</strong><span>olika rätter i år</span></div>
         <div className="stat-tile"><strong>{Math.round((planned / 28) * 100)} %</strong><span>planerade middagar (4 v)</span></div>
@@ -163,8 +167,9 @@ function isoWeek(s) {
 
 const kr = (n) => Math.round(n).toLocaleString('sv-SE') + ' kr'
 // Matkostnad: vad handlingen kostat per månad (fylls i när man trycker "Klar med handlingen")
-function FoodSpend({ householdId }) {
-  const spend = useTable('grocery_spend', householdId, 'day')
+function FoodSpend({ householdId, since }) {
+  const spendT = useTable('grocery_spend', householdId, 'day')
+  const spend = { ...spendT, rows: spendT.rows.filter((r) => counts(r, 'day', since)) }
   const [amount, setAmount] = useState('')
   const t = today()
   const months = Array.from({ length: 6 }, (_, i) => { const d = new Date(t + 'T12:00'); d.setDate(1); d.setMonth(d.getMonth() - (5 - i)); return d.toISOString().slice(0, 7) })
@@ -206,8 +211,9 @@ function FoodSpend({ householdId }) {
 }
 
 // Lämna och hämta: vem har gjort det. "Båda" räknas för båda föräldrarna.
-function PickupStats({ householdId, people }) {
-  const pickups = useTable('pickups', householdId, 'day')
+function PickupStats({ householdId, people, since }) {
+  const pickupsT = useTable('pickups', householdId, 'day')
+  const pickups = { rows: pickupsT.rows.filter((p) => counts(p, 'day', since)) }
   const [period, setPeriod] = useState('month')
   const t = today()
   const from = period === 'week' ? startOfWeek(t) : period === 'month' ? t.slice(0, 7) + '-01' : t.slice(0, 4) + '-01-01'
