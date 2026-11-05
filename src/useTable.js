@@ -4,6 +4,7 @@ import { supabase } from './supabase'
 // Hämtar en tabell för hushållet och håller den uppdaterad live
 // när någon annan i familjen ändrar något.
 export function useTable(table, householdId, order = 'created_at') {
+  const col = table === 'households' ? 'id' : 'household_id'
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -11,27 +12,29 @@ export function useTable(table, householdId, order = 'created_at') {
     const { data, error } = await supabase
       .from(table)
       .select('*')
-      .eq('household_id', householdId)
+      .eq(col, householdId)
       .order(order, { ascending: true })
     if (!error) setRows(data)
     setLoading(false)
-  }, [table, householdId, order])
+  }, [table, householdId, order, col])
 
   useEffect(() => {
     load()
     const channel = supabase
-      .channel(`${table}-${householdId}`)
+      .channel(`${table}-${householdId}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes',
-        { event: '*', schema: 'public', table, filter: `household_id=eq.${householdId}` },
+        { event: '*', schema: 'public', table, filter: `${col}=eq.${householdId}` },
         load)
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [load, table, householdId])
 
   const insert = async (values) => {
-    const { error } = await supabase.from(table).insert({ household_id: householdId, ...values })
+    const rows = (Array.isArray(values) ? values : [values]).map((v) => ({ household_id: householdId, ...v }))
+    const { data, error } = await supabase.from(table).insert(rows).select()
     if (error) alert(error.message)
     load()
+    return data
   }
   const update = async (id, values) => {
     setRows((r) => r.map((x) => (x.id === id ? { ...x, ...values } : x)))

@@ -9,14 +9,21 @@ import Calendar from './components/Calendar'
 import Meals from './components/Meals'
 import Finance from './components/Finance'
 import Family from './components/Family'
+import Today from './components/Today'
+import Kids from './components/Kids'
 
 const TABS = [
+  { id: 'today', label: 'Idag', icon: '🏠' },
   { id: 'shopping', label: 'Handla', icon: '🛒' },
-  { id: 'chores', label: 'Att göra', icon: '✅' },
+  { id: 'chores', label: 'Sysslor', icon: '✅' },
   { id: 'calendar', label: 'Kalender', icon: '📅' },
   { id: 'meals', label: 'Mat', icon: '🍝' },
+  { id: 'more', label: 'Mer', icon: '☰' }
+]
+const MORE = [
   { id: 'finance', label: 'Ekonomi', icon: '💰' },
-  { id: 'family', label: 'Familj', icon: '👪' }
+  { id: 'kids', label: 'Barnens sida', icon: '⭐' },
+  { id: 'family', label: 'Familj & inställningar', icon: '👪' }
 ]
 
 export default function App() {
@@ -53,14 +60,33 @@ export default function App() {
 }
 
 function Home({ me }) {
-  const [tab, setTab] = useState(() => localStorageGet('tab') || 'shopping')
+  const [tab, setTab] = useState(() => {
+    const fromUrl = new URLSearchParams(location.search).get('tab')
+    if (fromUrl) history.replaceState(null, '', '/')
+    return fromUrl || localStorageGet('tab') || 'today'
+  })
   const members = useTable('members', me.household_id)
-  const pick = (id) => { setTab(id); localStorageSet('tab', id) }
-  const props = { me, householdId: me.household_id, members: members.rows, membersTable: members }
+  const households = useTable('households', me.household_id)
+  const pick = (id) => { setTab(id); localStorageSet('tab', id); window.scrollTo(0, 0) }
+  const household = households.rows[0]
+  const props = { me, householdId: me.household_id, members: members.rows, membersTable: members, household, households, go: pick }
+  const active = MORE.some((m) => m.id === tab) ? 'more' : tab
 
   return (
     <div className="app">
       <main>
+        {tab === 'today' && <Today {...props} />}
+        {tab === 'more' && (
+          <section>
+            <h2>Mer</h2>
+            <ul className="list">
+              {MORE.map((m) => (
+                <li key={m.id} className="tap" onClick={() => pick(m.id)}><span>{m.icon} {m.label}</span><span className="muted">›</span></li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {tab === 'kids' && <Kids {...props} />}
         {tab === 'shopping' && <Shopping {...props} />}
         {tab === 'chores' && <Chores {...props} />}
         {tab === 'calendar' && <Calendar {...props} />}
@@ -70,7 +96,7 @@ function Home({ me }) {
       </main>
       <nav className="tabs">
         {TABS.map((t) => (
-          <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => pick(t.id)}>
+          <button key={t.id} className={active === t.id ? 'active' : ''} onClick={() => pick(t.id)}>
             <span className="icon">{t.icon}</span>
             <span>{t.label}</span>
           </button>

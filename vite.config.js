@@ -7,6 +7,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      injectRegister: 'auto',
       includeAssets: ['apple-touch-icon.png'],
       manifest: {
         name: 'Hemappen',

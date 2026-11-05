@@ -33,3 +33,55 @@ test('läser händelser från ics', () => {
   assert.equal(ev[1].allDay, true)
   assert.equal(ev[1].start.getDate(), 20)
 })
+
+import { occurrences } from './rrule.js'
+import { nextDue, repeatLabel, startOfWeek } from './dates.js'
+import { guessSection } from './sections.js'
+import { swishUrl } from './swish.js'
+
+test('återkommande händelse varje tisdag och torsdag', () => {
+  const start = new Date(2026, 10, 3, 17, 0) // tis 3 nov
+  const occ = occurrences(start, 'FREQ=WEEKLY;BYDAY=TU,TH', new Date(2026, 10, 1), new Date(2026, 10, 15))
+  assert.deepEqual(occ.map((d) => d.getDate()), [3, 5, 10, 12])
+  assert.equal(occ[0].getHours(), 17)
+})
+
+test('återkommande med COUNT och INTERVAL', () => {
+  const start = new Date(2026, 0, 1, 9)
+  const occ = occurrences(start, 'FREQ=WEEKLY;INTERVAL=2;COUNT=3', new Date(2025, 0, 1), new Date(2027, 0, 1))
+  assert.deepEqual(occ.map((d) => d.getDate()), [1, 15, 29])
+})
+
+test('återkommande med UNTIL', () => {
+  const occ = occurrences(new Date(2026, 10, 1, 8), 'FREQ=DAILY;UNTIL=20261103T235959Z', new Date(2026, 9, 1), new Date(2026, 11, 1))
+  assert.equal(occ.length, 3)
+})
+
+test('icke återkommande händelse', () => {
+  assert.equal(occurrences(new Date(2026, 10, 5), null, new Date(2026, 10, 1), new Date(2026, 10, 30)).length, 1)
+  assert.equal(occurrences(new Date(2026, 10, 5), null, new Date(2026, 11, 1), new Date(2026, 11, 30)).length, 0)
+})
+
+test('nästa datum för återkommande syssla', () => {
+  assert.equal(nextDue('2026-11-07', 1, 'week'), '2026-11-14')
+  assert.equal(nextDue('2026-11-07', 2, 'day'), '2026-11-09')
+  assert.equal(nextDue('2026-01-31', 1, 'month'), '2026-02-28')
+  assert.equal(repeatLabel(2, 'week'), 'varannan vecka')
+  assert.equal(startOfWeek('2026-11-05'), '2026-11-02')
+})
+
+test('gissar avdelning', () => {
+  assert.equal(guessSection('Mellanmjölk'), 'Mejeri')
+  assert.equal(guessSection('Bananer'), 'Frukt & grönt')
+  assert.equal(guessSection('Nötfärs'), 'Kött & fisk')
+  assert.equal(guessSection('Något konstigt'), 'Övrigt')
+  assert.equal(guessSection('Våtservetter'), 'Hushåll')
+  assert.equal(guessSection('Ris'), 'Skafferi')
+})
+
+test('swish-länk', () => {
+  const url = swishUrl('+46 70-123 45 67', 1234.4, 'Räkningar november')
+  const data = JSON.parse(decodeURIComponent(url.split('data=')[1]))
+  assert.equal(data.payee.value, '0701234567')
+  assert.equal(data.amount.value, 1234)
+})

@@ -1,6 +1,6 @@
 // Enkel läsare för .ics-filer (kalenderexport från iPhone, Google, skolan m.m.)
 // Läser VEVENT med titel, start, slut, plats och UID. Återkommande händelser
-// (RRULE) importeras bara som första tillfället.
+// (RRULE) sparas och visas i kalendern.
 
 function unfold(text) {
   return text.replace(/\r\n/g, '\n').replace(/\n[ \t]/g, '')
@@ -39,7 +39,8 @@ export function parseIcs(text) {
           location: cur.location || null,
           allDay: cur.start.allDay,
           start: cur.start.date,
-          end: cur.end ? cur.end.date : null
+          end: cur.end ? cur.end.date : null,
+          rrule: cur.rrule || null
         })
       }
       cur = null
@@ -58,6 +59,7 @@ export function parseIcs(text) {
       case 'UID': cur.uid = value.trim(); break
       case 'DTSTART': cur.start = parseIcsDate(value, params); break
       case 'DTEND': cur.end = parseIcsDate(value, params); break
+      case 'RRULE': cur.rrule = value.trim(); break
     }
   }
   return events

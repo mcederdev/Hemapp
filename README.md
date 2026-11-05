@@ -8,19 +8,29 @@ synkas live mellan telefonerna.
 
 | Flik | Vad den gör |
 | --- | --- |
-| **Handla** | Gemensam inköpslista. Bocka av det som ligger i korgen, rensa när ni är klara. |
-| **Att göra** | Sysslor som kan tilldelas mamma, pappa eller barnet, med datum. Knappen *Vanliga sysslor* lägger till vanliga sysslor med ett tryck, och egna kan sparas som vanliga. |
-| **Kalender** | Händelser per dag och person. Importera `.ics`-filer (t.ex. skolschema). Samma fil kan importeras igen utan dubbletter. |
-| **Mat** | *Ge mig tips* slumpar tre rätter bland vanliga svenska rätter och era egna. |
-| **Ekonomi** | Fyll i inkomst och räkningar. Appen räknar ut hur mycket var och en ska stå för efter inkomst och hur mycket som ska swishas. |
-| **Familj** | Medlemmar och färger, lägg till barn (utan konto) och inbjudningskod till den andra föräldern. |
+| **Idag** | Dagens middag, händelser, sysslor och hur mycket som ska handlas, på ett ställe. |
+| **Handla** | Flera inköpslistor (t.ex. *Veckohandling*, *Kalas lördag* med datum). Varor sorteras efter butikens avdelningar och visar vem som lade till dem. *Brukar ni köpa* föreslår varor ni ofta lägger till. *Slut hemma* är knappar för basvaror: tryck när något tar slut så hamnar det på veckohandlingen. |
+| **Sysslor** | Sysslor till mamma, pappa eller barnet, med datum, upprepning (varje dag, varannan vecka …) och stjärnor. När en återkommande syssla bockas av skapas nästa automatiskt. |
+| **Kalender** | Månadsvy med färg per person, dagslista och kommande två veckor. Återkommande händelser och påminnelser. Import av `.ics`-filer inklusive återkommande händelser. |
+| **Mat** | Veckomeny: välj middag per dag bland förslag, era egna rätter eller fritext, eller fyll tomma dagar automatiskt. |
+| **Mer → Ekonomi** | Fasta och engångsräkningar per månad, fördelning efter inkomst, knapp som öppnar Swish med rätt belopp och historik över tidigare månader. |
+| **Mer → Barnens sida** | Enkel vy för barnet med dagens sysslor, veckans stjärnor och veckopeng (kronor per stjärna går att ändra). |
+| **Mer → Familj & inställningar** | Notiser, medlemmar och färger, mobilnummer för Swish, lägg till barn och inbjudningskod. |
 
 Bara föräldrarna loggar in. Barnet finns som medlem utan konto.
+
+## Notiser på iPhone
+
+Kräver iOS 16.4 eller senare och att appen är tillagd på hemskärmen.
+Öppna appen från hemskärmen → **Mer → Familj & inställningar → Slå på notiser**.
+Ni får en morgonsammanfattning (tid går att välja) och en påminnelse innan händelser.
+
+Servern är en Supabase Edge Function (`supabase/functions/send-reminders`) som körs var 5:e minut via `pg_cron`.
 
 ## Supabase (redan klart)
 
 Projektet `hemapp` är skapat i Supabase (region Stockholm) och databasen är uppsatt med
-`supabase/schema.sql`. Varje hushåll ser bara sina egna data.
+filerna i `supabase/migrations/`. Varje hushåll ser bara sina egna data.
 
 - URL: `https://bavlvzgtdjhibhqgtkww.supabase.co`
 - Publik nyckel: `sb_publishable_aNvikmBF237Jy-EpGORUEw_DcsCMoK2`
@@ -61,4 +71,6 @@ npm test                     # testar ics-läsaren och ekonomiuträkningen
 - `src/lib/ics.js` läser `.ics`-filer
 - `src/lib/finance.js` fördelar räkningar efter inkomst
 - `src/lib/defaults.js` vanliga sysslor och rätter (lägg gärna till fler)
-- `supabase/schema.sql` databasen
+- `supabase/migrations/` databasen, i ordning
+- `supabase/functions/send-reminders/` pushnotiser
+- `src/sw.js` service worker (offline och notiser)
