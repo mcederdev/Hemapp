@@ -18,7 +18,8 @@ Deno.serve(async (req) => {
   const { data: secrets } = await db.from('app_secrets').select('name, value')
   const s = Object.fromEntries((secrets ?? []).map((r) => [r.name, r.value]))
   if (req.headers.get('x-cron-secret') !== s.cron_secret) return new Response('nope', { status: 401 })
-  webpush.setVapidDetails('mailto:noreply@hemappen.local', s.vapid_public, s.vapid_private)
+  // Apple kräver ett giltigt subject (https-adress eller riktig mailto), annars 403 BadJwtToken
+  webpush.setVapidDetails(s.vapid_subject || 'https://hemapp.vercel.app', s.vapid_public, s.vapid_private)
 
   const body = await req.json().catch(() => ({}))
   const now = new Date()
@@ -37,7 +38,7 @@ Deno.serve(async (req) => {
         } catch (e) {
           const code = (e as { statusCode?: number }).statusCode
           if (code === 404 || code === 410) await db.from('push_subscriptions').delete().eq('id', sub.id)
-          log.push(`push-fel ${code}`)
+          log.push(`push-fel ${code} ${String((e as { body?: string }).body ?? '').slice(0, 120)}`)
         }
       }
     }
