@@ -5,6 +5,7 @@ import webpush from 'npm:web-push@3.6.7'
 import { occurrences } from './rrule.js'
 import { planDue } from './plans.js'
 import { nextBirthday, daysUntil } from './yearly.js'
+import { nextHandover, withAnchor } from './custody.js'
 
 const TZ = 'Europe/Stockholm'
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
@@ -12,7 +13,7 @@ const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SE
 function localParts(d: Date) {
   const f = new Intl.DateTimeFormat('sv-SE', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
   const p = Object.fromEntries(f.formatToParts(d).map((x) => [x.type, x.value]))
-  return { date: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour) % 24 }
+  return { date: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour) % 24, hm: `${String(Number(p.hour) % 24).padStart(2, '0')}:${p.minute}` }
 }
 const time = (d: Date) => d.toLocaleTimeString('sv-SE', { timeZone: TZ, hour: '2-digit', minute: '2-digit' })
 
@@ -25,8 +26,10 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}))
   const now = new Date()
-  const { date: todayLocal, hour } = localParts(now)
+  const { date: todayLocal, hour, hm } = localParts(now)
   const log: string[] = []
+  // Delade händelser (delad vårdnad) har en gemensam reminded_at. Inom samma körning får båda hushållen notisen.
+  const sentThisRun = new Map<string, number>()
 
   const { data: households } = await db.from('households').select('*')
   for (const h of households ?? []) {
@@ -73,9 +76,18 @@ Deno.serve(async (req) => {
       continue
     }
 
-    const { data: events } = await db.from('events').select('*').eq('household_id', h.id)
-    const { data: members } = await db.from('members').select('id, name').eq('household_id', h.id)
-    const nameOf = (id: string | null) => members?.find((m) => m.id === id)?.name
+    // Delad vårdnad: kopplade hushåll, delade barn och bilar
+    const { data: links } = await db.from('household_links').select('id, a, b').or(`a.eq.${h.id},b.eq.${h.id}`)
+    const linkIds = (links ?? []).map((l) => l.id)
+    const { data: shared } = linkIds.length ? await db.from('shared_children').select('child_id').in('link_id', linkIds) : { data: [] }
+    const kidIds = [...new Set((shared ?? []).map((x) => x.child_id))]
+    const inList = (ids: string[]) => ids.join(',')
+    const { data: events } = await db.from('events').select('*')
+      .or(`household_id.eq.${h.id}${kidIds.length ? `,member_id.in.(${inList(kidIds)})` : ''}`)
+    const { data: ownMembers } = await db.from('members').select('id, name').eq('household_id', h.id)
+    const { data: sharedKids } = kidIds.length ? await db.from('members').select('id, name').in('id', kidIds) : { data: [] }
+    const members = [...(ownMembers ?? []), ...(sharedKids ?? []).filter((k) => !ownMembers?.some((m) => m.id === k.id))]
+    const nameOf = (id: string | null) => members.find((m) => m.id === id)?.name
 
     // Påminnelser före händelser
     for (const e of events ?? []) {
@@ -83,11 +95,12 @@ Deno.serve(async (req) => {
       const windowEnd = new Date(now.getTime() + e.remind_minutes * 60000)
       const occ = occurrences(new Date(e.starts_at), e.rrule, now, windowEnd, e.exdates)
       for (const o of occ) {
-        if (e.reminded_at && new Date(e.reminded_at).getTime() >= o.getTime()) continue
+        if (e.reminded_at && new Date(e.reminded_at).getTime() >= o.getTime() && sentThisRun.get(e.id) !== o.getTime()) continue
         const who = nameOf(e.member_id)
         const endTxt = e.ends_at ? '–' + time(new Date(o.getTime() + new Date(e.ends_at).getTime() - new Date(e.starts_at).getTime())) : ''
         await send({ title: `${e.title} kl ${time(o)}${endTxt}`, body: [who, e.location].filter(Boolean).join(' · ') || 'Snart dags', url: '/?tab=calendar' })
         await db.from('events').update({ reminded_at: o.toISOString() }).eq('id', e.id)
+        sentThisRun.set(e.id, o.getTime())
         log.push(`påminnelse ${e.title}`)
       }
     }
@@ -127,12 +140,16 @@ Deno.serve(async (req) => {
     // Årliga påminnelser och födelsedagar (en gång per dag, vid morgontimmen)
     if (hour >= h.morning_push_hour && h.last_yearly_push !== todayLocal) {
       const when = (n: number) => (n === 0 ? 'idag' : n === 1 ? 'imorgon' : `om ${n} dagar`)
-      const { data: rems } = await db.from('reminders').select('*').eq('household_id', h.id)
+      const { data: cars } = await db.from('cars').select('id').or(`household_id.eq.${h.id}${linkIds.length ? `,link_id.in.(${inList(linkIds)})` : ''}`)
+      const carIds = (cars ?? []).map((c) => c.id)
+      const { data: rems } = await db.from('reminders').select('*').or(`household_id.eq.${h.id}${carIds.length ? `,car_id.in.(${inList(carIds)})` : ''}`)
       for (const r of rems ?? []) {
         const n = daysUntil(todayLocal, r.due_date)
-        if (n > r.remind_days || r.notified_for === r.due_date) continue
-        await send({ title: `${r.emoji} ${r.title} ${n < 0 ? 'har passerat' : when(n)}`, body: r.note || 'Tryck för att se påminnelsen', url: '/?tab=reminders' })
-        await db.from('reminders').update({ notified_for: r.due_date }).eq('id', r.id)
+        // notified_by = { hushålls-id: datum } så att båda hushållen får bilens påminnelser
+        const by = r.notified_by ?? {}
+        if (n > r.remind_days || by[h.id] === r.due_date || (r.notified_for === r.due_date && !Object.keys(by).length)) continue
+        await send({ title: `${r.emoji} ${r.title} ${n < 0 ? 'har passerat' : when(n)}`, body: r.note || 'Tryck för att se påminnelsen', url: r.car_id ? '/?tab=car' : '/?tab=reminders' })
+        await db.from('reminders').update({ notified_for: r.due_date, notified_by: { ...by, [h.id]: r.due_date } }).eq('id', r.id)
       }
       const { data: bdays } = await db.from('birthdays').select('*').eq('household_id', h.id)
       for (const b of bdays ?? []) {
@@ -148,12 +165,35 @@ Deno.serve(async (req) => {
       await db.from('households').update({ last_yearly_push: todayLocal }).eq('id', h.id)
     }
 
+    // Växelvis boende: notis kvällen före bytet till båda hushållen
+    if (hour >= 18) {
+      const { data: cust } = await db.from('custody').select('*').or(`household_id.eq.${h.id}${linkIds.length ? `,link_id.in.(${inList(linkIds)})` : ''}`)
+      for (const c of cust ?? []) {
+        const next = nextHandover(c, todayLocal, hm)
+        const by = c.notified_by ?? {}
+        if (daysUntil(todayLocal, next.date) !== 1 || by[h.id] === next.date) continue
+        const kid = nameOf(c.child_id) ?? 'Barnet'
+        const toUs = withAnchor(c, next.date, '23:59') === (c.household_id === h.id)
+        let other = c.other_label
+        if (c.link_id) {
+          const l = links?.find((x) => x.id === c.link_id)
+          const otherId = l ? (l.a === h.id ? l.b : l.a) : null
+          const { data: oh } = otherId ? await db.from('households').select('name').eq('id', otherId).maybeSingle() : { data: null }
+          if (oh?.name) other = oh.name
+        }
+        await send({ title: `🔁 Imorgon kl ${next.time} ${toUs ? `kommer ${kid} hem till er` : `åker ${kid} till ${other}`}`, body: toUs ? 'Dags att förbereda rummet och veckan' : 'Glöm inte att packa väskan', url: '/?tab=calendar' })
+        await db.from('custody').update({ notified_by: { ...by, [h.id]: next.date }, notified_for: next.date }).eq('id', c.id)
+        log.push(`byte ${kid} ${h.name}`)
+      }
+    }
+
     // VAB: påminnelse söndag kväll om dagar som inte är anmälda till Försäkringskassan
     const weekday = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short' }).format(now)
     if (weekday === 'Sun' && hour >= 18 && h.last_vab_push !== todayLocal) {
-      const { data: vab } = await db.from('vab_days').select('day, parent_id, hours').eq('household_id', h.id).eq('kind', 'vab').eq('reported', false).order('day')
+      const { data: vab } = await db.from('vab_days').select('day, parent_id, hours').eq('kind', 'vab').eq('reported', false)
+        .or(`household_id.eq.${h.id}${kidIds.length ? `,child_id.in.(${inList(kidIds)})` : ''}`).order('day')
       const byParent = new Map<string, { day: string }[]>()
-      for (const r of vab ?? []) { if (!r.parent_id) continue; byParent.set(r.parent_id, [...(byParent.get(r.parent_id) ?? []), r]) }
+      for (const r of vab ?? []) { if (!r.parent_id || !ownMembers?.some((m) => m.id === r.parent_id)) continue; byParent.set(r.parent_id, [...(byParent.get(r.parent_id) ?? []), r]) }
       for (const [pid, list] of byParent) {
         const days = list.map((r) => new Date(r.day + 'T12:00:00Z').toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' }))
         await send({ title: `Anmäl ${list.length} VAB-dag${list.length === 1 ? '' : 'ar'} till Försäkringskassan`, body: days.join(', '), url: '/?tab=vab' }, pid)

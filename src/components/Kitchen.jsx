@@ -10,6 +10,7 @@ import { dishColor } from './Meals'
 import { COMMON_DISHES } from '../lib/defaults'
 import EventRow from './EventRow'
 import Notes, { Soon } from './Notes'
+import { checkOff } from '../lib/refill'
 import { CustodyLine } from './Custody'
 
 // Köksskärm för en iPad på kylskåpet: klocka, dagen, sysslor, mat och inköp på en skärm
@@ -101,7 +102,7 @@ export default function Kitchen({ householdId, members, me, onExit, custody, lin
         <section className="k-card k-shop">
           <h3>Handla {toBuy.length > 0 && <span className="count">{toBuy.length}</span>}</h3>
           <div className="chips">
-            {toBuy.map((i) => <button key={i.id} className="chip big-chip" onClick={() => items.update(i.id, { done: true })}>{i.name}</button>)}
+            {toBuy.map((i) => <button key={i.id} className="chip big-chip" onClick={() => checkOff(items, i, lists.rows)}>{i.name}</button>)}
           </div>
           {toBuy.length === 0 && <p className="muted">Listan är tom.</p>}
         </section>

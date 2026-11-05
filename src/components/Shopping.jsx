@@ -7,6 +7,7 @@ import SwipeRow, { Check } from './Swipe'
 import { MemberTag } from './MemberPicker'
 import ShopMode from './ShopMode'
 import Icon from './Icon'
+import { checkOff } from '../lib/refill'
 
 export default function Shopping({ householdId, me, members }) {
   const lists = useTable('shopping_lists', householdId)
@@ -21,8 +22,12 @@ export default function Shopping({ householdId, me, members }) {
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
 
   const activeLists = lists.rows.filter((l) => !l.archived)
-    .sort((a, b) => Number(b.is_default) - Number(a.is_default) || (a.for_date || '9').localeCompare(b.for_date || '9'))
+    .sort((a, b) => Number(b.is_default) - Number(a.is_default) || Number(b.is_refill) - Number(a.is_refill) || (a.for_date || '9').localeCompare(b.for_date || '9'))
   const defaultList = lists.rows.find((l) => l.is_default)
+  const refillList = lists.rows.find((l) => l.is_refill)
+  // Komplettera-listan skapas en gång om den saknas
+  useEffect(() => { if (!lists.loading && lists.rows.length && !refillList) lists.insert({ name: 'Komplettera', is_refill: true }) }, [lists.loading, lists.rows.length, refillList])
+  const tick = (i) => checkOff(items, i, lists.rows)
   const list = lists.rows.find((l) => l.id === listId) || defaultList
   useEffect(() => { if (!listId && defaultList) setListId(defaultList.id) }, [defaultList, listId])
 
@@ -73,7 +78,7 @@ export default function Shopping({ householdId, me, members }) {
         <>
           {todo.length > 0 && <button className="primary wide shop-now" onClick={() => setShopping(true)}><Icon name="cart" size={18} /> Jag handlar nu</button>}
           <div className="mt" />
-          {shopping && <ShopMode list={list} items={items} onClose={() => setShopping(false)} />}
+          {shopping && <ShopMode list={list} items={items} lists={lists.rows} onClose={() => setShopping(false)} />}
           <Fab onClick={() => setAdding(true)} label="Lägg till vara" />
           {adding && (
             <Sheet title={`Lägg till i ${list.name}`} onClose={() => { setAdding(false); setText('') }}>
@@ -98,9 +103,9 @@ export default function Shopping({ householdId, me, members }) {
               {section && <h4 className="day">{section}</h4>}
               <ul className="list">
                 {rows.map((i) => (
-                  <SwipeRow key={i.id} onCheck={() => items.update(i.id, { done: true })} onDelete={() => items.remove(i.id)} checkLabel="I korgen">
+                  <SwipeRow key={i.id} onCheck={() => tick(i)} onDelete={() => items.remove(i.id)} checkLabel="I korgen">
                     <span className="check">
-                      <Check checked={false} onChange={() => items.update(i.id, { done: true })} label={`Bocka av ${i.name}`} />
+                      <Check checked={false} onChange={() => tick(i)} label={`Bocka av ${i.name}`} />
                       <span>{i.name}</span>
                     </span>
                     <span className="meta">
@@ -142,7 +147,7 @@ export default function Shopping({ householdId, me, members }) {
         </>
       )}
 
-      {view === 'home' && <OutAtHome catalog={catalog} items={items} add={(n) => add(n, defaultList)} defaultList={defaultList} />}
+      {view === 'home' && <OutAtHome catalog={catalog} items={items} add={(n) => add(n, refillList || defaultList)} defaultList={refillList || defaultList} />}
       {view === 'lists' && <Lists lists={lists} items={items} onOpen={(id) => { setListId(id); setView('list') }} />}
     </section>
   )
@@ -238,7 +243,7 @@ function Lists({ lists, items, onOpen }) {
   const [showArchived, setShowArchived] = useState(false)
   const [adding, setAdding] = useState(false)
   const visible = lists.rows.filter((l) => showArchived || !l.archived)
-    .sort((a, b) => Number(b.is_default) - Number(a.is_default) || (a.for_date || '9').localeCompare(b.for_date || '9'))
+    .sort((a, b) => Number(b.is_default) - Number(a.is_default) || Number(b.is_refill) - Number(a.is_refill) || (a.for_date || '9').localeCompare(b.for_date || '9'))
   const count = (id) => items.rows.filter((i) => i.list_id === id && !i.done).length
 
   const create = async (e) => {
@@ -265,10 +270,10 @@ function Lists({ lists, items, onOpen }) {
         {visible.map((l) => (
           <li key={l.id} className={l.archived ? 'is-done' : ''}>
             <span className="tap grow" onClick={() => onOpen(l.id)}>
-              <strong>{l.name}</strong>{l.is_default && <span className="muted small"> · standard</span>}
+              <strong>{l.name}</strong>{l.is_default && <span className="muted small"> · standard</span>}{l.is_refill && <span className="muted small"> · från Slut hemma</span>}
               <div className="muted small">{count(l.id)} varor{l.for_date ? ` · ${short(l.for_date)}` : ''}</div>
             </span>
-            {!l.is_default && (
+            {!l.is_default && !l.is_refill && (
               <span className="meta">
                 <button className="link" onClick={() => lists.update(l.id, { archived: !l.archived })}>{l.archived ? 'Återställ' : 'Arkivera'}</button>
                 <button className="icon-btn" onClick={() => confirm(`Ta bort ${l.name} och dess varor?`) && lists.remove(l.id)} aria-label="Ta bort">✕</button>

@@ -3,9 +3,10 @@ import { supabase } from '../supabase'
 import { SECTIONS } from '../lib/sections'
 import { useWakeLock } from '../lib/useNow'
 import { buzz } from './Swipe'
+import { checkOff } from '../lib/refill'
 
 // "Jag handlar nu": stora rader per avdelning, mätare, skärmen hålls tänd
-export default function ShopMode({ list, items, onClose }) {
+export default function ShopMode({ list, items, lists = [], onClose }) {
   useWakeLock(true)
   const [sent, setSent] = useState(false)
   const rows = items.rows.filter((i) => i.list_id === list.id)
@@ -15,7 +16,7 @@ export default function ShopMode({ list, items, onClose }) {
   const sec = (i) => (SECTIONS.includes(i.section) ? i.section : 'Övrigt')
   const groups = SECTIONS.map((s) => [s, left.filter((i) => sec(i) === s)]).filter(([, v]) => v.length)
 
-  const toggle = (i) => { buzz(); items.update(i.id, { done: !i.done }) }
+  const toggle = (i) => { buzz(); if (i.done) items.update(i.id, { done: false }); else checkOff(items, i, lists) }
   const finish = async () => {
     if (!sent && taken.length > 0) {
       const { error } = await supabase.rpc('notify_household', { msg: `har handlat${list.is_default ? '' : ` (${list.name})`} 🛒`, link: '/?tab=shopping' })

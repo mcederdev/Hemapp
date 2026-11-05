@@ -64,7 +64,7 @@ export function CustodyEditor({ child, custody, table, me, linked }) {
     const mine = !c || c.household_id === me.household_id
     // Datumet är en dag då barnet kommer till oss. Är schemat det andra hushållets räknar vi om till deras ankare.
     const anchor = mine ? form.arrive : addDays(form.arrive, Number(form.every))
-    const v = { anchor, every_days: Number(form.every) || 7, handover_time: form.time || '18:00', other_label: form.other || 'andra föräldern', notified_for: null }
+    const v = { anchor, every_days: Number(form.every) || 7, handover_time: form.time || '18:00', other_label: form.other || 'andra föräldern', notified_for: null, notified_by: {} }
     if (c) await table.update(c.id, v)
     else {
       const link = linked.households[0]?.link_id || null

@@ -30,7 +30,7 @@ export function YearlyList({ householdId, carId = null, suggestionList = REMINDE
   const existing = new Set(mine.map((r) => r.title.toLowerCase()))
   const suggestions = suggestionList.filter((s) => !existing.has(s.title.toLowerCase()))
   const done = (r) => {
-    if (r.repeat_months > 0) rows.update(r.id, { due_date: advance(r.due_date, r.repeat_months), notified_for: null })
+    if (r.repeat_months > 0) rows.update(r.id, { due_date: advance(r.due_date, r.repeat_months), notified_for: null, notified_by: {} })
     else if (confirm(`Ta bort "${r.title}"?`)) rows.remove(r.id)
   }
   const fromSuggestion = (s) => {
@@ -42,7 +42,7 @@ export function YearlyList({ householdId, carId = null, suggestionList = REMINDE
     e.preventDefault()
     if (!edit.title.trim() || !edit.due_date) return
     const v = { title: edit.title.trim(), emoji: edit.emoji || '🔔', due_date: edit.due_date, repeat_months: Number(edit.repeat_months) || 0, remind_days: Number(edit.remind_days) || 0, note: edit.note || null }
-    if (edit.id) await rows.update(edit.id, { ...v, notified_for: edit.due_date === edit.orig ? edit.notified_for : null })
+    if (edit.id) await rows.update(edit.id, edit.due_date === edit.orig ? v : { ...v, notified_for: null, notified_by: {} })
     else await rows.insert({ ...v, household_id: householdId, car_id: carId })
     setEdit(null)
   }

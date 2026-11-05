@@ -473,3 +473,7 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 .cal-custody i { width: 12px; height: 3px; border-radius: 2px; background: var(--c); opacity: .8; }
 .cal-custody i.swap { background: linear-gradient(90deg, transparent 50%, var(--c) 50%); }
 .custody-day { margin: -4px 0 8px; padding-left: 8px; border-left: 3px solid var(--c); }
+.balance .big { font-size: 1.2rem; font-weight: 700; margin: 0; }
+.balance.plus { border-left: 4px solid #2e9d5b; }
+.balance.minus { border-left: 4px solid #e0567a; }
+.reg { font-family: ui-monospace, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; margin-right: 4px; }
