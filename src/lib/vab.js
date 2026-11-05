@@ -9,8 +9,10 @@ const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinu
 // Ett nattpass som började dagen innan räknas till den dagen. Null om inget pass finns.
 export function workTime(events, parentId, dayStr) {
   const d0 = new Date(dayStr + 'T00:00'), d1 = new Date(d0); d1.setDate(d1.getDate() + 1)
-  const occ = expandEvents(events.filter((e) => e.member_id === parentId && !e.all_day), d0, d1)
+  let occ = expandEvents(events.filter((e) => e.member_id === parentId && !e.all_day), d0, d1)
     .filter((o) => o.start >= d0 && o.start < d1)
+  // Finns pass med kategori jobb används bara de
+  if (occ.some((o) => o.category === 'jobb')) occ = occ.filter((o) => o.category === 'jobb')
   if (!occ.length) return null
   const start = new Date(Math.min(...occ.map((o) => o.start)))
   const end = new Date(Math.max(...occ.map((o) => (o.end || o.start).getTime())))
@@ -42,3 +44,11 @@ export function sickDayNumber(rows, childId, dayStr) {
 }
 
 export const daysSince = (dayStr, today) => Math.round((new Date(today + 'T00:00') - new Date(dayStr + 'T00:00')) / 86400000)
+
+// Vilka föräldrar har ett jobbpass som krockar med barnets skoltid?
+export function workConflicts(events, parentIds, from, to) {
+  if (!from || !to) return []
+  const pad = new Date(from); pad.setDate(pad.getDate() - 1)
+  const occ = expandEvents(events.filter((e) => parentIds.includes(e.member_id) && e.category === 'jobb' && !e.all_day), pad, to)
+  return occ.filter((o) => o.start < to && (o.end || o.start) > from)
+}

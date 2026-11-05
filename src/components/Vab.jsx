@@ -22,8 +22,8 @@ export default function Vab({ householdId, members, me }) {
   const all = [...vab.rows].sort((a, b) => b.day.localeCompare(a.day))
   const rows = all.filter((r) => (r.kind || 'vab') === 'vab')
   const sickRows = all.filter((r) => r.kind === 'sick')
-  const open = rows.filter((r) => !r.reported)
-  const done = rows.filter((r) => r.reported)
+  const open = rows.filter((r) => !r.reported && r.parent_id)
+  const done = rows.filter((r) => r.reported || !r.parent_id)
   const parents = members.filter((m) => m.role !== 'child')
   const kids = members.filter((m) => m.role === 'child')
 
@@ -38,14 +38,14 @@ export default function Vab({ householdId, members, me }) {
     return (
       <li className={r.reported ? 'is-done' : ''}>
         <span className="check">
-          {r.kind !== 'sick' && <Check checked={r.reported} onChange={() => toggle(r)} label={r.reported ? 'Markera som ej anmäld' : 'Markera som anmäld'} />}
+          {r.kind !== 'sick' && r.parent_id && <Check checked={r.reported} onChange={() => toggle(r)} label={r.reported ? 'Markera som ej anmäld' : 'Markera som anmäld'} />}
           <span className="tap grow" onClick={() => setForm(r)}>
             <span className="cap">{prettyDay(r.day)}</span> · {r.kind === 'sick' ? `${byId[r.parent_id]?.name || ''} sjuk` : byId[r.child_id]?.name || 'Barn'}
             <div className="muted small row-icons">
-              <span>{r.full_day ? 'Heldag' : 'Del av dag'}{r.start_time ? ` ${r.start_time.slice(0, 5)}–${r.end_time?.slice(0, 5) || ''}` : ''}{r.hours ? ` · ${fmt(r.hours)} tim` : ''}</span>
+              <span>{!r.parent_id && r.kind !== 'sick' ? 'Ingen behövde vabba' : r.full_day ? 'Heldag' : 'Del av dag'}{r.start_time ? ` ${r.start_time.slice(0, 5)}–${r.end_time?.slice(0, 5) || ''}` : ''}{r.hours ? ` · ${fmt(r.hours)} tim` : ''}</span>
               {r.illness && <span>🤒 {r.illness}{r.temperature ? ` ${String(r.temperature).replace('.', ',')}°` : ''}</span>}
             </div>
-            {r.kind !== 'sick' && !r.reported && age > 60 && <div className="error small">Anmäl snart, FK måste ha ansökan inom 90 dagar ({90 - age} dagar kvar)</div>}
+            {r.kind !== 'sick' && r.parent_id && !r.reported && age > 60 && <div className="error small">Anmäl snart, FK måste ha ansökan inom 90 dagar ({90 - age} dagar kvar)</div>}
             {n >= 8 && <div className="error small">Dag {n} i rad: läkarintyg behövs från dag 8</div>}
           </span>
         </span>
@@ -58,7 +58,7 @@ export default function Vab({ householdId, members, me }) {
 
   return (
     <section>
-      <h2>VAB & sjukdagar</h2>
+      <h2>VAB & Sjukdagar</h2>
       <div className="seg mb">
         <button className={view === 'vab' ? 'active' : ''} onClick={() => setView('vab')}>VAB{open.length > 0 ? ` (${open.length})` : ''}</button>
         <button className={view === 'sick' ? 'active' : ''} onClick={() => setView('sick')}>Sjuk själv</button>
@@ -106,7 +106,7 @@ export default function Vab({ householdId, members, me }) {
 
       {done.length > 0 && (
         <>
-          <button className="link" onClick={() => setShowAll(!showAll)}>{showAll ? 'Dölj anmälda' : `Visa anmälda (${done.length})`}</button>
+          <button className="link" onClick={() => setShowAll(!showAll)}>{showAll ? 'Dölj tidigare' : `Visa tidigare (${done.length})`}</button>
           {showAll && <ul className="list done mt">{done.map((r) => <Row key={r.id} r={r} />)}</ul>}
         </>
       )}

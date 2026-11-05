@@ -27,7 +27,7 @@ const TABS = [
 const MORE = [
   { id: 'finance', label: 'Ekonomi', icon: 'wallet' },
   { id: 'kids', label: 'Barnens sida', icon: 'star' },
-  { id: 'vab', label: 'VAB', icon: 'thermo' },
+  { id: 'vab', label: 'VAB & Sjukdagar', icon: 'thermo' },
   { id: 'kitchen', label: 'Köksskärm (iPad)', icon: 'home' },
   { id: 'family', label: 'Familj & inställningar', icon: 'users' }
 ]

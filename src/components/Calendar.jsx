@@ -12,6 +12,7 @@ import Sheet, { Fab } from './Sheet'
 import FamilyStrip, { forFocus } from './FamilyStrip'
 import DayColumns from './DayColumns'
 import VabForm from './VabForm'
+import { CATEGORIES, catById, guessCategory, rulePrefix } from '../lib/categories'
 
 const REPEATS = [
   { v: '', label: 'Upprepa inte' }, { v: 'daily', label: 'Varje dag' }, { v: 'weekdays', label: 'Vardagar (mån–fre)' }, { v: 'weekdays2', label: 'Vardagar varannan vecka' }, { v: 'weekly', label: 'Varje vecka' },
@@ -20,7 +21,8 @@ const REPEATS = [
 const REMIND = [{ v: 0, label: 'Ingen påminnelse' }, { v: 15, label: '15 min innan' }, { v: 30, label: '30 min innan' }, { v: 60, label: '1 timme innan' }, { v: 120, label: '2 timmar innan' }]
 const WD = ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön']
 
-export default function Calendar({ householdId, members, me, go, focus: who, setFocus: setWho }) {
+export default function Calendar({ householdId, members, me, go, household, households, focus: who, setFocus: setWho }) {
+  const rules = household?.category_rules || []
   const events = useTable('events', householdId, 'starts_at')
   const vab = useTable('vab_days', householdId, 'day')
   const [vabForm, setVabForm] = useState(null)
@@ -28,7 +30,7 @@ export default function Calendar({ householdId, members, me, go, focus: who, set
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [selected, setSelected] = useState(today())
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ title: '', date: today(), time: '', endTime: '', member: null, location: '', repeat: '', until: '', remind: 30 })
+  const [form, setForm] = useState({ title: '', date: today(), time: '', endTime: '', member: null, location: '', repeat: '', until: '', remind: 30, category: '', catTouched: false })
   const [importMember, setImportMember] = useState(null)
   const [msg, setMsg] = useState('')
   const [mode, setMode] = useState(() => { try { return localStorage.getItem('calMode') || 'week' } catch { return 'week' } })
@@ -62,9 +64,9 @@ export default function Calendar({ householdId, members, me, go, focus: who, set
     const ends = form.endTime ? new Date(`${form.date}T${form.endTime}`) : null
     events.insert({
       title: form.title.trim(), starts_at: starts.toISOString(), ends_at: ends?.toISOString() || null, all_day: allDay,
-      member_id: form.member, location: form.location || null, rrule: simpleRrule(form.repeat, form.until), remind_minutes: allDay ? 0 : Number(form.remind)
+      member_id: form.member, location: form.location || null, rrule: simpleRrule(form.repeat, form.until), category: form.category || null, remind_minutes: allDay ? 0 : Number(form.remind)
     })
-    setForm({ ...form, title: '', time: '', endTime: '', location: '', repeat: '', until: '' })
+    setForm({ ...form, title: '', time: '', endTime: '', location: '', repeat: '', until: '', category: '', catTouched: false })
     setShowForm(false)
   }
 
@@ -79,6 +81,12 @@ export default function Calendar({ householdId, members, me, go, focus: who, set
       ics_uid: p.uid, member_id: importMember, rrule: p.rrule, remind_minutes: p.allDay ? 0 : 30
     }))
     const { error } = await supabase.from('events').upsert(rows, { onConflict: 'household_id,ics_uid' })
+    // Kategorisera nya poster (ändrar inte poster som redan har en kategori)
+    if (!error) {
+      const byCat = {}
+      for (const p of parsed) { const c = guessCategory(p.title, rules); if (c && p.uid) (byCat[c] ||= []).push(p.uid) }
+      for (const [c, uids] of Object.entries(byCat)) await supabase.from('events').update({ category: c }).eq('household_id', householdId).in('ics_uid', uids).is('category', null)
+    }
     const recurring = rows.filter((r) => r.rrule).length
     setMsg(error ? error.message : `Importerade ${rows.length} händelser${recurring ? `, varav ${recurring} återkommande` : ''}.`)
     fileRef.current.value = ''
@@ -108,13 +116,13 @@ export default function Calendar({ householdId, members, me, go, focus: who, set
     }
     if (byId[o.member_id]?.role !== 'child') return null
     const list = vab.rows.filter((r) => r.kind !== 'sick' && r.child_id === o.member_id && r.day === d)
-    return list.length ? `VAB · ${list.map((r) => byId[r.parent_id]?.name).filter(Boolean).join(' + ')}` : null
+    return list.length ? (list.some((r) => r.parent_id) ? `VAB · ${list.map((r) => byId[r.parent_id]?.name).filter(Boolean).join(' + ')}` : 'Sjuk') : null
   }
   const startVab = (o) => {
     setOpened(null)
     const d = iso(o.start < parseDay(selected) ? parseDay(selected) : o.start)
     const existing = vab.rows.find((r) => r.kind !== 'sick' && r.child_id === o.member_id && r.day === d)
-    setVabForm(existing || { day: d, child_id: o.member_id, event_id: o.id })
+    setVabForm(existing || { day: d, child_id: o.member_id, event_id: o.id, schoolStart: o.all_day ? null : o.start, schoolEnd: o.all_day ? null : o.end })
   }
   // Egen sjukdag från förälderns pass
   const startSick = (o) => {
@@ -195,7 +203,8 @@ export default function Calendar({ householdId, members, me, go, focus: who, set
       {showForm && (
         <Sheet title="Ny händelse" onClose={() => setShowForm(false)}>
         <form className="stack" onSubmit={add}>
-          <input placeholder="Vad händer?" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} autoFocus />
+          <input placeholder="Vad händer?" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value, category: form.catTouched ? form.category : guessCategory(e.target.value, rules) || '' })} autoFocus />
+          <CategoryChips value={form.category} onChange={(c) => setForm({ ...form, category: c, catTouched: true })} />
           <label className="field"><span className="muted small">Datum</span><input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required /></label>
           <div className="row">
             <label className="field"><span className="muted small">Start</span><input type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} /></label>
@@ -225,6 +234,8 @@ export default function Calendar({ householdId, members, me, go, focus: who, set
       {opened && (
         <Sheet title={opened.title} onClose={() => setOpened(null)}>
           <ul className="list"><EventRow occ={opened} day={selDate} byId={byId} badge={badgeFor(opened, selDate)} /></ul>
+          <CategoryEditor occ={opened} events={events} rules={rules} household={household} households={households} householdId={householdId}
+            onChange={(c) => setOpened({ ...opened, category: c })} />
           <div className="stack">
             {byId[opened.member_id]?.role === 'child' && (
               <button className="primary" onClick={() => startVab(opened)}>
@@ -286,4 +297,43 @@ function groupByDay(list) {
     map.get(key).push(o)
   }
   return [...map.entries()]
+}
+
+function CategoryChips({ value, onChange }) {
+  return (
+    <div className="chips">
+      {CATEGORIES.map((c) => (
+        <button type="button" key={c.id} className={`chip ${value === c.id ? 'on' : ''}`} onClick={() => onChange(value === c.id ? '' : c.id)}>{c.emoji} {c.label}</button>
+      ))}
+    </div>
+  )
+}
+
+// Ändra kategori i efterhand, och spara en regel för liknande poster (t.ex. alla "M1L…")
+function CategoryEditor({ occ, events, rules, household, households, householdId, onChange }) {
+  const existing = (rules || []).find((r) => occ.title.toLowerCase().startsWith(r.prefix.toLowerCase()))
+  const [prefix, setPrefix] = useState(existing?.prefix || rulePrefix(occ.title) || '')
+  const [all, setAll] = useState(!!existing)
+  const pick = async (c) => {
+    const category = c || null
+    onChange(category)
+    if (all && prefix.trim() && household) {
+      const p = prefix.trim()
+      const next = [...(rules || []).filter((r) => r.prefix.toLowerCase() !== p.toLowerCase()), ...(category ? [{ prefix: p, category }] : [])]
+      await households.update(household.id, { category_rules: next })
+      await supabase.from('events').update({ category }).eq('household_id', householdId).ilike('title', `${p.replace(/[%_]/g, '')}%`)
+      events.reload()
+    } else events.update(occ.id, { category })
+  }
+  return (
+    <div className="stack mb">
+      <span className="muted small">Typ av post</span>
+      <CategoryChips value={occ.category || ''} onChange={pick} />
+      <label className="row small">
+        <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} />
+        <span>Gäller alla poster som börjar på</span>
+        <input value={prefix} onChange={(e) => setPrefix(e.target.value)} style={{ maxWidth: 90, padding: '.3rem .5rem' }} aria-label="Början på titeln" />
+      </label>
+    </div>
+  )
 }

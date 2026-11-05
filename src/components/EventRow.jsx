@@ -3,13 +3,15 @@ import { parseRrule } from '../lib/rrule'
 import { MemberTag } from './MemberPicker'
 import SwipeRow from './Swipe'
 import Icon from './Icon'
+import { catById } from '../lib/categories'
 
 // Tidslinjerad: tid till vänster, färgad stapel per person, titel och detaljer
 export default function EventRow({ occ, day, byId, onRemove, onOpen, badge, className = '' }) {
   const l = timeLabel(occ, day)
   const [main, sub] = splitTime(l.time)
   const member = byId[occ.member_id]
-  const details = [l.note, occ.location].filter(Boolean)
+  const cat = catById[occ.category]
+  const details = [l.note, cat && `${cat.emoji} ${cat.label}`, occ.location].filter(Boolean)
   const body = (
     <>
       <div className="tl-time">

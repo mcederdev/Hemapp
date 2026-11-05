@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ILLNESSES, workTime, hoursBetween } from '../lib/vab'
+import { ILLNESSES, workTime, hoursBetween, workConflicts } from '../lib/vab'
+import { timeOf } from '../lib/events'
 import { addDays } from '../lib/dates'
 import Sheet from './Sheet'
 
@@ -11,10 +12,13 @@ export default function VabForm({ vab, events, members, me, initial, onClose }) 
   const kids = members.filter((m) => m.role === 'child')
   const parents = members.filter((m) => m.role !== 'child')
   const editing = !!initial.id
+  // Krockar skoltiden med någon förälders jobbpass? Annars behövde ingen vabba.
+  const conflicts = !editing && !sick && initial.schoolStart ? workConflicts(events, parents.map((p) => p.id), initial.schoolStart, initial.schoolEnd || initial.schoolStart) : null
+  const defaultParent = editing ? initial.parent_id : sick ? initial.parent_id || me.id : conflicts ? (conflicts.length ? undefined : null) : me.role !== 'child' ? me.id : parents[0]?.id
   const [f, setF] = useState(() => ({
     child_id: initial.child_id || kids[0]?.id || null,
     day: initial.day,
-    parent_id: initial.parent_id || (me.role !== 'child' ? me.id : parents[0]?.id),
+    parent_id: defaultParent,
     full_day: initial.full_day ?? true,
     start_time: initial.start_time?.slice(0, 5) || '',
     end_time: initial.end_time?.slice(0, 5) || '',
@@ -32,7 +36,7 @@ export default function VabForm({ vab, events, members, me, initial, onClose }) 
 
   // Fyll i arbetstiden automatiskt när förälder eller dag ändras
   useEffect(() => {
-    if (touched) return
+    if (touched || !f.parent_id) return
     const w = workTime(events, f.parent_id, f.day) || { start: '08:00', end: '17:00' }
     set({ start_time: w.start, end_time: w.end, hours: hoursBetween(w.start, w.end) })
   }, [f.parent_id, f.day, events.length, touched])
@@ -59,7 +63,16 @@ export default function VabForm({ vab, events, members, me, initial, onClose }) 
     illness: f.illness.trim() || null, temperature: f.temperature === '' ? null : Number(String(f.temperature).replace(',', '.')),
     note: f.note.trim() || null, event_id: f.event_id
   })
+  const nobody = f.parent_id === null
   const save = async (alsoTomorrow) => {
+    if (f.parent_id === undefined) return alert('Välj vem som vabbade, eller "Ingen".')
+    if (nobody) {
+      const base = { ...row(f), parent_id: null, start_time: null, end_time: null, hours: null, full_day: true }
+      if (editing) await vab.update(initial.id, base)
+      else await vab.insert({ ...base, created_by: me.id })
+      if (alsoTomorrow) await vab.insert({ ...base, day: nextWeekday(f.day), event_id: null, created_by: me.id })
+      return onClose()
+    }
     const rows = [row(f), ...(split ? [row(split)] : [])]
     if (editing) await vab.update(initial.id, rows[0])
     else await vab.insert(rows.map((r) => ({ ...r, created_by: me.id })))
@@ -90,9 +103,18 @@ export default function VabForm({ vab, events, members, me, initial, onClose }) 
           <span className="muted small">{sick ? 'Vem är sjuk?' : 'Vem vabbade?'}</span>
           <div className="seg">
             {parents.map((p) => <button type="button" key={p.id} className={f.parent_id === p.id ? 'active' : ''} onClick={() => { setTouched(false); set({ parent_id: p.id }) }}>{p.name}</button>)}
+            {!sick && <button type="button" className={nobody ? 'active' : ''} onClick={() => { setSplit(null); set({ parent_id: null }) }}>Ingen</button>}
           </div>
+          {conflicts && (
+            <p className={`small vab-hint ${conflicts.length ? 'error' : 'muted'}`}>
+              {conflicts.length
+                ? `Skoltiden krockar med ${conflicts.map((o) => `${name(o.member_id)}s ${o.title} ${timeOf(o.start)}–${o.end ? timeOf(o.end) : ''}`).join(' och ')}. Vem vabbade?`
+                : 'Skoltiden krockar inte med någons jobbpass, så ingen behövde vabba. Ändra om det inte stämmer.'}
+            </p>
+          )}
         </div>
 
+        {!nobody && f.parent_id !== undefined && <>
         {!split && (
           <div className="seg">
             <button type="button" className={f.full_day ? 'active' : ''} onClick={() => { setTouched(false); set({ full_day: true }) }}>Heldag</button>
@@ -106,6 +128,8 @@ export default function VabForm({ vab, events, members, me, initial, onClose }) 
         </p>
         {split && <TimeRow label={name(split.parent_id)} v={split} onChange={(p) => { const n = { ...split, ...p }; setSplit({ ...n, hours: 'hours' in p ? p.hours : hoursBetween(n.start_time, n.end_time) ?? n.hours }) }} />}
         {!sick && other && !editing && <button type="button" className="link" onClick={toggleSplit}>{split ? 'Ångra delning' : `Dela dagen med ${other.name}`}</button>}
+        </>}
+        {nobody && <p className="muted small">Sparas som sjukdag för barnet (syns i statistiken) men behöver inte anmälas till Försäkringskassan.</p>}
 
         <div>
           <span className="muted small">{sick ? 'Vad är det?' : 'Vad var det?'}</span>

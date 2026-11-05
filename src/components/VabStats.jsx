@@ -66,7 +66,7 @@ export default function VabStats({ rows, members }) {
       })}
 
       <div className="card">
-        <strong>Vem vabbade {year}</strong>
+        <strong>Vem vabbade {year}</strong>{vab.some((r) => !r.parent_id) && <span className="muted small"> · {uniqueDays(vab.filter((r) => !r.parent_id)).length} sjukdagar utan VAB</span>}
         <div className="split-bar">
           {adults.map((a) => {
             const n = uniqueDays(vab.filter((r) => r.parent_id === a.id)).length

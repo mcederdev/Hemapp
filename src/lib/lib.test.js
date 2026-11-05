@@ -140,3 +140,14 @@ test('återkommande sysslor', () => {
   assert.equal(planDue({ unit: 'day', every: 2, last_added: '2026-11-05' }, '2026-11-06'), null)
   assert.equal(planDue({ unit: 'day', every: 2, last_added: '2026-11-05' }, '2026-11-07'), '2026-11-07')
 })
+import { guessCategory, rulePrefix } from './categories.js'
+test('kategorier', () => {
+  const rules = [{ prefix: 'M1L', category: 'jobb' }]
+  assert.equal(guessCategory('M1L494', rules), 'jobb')
+  assert.equal(guessCategory('Skola', rules), 'skola')
+  assert.equal(guessCategory('Tandläkare', rules), 'vard')
+  assert.equal(guessCategory('Fika', rules), null)
+  assert.equal(rulePrefix('M1L494'), 'M1L')
+  assert.equal(rulePrefix('M1LR09'), 'M1LR')
+  assert.equal(rulePrefix('Skola'), null)
+})
