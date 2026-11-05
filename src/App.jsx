@@ -118,9 +118,12 @@ function Home({ me }) {
   const ord = household?.member_order || []
   const rank = (m) => { const i = ord.indexOf(m.id); return i === -1 ? 999 : i }
   const sorted = (list) => [...list].sort((a, b) => rank(a) - rank(b))
-  const all = withInitials(sorted(members.rows))
+  // Smeknamn: bara för den inloggade (sparas på ens egen rad), riktiga namnet finns kvar i realName
+  const nick = members.rows.find((m) => m.id === me.id)?.nicknames || {}
+  const named = (list) => list.map((m) => (nick[m.id] ? { ...m, name: nick[m.id], realName: m.name } : m))
+  const all = withInitials(named(sorted(members.rows)))
   // Alla personer vi kan behöva visa namn för, även föräldrar i det andra hushållet
-  const people = withInitials([...sorted(members.rows), ...linked.people.filter((p) => !members.rows.some((m) => m.id === p.id)).map((p) => ({ ...p, role: 'parent', linked: true }))])
+  const people = withInitials(named([...sorted(members.rows), ...linked.people.filter((p) => !members.rows.some((m) => m.id === p.id)).map((p) => ({ ...p, role: 'parent', linked: true }))]))
   const props = { me, householdId: me.household_id, members: all, people, linked, custody: custody.rows, custodyTable: custodyRaw, custodyExc, membersTable: members, household, households, go: pick, guests: guestsT.rows, guestsTable: guestsT,
     focus: all.some((m) => m.id === focus) ? focus : null, setFocus }
   useEffect(() => { applyAccent(household?.theme?.accent) }, [household?.theme?.accent])

@@ -30,6 +30,21 @@ export default function Family({ me, householdId, members, membersTable, househo
     ;[ids[i], ids[j]] = [ids[j], ids[i]]
     households.update(household.id, { member_order: ids })
   }
+  // Smeknamn som bara visas för mig
+  const meRow = members.find((m) => m.id === me.id)
+  const nickname = (m) => {
+    const real = m.realName || m.name
+    const v = prompt(`Smeknamn för ${real}. Visas bara för dig. Lämna tomt för att använda ${real}.`, m.realName ? m.name : '')
+    if (v === null || !meRow) return
+    const next = { ...(meRow.nicknames || {}) }
+    if (v.trim() && v.trim() !== real) next[m.id] = v.trim(); else delete next[m.id]
+    membersTable.update(me.id, { nicknames: next })
+  }
+  const NameEdit = ({ m }) => (
+    <button type="button" className="link name-edit" onClick={() => nickname(m)} aria-label={`Smeknamn för ${m.name}`}>
+      {m.name}{m.id === me.id && ' (du)'}{m.realName && <span className="muted small"> ({m.realName})</span>} <span className="muted small">✏️</span>
+    </button>
+  )
   const Order = ({ i }) => (
     <span className="order-btns">
       <button className="icon-btn" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Flytta upp">↑</button>
@@ -48,7 +63,7 @@ export default function Family({ me, householdId, members, membersTable, househo
           {members.map((m, i) => m.household_id !== householdId ? (
             <li key={m.id} className="col">
               <div className="row between w100">
-                <span className="row"><MemberTag member={m} size={26} /><span>{m.name}</span></span>
+                <span className="row"><MemberTag member={m} size={26} /><NameEdit m={m} /></span>
                 <span className="meta"><span className="muted small">Delas med {linked?.households.find((h) => h.household_id === m.household_id)?.name || 'andra hushållet'}</span><Order i={i} /></span>
               </div>
               <CustodyEditor child={m} custody={custody} table={custodyTable} me={me} linked={linked} excTable={custodyExc} />
@@ -59,10 +74,10 @@ export default function Family({ me, householdId, members, membersTable, househo
                 <span className="row">
                   <AvatarUpload member={m} householdId={householdId} membersTable={membersTable} size={36} />
                   <input type="color" value={m.color} onChange={(e) => membersTable.update(m.id, { color: e.target.value })} aria-label="Färg" />
-                  <span>{m.name}{m.id === me.id && ' (du)'}</span>
+                  <NameEdit m={m} />
                 </span>
                 <span className="meta">
-                  <span className="muted small">{m.role === 'child' ? 'Barn, inget konto' : 'Förälder'}</span>
+                  <span className="muted small">{m.role === 'child' ? 'Barn' : 'Förälder'}</span>
                   {m.role === 'child' && <button className="icon-btn" onClick={() => confirm(`Ta bort ${m.name}?`) && membersTable.remove(m.id)} aria-label="Ta bort">✕</button>}
                   <Order i={i} />
                 </span>

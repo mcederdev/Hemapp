@@ -42,12 +42,12 @@ export default function MedicineToday({ householdId, members, people, me, custod
     const res = await doses.insert({ household_id: me.household_id, medicine_id: r.m.id, day: t, at_time: r.slot, taken_by: me.id })
     if (res) {
       const p = who(r.m)
-      supabase.rpc('notify_household', { msg: p.id === me.id ? `har tagit ${what(r)} 💊` : `har gett ${p.name} ${what(r)} 💊`, link: '/?tab=today' })
+      supabase.rpc('notify_household', { msg: p.id === me.id ? `har tagit ${what(r)} 💊` : `har gett ${p.realName || p.name} ${what(r)} 💊`, link: '/?tab=today' })
     }
   }
   const remind = async (r) => {
     const p = who(r.m)
-    const { error } = await supabase.rpc('notify_household', { msg: `påminner: ${p.id === me.id ? `${me.name} ska ta` : `glöm inte ge ${p.name}`} ${what(r)} 💊`, link: '/?tab=today' })
+    const { error } = await supabase.rpc('notify_household', { msg: `påminner: ${p.id === me.id ? `${me.name} ska ta` : `glöm inte ge ${p.realName || p.name}`} ${what(r)} 💊`, link: '/?tab=today' })
     if (error) alert(error.message); else setSent({ ...sent, [r.m.id + r.slot]: true })
   }
 
