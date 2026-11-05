@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 
 // Tabeller där delade barns rader från det andra hushållet också ska med.
 // Där sköter databasens behörighetsregler vad vi får se.
-const SHARED = new Set(['events', 'vab_days', 'members', 'custody', 'cars', 'messages', 'custody_exceptions', 'medicines', 'pickups', 'packing_items', 'medicine_doses'])
+const SHARED = new Set(['events', 'vab_days', 'members', 'custody', 'cars', 'messages', 'custody_exceptions', 'medicines', 'pickups', 'packing_items', 'medicine_takes'])
 // Tabeller utan household_id-kolumn
 const NO_HOUSEHOLD = new Set(['custody_exceptions'])
 

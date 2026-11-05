@@ -613,3 +613,4 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 .med-dose { gap: 10px; align-items: center; padding: 6px 0; }
 .med-dose.taken strong { text-decoration: line-through; opacity: .6; }
 .med-dose.late div.small { color: var(--danger); }
+.med-time { gap: 8px; align-items: center; } .med-time input[inputmode] { width: 4.5em; flex: none; } .med-time input[type=time] { flex: 1; }
