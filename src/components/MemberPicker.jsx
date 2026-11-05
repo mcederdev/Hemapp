@@ -16,13 +16,7 @@ export function MemberTag({ member, size = 26 }) {
   )
 }
 
-// Ger varje medlem en unik kort förkortning: M, E … eller Mag/Mam om flera börjar likadant
+// Första bokstaven i namnet i cirkeln (färgen skiljer personerna åt)
 export function withInitials(members) {
-  const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1).toLowerCase()
-  return members.map((m) => {
-    const name = m.name.trim()
-    let n = 1
-    while (n < Math.min(3, name.length) && members.some((o) => o.id !== m.id && o.name.trim().slice(0, n).toLowerCase() === name.slice(0, n).toLowerCase())) n++
-    return { ...m, short: cap(name.slice(0, n)) }
-  })
+  return members.map((m) => ({ ...m, short: m.name.trim().charAt(0).toUpperCase() }))
 }
