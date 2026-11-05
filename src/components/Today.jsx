@@ -5,7 +5,7 @@ import { useTable } from '../useTable'
 import { COMMON_DISHES } from '../lib/defaults'
 import { expandEvents, dayList, shortLine, timeOf } from '../lib/events'
 import { today, parseDay, addDays, startOfWeek } from '../lib/dates'
-import { completeChore } from './Chores'
+import { completeChore, showToday } from './Chores'
 import { MemberTag } from './MemberPicker'
 import { Picker } from './Meals'
 import EventRow from './EventRow'
@@ -57,8 +57,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
 
   const mine = chores.rows.filter((c) => forFocus(focus, c.done ? c.done_by || c.assigned_to : c.assigned_to))
   // Idag: det som ska göras idag eller är sent, plus veckans/månadens återkommande
-  const weekEnd = addDays(startOfWeek(t), 6)
-  const todo = mine.filter((c) => !c.done && (!c.due_date || c.due_date <= t || (c.plan_id && c.due_date <= weekEnd)))
+  const todo = mine.filter((c) => showToday(c, t))
     .sort((a, b) => (a.due_date || '9').localeCompare(b.due_date || '9'))
   const doneToday = mine.filter((c) => c.done && c.done_at && c.done_at.slice(0, 10) === t)
   const overdue = {}

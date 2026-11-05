@@ -239,3 +239,12 @@ test('hämta/lämna förväljs till den som är ledig', () => {
   assert.equal(freeParent([], P, at), null)
   assert.equal(freeParent([job('a', '08:00', '17:00'), job('b', '07:00', '16:00')], P, at), null)
 })
+
+import { test as t2 } from 'node:test'
+t2('syssla med fast dag syns först den dagen, fri syns hela veckan', async () => {
+  const { showToday } = await import('./choreRules.js')
+  assert.equal(showToday({ plan_id: 'p', fixed_day: true, due_date: '2026-11-12' }, '2026-11-09'), false)
+  assert.equal(showToday({ plan_id: 'p', fixed_day: true, due_date: '2026-11-12' }, '2026-11-12'), true)
+  assert.equal(showToday({ plan_id: 'p', fixed_day: false, due_date: '2026-11-15' }, '2026-11-09'), true)
+  assert.equal(showToday({ due_date: '2026-11-12' }, '2026-11-09'), false)
+})

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTable } from '../useTable'
 import { startOfWeek, addDays, today, prettyDay } from '../lib/dates'
-import { completeChore } from './Chores'
+import { completeChore, showToday } from './Chores'
 import Sheet from './Sheet'
 import { buzz } from './Swipe'
 import Mood from './Mood'
@@ -38,7 +38,7 @@ export default function Kids({ householdId, members, household, households, memb
   }
 
   const theirs = chores.rows.filter((c) => c.assigned_to === kid.id)
-  const todo = theirs.filter((c) => !c.done && (!c.due_date || c.due_date <= addDays(t, 1) || (c.plan_id && c.due_date <= addDays(week, 6))))
+  const todo = theirs.filter((c) => showToday(c, t) || (!c.done && c.due_date === addDays(t, 1)))
     .sort((a, b) => (a.due_date || '9').localeCompare(b.due_date || '9'))
   const doneBy = chores.rows.filter((c) => (c.done_by || c.assigned_to) === kid.id)
   const doneIn = (from, to) => doneBy.filter((c) => c.done && c.done_at && c.done_at.slice(0, 10) >= from && c.done_at.slice(0, 10) < to)

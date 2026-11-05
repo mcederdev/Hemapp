@@ -3,6 +3,7 @@ import { useTable } from '../useTable'
 import { COMMON_CHORES } from '../lib/defaults'
 import { nextDue, repeatLabel, prettyDay, today, addDays, startOfWeek } from '../lib/dates'
 import { planDue, planLabel, PLAN_SUGGESTIONS } from '../lib/plans'
+import { showToday, periodEnd } from '../lib/choreRules'
 import MemberPicker, { MemberTag } from './MemberPicker'
 import Sheet, { Fab } from './Sheet'
 import SwipeRow, { Check } from './Swipe'
@@ -21,23 +22,26 @@ const REPEATS = [
 // Bocka av: är sysslan tilldelad räknas den som gjord av den personen, annars av den som bockade
 export function completeChore(chores, c, doerId) {
   chores.update(c.id, { done: true, done_at: new Date().toISOString(), done_by: c.assigned_to || doerId || null })
-  // Äldre sysslor med egen upprepning (före återkommande planer)
-  if (c.repeat_unit && !c.plan_id) {
-    const from = c.due_date || today()
+  // Sysslor med valt datum (och äldre med egen upprepning): nästa gång läggs till direkt, samma veckodag nästa period
+  if (c.repeat_unit && (!c.plan_id || c.fixed_day)) {
+    const t = today()
+    let next = nextDue(c.due_date || t, c.repeat_every, c.repeat_unit)
+    while (next && next <= t) next = nextDue(next, c.repeat_every, c.repeat_unit)
     chores.insert({
-      title: c.title, assigned_to: c.assigned_to, stars: c.stars,
-      repeat_every: c.repeat_every, repeat_unit: c.repeat_unit,
-      due_date: nextDue(from, c.repeat_every, c.repeat_unit)
+      title: c.title, assigned_to: c.assigned_to, stars: c.stars, plan_id: c.plan_id || null, fixed_day: !!c.fixed_day,
+      repeat_every: c.repeat_every, repeat_unit: c.repeat_unit, due_date: next
     })
   }
 }
+
+export { showToday, periodEnd }
 
 // Skapar en återkommande syssla och lägger till första omgången direkt
 export async function createPlan(plans, chores, { title, every, unit, assigned_to = null, stars = 0, due }) {
   const t = today()
   const rows = await plans.insert({ title, every, unit, assigned_to, stars, last_added: t })
   const plan = rows?.[0]
-  if (plan) await chores.insert({ title, assigned_to, stars, plan_id: plan.id, due_date: due || planDue({ unit, every }, t) })
+  if (plan) await chores.insert({ title, assigned_to, stars, plan_id: plan.id, due_date: due || planDue({ unit, every }, t), fixed_day: !!due && unit !== 'day', repeat_every: every, repeat_unit: unit })
 }
 
 export default function Chores({ householdId, members, me, focus: filter, setFocus: setFilter }) {
@@ -96,7 +100,7 @@ export default function Chores({ householdId, members, me, focus: filter, setFoc
           <span className="tap grow" onClick={() => setEditing(c)}>
             {c.title}
             <div className="muted small row-icons">
-              {c.due_date && <span className={c.due_date < t ? 'error' : ''}>{c.due_date === t ? 'Idag' : c.due_date === weekEnd && plan?.unit === 'week' ? 'Den här veckan' : prettyDay(c.due_date)}</span>}
+              {c.due_date && <span className={c.due_date < t ? 'error' : ''}>{c.due_date === t ? 'Idag' : plan && !c.fixed_day && c.due_date >= t ? (plan.unit === 'week' ? 'Den här veckan' : plan.unit === 'month' ? 'Den här månaden' : prettyDay(c.due_date)) : prettyDay(c.due_date)}</span>}
               {plan && <span><Icon name="repeat" size={13} /> {planLabel(plan)}</span>}
               {!plan && c.repeat_unit && <span><Icon name="repeat" size={13} /> {repeatLabel(c.repeat_every, c.repeat_unit)}</span>}
               {!c.assigned_to && <span>Hushållet</span>}
@@ -123,13 +127,14 @@ export default function Chores({ householdId, members, me, focus: filter, setFoc
             <input placeholder="Vad ska göras?" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} autoFocus />
             <div className="row">
               <label className="field"><span className="muted small">Vem</span><MemberPicker members={members} value={form.who} onChange={(v) => setForm({ ...form, who: v })} emptyLabel="Hushållet" /></label>
-              <label className="field"><span className="muted small">{form.repeat ? 'Första gången' : 'När'}</span><input type="date" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} /></label>
+              <label className="field"><span className="muted small">{form.repeat && !form.repeat.endsWith('day') ? 'Fast dag' : 'När'}</span><input type="date" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} /></label>
             </div>
             <label className="field"><span className="muted small">Upprepning</span>
               <select value={form.repeat} onChange={(e) => setForm({ ...form, repeat: e.target.value })}>
                 {REPEATS.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
               </select>
             </label>
+            {form.repeat && !form.repeat.endsWith('day') && <RepeatHint unit={form.repeat.split('-')[1]} fixed={!!form.due} />}
             {(isChild || form.stars > 0) && (
               <select value={form.stars} onChange={(e) => setForm({ ...form, stars: e.target.value })}>
                 {[0, 1, 2, 3, 5].map((n) => <option key={n} value={n}>{n === 0 ? 'Inga stjärnor' : `${n} stjärn${n === 1 ? 'a' : 'or'}`}</option>)}
@@ -190,11 +195,18 @@ export default function Chores({ householdId, members, me, focus: filter, setFoc
 
 // Tryck på en syssla: tilldela, ändra eller ta bort
 function EditChore({ c, chores, members, plan, plans, onClose, onDone }) {
-  const [f, setF] = useState({ title: c.title, assigned_to: c.assigned_to, due_date: c.due_date || '', stars: c.stars || 0 })
+  const initDue = plan && !c.fixed_day ? '' : c.due_date || ''
+  const [f, setF] = useState({ title: c.title, assigned_to: c.assigned_to, due_date: initDue, stars: c.stars || 0 })
   const isChild = members.find((m) => m.id === f.assigned_to)?.role === 'child'
   const save = async (e) => {
     e?.preventDefault()
-    await chores.update(c.id, { title: f.title.trim() || c.title, assigned_to: f.assigned_to, due_date: f.due_date || null, stars: Number(f.stars) || 0 })
+    const v = { title: f.title.trim() || c.title, assigned_to: f.assigned_to, due_date: f.due_date === initDue ? c.due_date : f.due_date || null, stars: Number(f.stars) || 0 }
+    // Återkommande: valt datum = fast dag, tomt = fritt under perioden
+    if (plan && plan.unit !== 'day' && f.due_date !== initDue) {
+      const free = !f.due_date
+      Object.assign(v, { fixed_day: !free, repeat_every: plan.every, repeat_unit: plan.unit, due_date: free ? periodEnd(plan.unit, today()) : f.due_date })
+    }
+    await chores.update(c.id, v)
     onClose()
   }
   return (
@@ -213,12 +225,13 @@ function EditChore({ c, chores, members, plan, plans, onClose, onDone }) {
         </div>
         <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} aria-label="Syssla" />
         <div className="row">
-          <label className="field"><span className="muted small">När</span><input type="date" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} /></label>
+          <label className="field"><span className="muted small">{plan && plan.unit !== 'day' ? 'Fast dag' : 'När'}</span><input type="date" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} /></label>
           {(isChild || f.stars > 0) && (
             <label className="field"><span className="muted small">Stjärnor</span>
               <select value={f.stars} onChange={(e) => setF({ ...f, stars: e.target.value })}>{[0, 1, 2, 3, 5].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
           )}
         </div>
+        {plan && plan.unit !== 'day' && <RepeatHint unit={plan.unit} fixed={!!f.due_date} />}
         {plan && (
           <label className="row small">
             <input type="checkbox" checked={plan.assigned_to === f.assigned_to} onChange={(e) => plans.update(plan.id, { assigned_to: e.target.checked ? f.assigned_to : null })} />
@@ -277,4 +290,11 @@ function Plans({ plans, chores, members, byId }) {
       )}
     </div>
   )
+}
+
+function RepeatHint({ unit, fixed }) {
+  const per = unit === 'month' ? 'månaden' : 'veckan'
+  return <p className="muted small">{fixed
+    ? `Syns på Idag först den dagen. När den bockas av kommer den tillbaka samma dag nästa ${unit === 'month' ? 'månad' : 'gång'}.`
+    : `Ingen fast dag: syns på Idag varje dag tills den är gjord, och kommer tillbaka ${unit === 'month' ? 'den 1:a nästa månad' : 'på måndagen'}.`}</p>
 }
