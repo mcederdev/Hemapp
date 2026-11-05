@@ -28,7 +28,7 @@ export default function Medicines({ householdId, members }) {
     if (!times.length) return alert('Skriv in minst en tid och mängd.')
     const others = (edit.hide_today || []).filter((h) => h !== householdId)
     v.hide_today = edit.showToday === false ? [...others, householdId] : others
-    Object.assign(v, { times, dose: times.reduce((a, x) => a + x.amount, 0), doses_per_day: 1, dose_morning: null, dose_evening: null })
+    Object.assign(v, { times, dose: times.reduce((a, x) => a + x.amount, 0), doses_per_day: 1 })
     if (edit.id) await meds.update(edit.id, v)
     else await meds.insert({ ...v, bottle_size: full, opened_on: edit.opened_on || t, spare: Number(edit.spare) || 0 })
     setEdit(null)
