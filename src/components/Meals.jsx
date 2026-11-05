@@ -170,16 +170,22 @@ export function Picker({ day, all, onPick, onClose }) {
   const [q, setQ] = useState('')
   const hits = q ? all.filter((d) => d.name.toLowerCase().includes(q.toLowerCase())) : all
   return (
-    <Sheet title={`Middag ${weekdayName(day)}`} onClose={onClose}>
-        <div className="row between"><span className="muted">Förslag</span><button className="link" onClick={() => setTips(shuffle(all).slice(0, 3))}><Icon name="dice" size={16} /> Nya förslag</button></div>
-        <div className="tips">
-          {tips.map((t) => <button key={t.name} className="tip" onClick={() => onPick(t.name)}><strong>{t.name}</strong>{t.category && <span className="muted small"> · {t.category}</span>}</button>)}
-        </div>
-        <form className="row mt" onSubmit={(e) => { e.preventDefault(); if (q.trim()) onPick(q.trim()) }}>
-          <input placeholder="Sök eller skriv egen rätt" value={q} onChange={(e) => setQ(e.target.value)} />
+    <Sheet title={`Middag ${weekdayName(day)}`} onClose={onClose} tall>
+        {/* Sökfältet ligger överst och rutan har fast höjd, så fältet hoppar inte ner bakom tangentbordet när listan krymper */}
+        <form className="row" onSubmit={(e) => { e.preventDefault(); if (q.trim()) onPick(q.trim()) }}>
+          <input placeholder="Sök eller skriv egen rätt" value={q} onChange={(e) => setQ(e.target.value)} enterKeyHint="done" />
           <button className="primary">Välj</button>
         </form>
-        <ul className="list mt scroll">
+        {!q && (
+          <>
+            <div className="row between mt"><span className="muted">Förslag</span><button className="link" onClick={() => setTips(shuffle(all).slice(0, 3))}><Icon name="dice" size={16} /> Nya förslag</button></div>
+            <div className="tips">
+              {tips.map((t) => <button key={t.name} className="tip" onClick={() => onPick(t.name)}><strong>{t.name}</strong>{t.category && <span className="muted small"> · {t.category}</span>}</button>)}
+            </div>
+          </>
+        )}
+        <ul className="list mt">
+          {q && !hits.some((d) => d.name.toLowerCase() === q.trim().toLowerCase()) && <li className="tap" onClick={() => onPick(q.trim())}><span>➕ Välj "{q.trim()}"</span></li>}
           {hits.map((d) => <li key={d.id || d.name} className="tap" onClick={() => onPick(d.name)}><span>{d.name}</span><span className="muted small">{d.category}</span></li>)}
         </ul>
     </Sheet>
