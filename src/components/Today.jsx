@@ -16,6 +16,7 @@ import ShopForDishes from './ShopForDishes'
 import Notes, { Soon, NoteButton } from './Notes'
 import { CustodyLine } from './Custody'
 import Pickups from './Pickups'
+import Fold, { Movable, FoldProvider, useFoldOrder } from './Fold'
 import MedicineToday from './MedicineToday'
 
 // Bygger dagens flöde: händelser och middag i tidsordning, med nu-linjen på rätt plats
@@ -64,6 +65,12 @@ export default function Today({ householdId, members, people, go, me, focus, set
   const overdue = {}
   for (const c of chores.rows) if (!c.done && c.due_date && c.due_date < t && c.assigned_to) overdue[c.assigned_to] = (overdue[c.assigned_to] || 0) + 1
 
+  const late = todo.filter((c) => c.due_date && c.due_date < t).length
+  const upcoming = flow.filter((x) => x.type === 'event' && x.end >= now)
+  const next = upcoming[0]?.occ
+  const daySummary = upcoming.length === 0 ? (allDay.length ? `Heldag: ${allDay.map((o) => o.title).join(', ')}` : 'Inget mer i kalendern idag')
+    : `${upcoming.length} kvar idag · nästa ${next ? `${next.title} kl ${timeOf(next.start)}` : ''}`
+  const fold = useFoldOrder()
   const defaultList = lists.rows.find((l) => l.is_default)
   const toBuy = items.rows.filter((i) => !i.done && i.list_id === defaultList?.id)
   const otherLists = lists.rows.filter((l) => !l.is_default && !l.archived && l.for_date && l.for_date >= t)
@@ -90,9 +97,12 @@ export default function Today({ householdId, members, people, go, me, focus, set
       <FamilyStrip members={members} focus={focus} setFocus={setFocus} counts={overdue} extra={<NoteButton onClick={() => setNoteOpen(true)} />} />
       <Notes householdId={householdId} members={members} me={me} guests={guests} open={noteOpen} setOpen={setNoteOpen} />
       <CustodyLine custody={(custody || []).filter((c) => forFocus(focus, c.child_id))} members={members} me={me} linked={linked} />
+      <FoldProvider value={fold}>
+      <div className="today-cards">
       <MedicineToday householdId={householdId} members={members} people={people} me={me} custody={custody} focus={focus} />
       <Pickups householdId={householdId} members={members} people={[...(people || members), ...(guests || []).map((g) => ({ ...g, role: 'guest', short: g.name.slice(0, 1).toUpperCase() }))]} me={me} custody={custody} events={events.rows} go={go} />
 
+      <Movable id="dinner">
       <div className="hero">
         <div className="hero-label"><Icon name="food" size={16} /> Middag ikväll</div>
         <div className="hero-dish">{dinner ? dinner.dish : 'Inte bestämt än'}</div>
@@ -102,12 +112,10 @@ export default function Today({ householdId, members, people, go, me, focus, set
           <button className="hero-btn ghost" onClick={() => go('meals')}>Veckomeny</button>
         </div>
       </div>
+      </Movable>
 
-      <div className="card compact">
-        <button className="card-head" onClick={() => go('calendar')}>
-          <span className="row"><Icon name="calendar" size={18} /> <strong>{focusName ? `${focusName}s dag` : 'Dagen'}</strong></span>
-          <Icon name="chevron" size={18} className="muted" />
-        </button>
+      <Fold id="day" onOpen={() => go('calendar')} title={<><Icon name="calendar" size={18} /> <strong>{focusName ? `${focusName}s dag` : 'Dagen'}</strong></>}
+        summary={daySummary}>
         <ul className="list flush flow">
           {allDay.map((o) => <EventRow key={o.key} occ={o} day={d0} byId={byId} />)}
           {flow.map((x) => {
@@ -131,13 +139,11 @@ export default function Today({ householdId, members, people, go, me, focus, set
         </ul>
         {allDay.length + flow.filter((x) => x.type !== 'now').length === 0 && <p className="muted small pad">Inget i kalendern idag.</p>}
         {tomorrows.length > 0 && <p className="muted small pad">Imorgon: {tomorrows.map(shortLine).join(', ')}</p>}
-      </div>
+      </Fold>
 
-      <div className="card compact">
-        <button className="card-head" onClick={() => go('chores')}>
-          <span className="row"><Icon name="checks" size={18} /> <strong>Under dagen</strong>{todo.length > 0 && <span className="count">{todo.length}</span>}</span>
-          <Icon name="chevron" size={18} className="muted" />
-        </button>
+      <Fold id="chores" onOpen={() => go('chores')} title={<><Icon name="checks" size={18} /> <strong>Under dagen</strong></>} count={todo.length}
+        summary={todo.length === 0 ? <span className="ok">✓ Inget kvar att göra{doneToday.length ? ` · ${doneToday.length} gjorda idag` : ''}</span>
+          : <>{todo.length} att göra{late ? <span className="error"> · {late} sena</span> : ''}{doneToday.length ? ` · ${doneToday.length} gjorda` : ''}</>}>
         <ul className="list flush">
           {todo.slice(0, 8).map((c) => (
             <SwipeRow key={c.id} onCheck={() => completeChore(chores, c, me.id)}>
@@ -162,20 +168,21 @@ export default function Today({ householdId, members, people, go, me, focus, set
           ))}
           {todo.length === 0 && doneToday.length === 0 && <li className="muted small">Inga sysslor idag.</li>}
         </ul>
-      </div>
+      </Fold>
 
       <Soon householdId={householdId} go={go} />
 
-      <div className="card compact">
-        <button className="card-head" onClick={() => go('shopping')}>
-          <span className="row"><Icon name="cart" size={18} /> <strong>Handla</strong>{toBuy.length > 0 && <span className="count">{toBuy.length}</span>}</span>
-          <Icon name="chevron" size={18} className="muted" />
-        </button>
+      <Fold id="shop" onOpen={() => go('shopping')} title={<><Icon name="cart" size={18} /> <strong>Handla</strong></>} count={toBuy.length}
+        summary={toBuy.length === 0 ? <span className="ok">✓ Inget att handla</span> : `${toBuy.length} varor: ${toBuy.slice(0, 3).map((i) => i.name).join(', ')}${toBuy.length > 3 ? ' …' : ''}`}>
         <p className="small pad">
           {toBuy.length === 0 ? <span className="muted">Inget att handla just nu.</span> : toBuy.slice(0, 6).map((i) => i.name).join(', ') + (toBuy.length > 6 ? ' …' : '')}
         </p>
         {otherLists.map((l) => <p key={l.id} className="muted small pad">{l.name} · {parseDay(l.for_date).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })}</p>)}
+      </Fold>
+
       </div>
+      </FoldProvider>
+      <button className="link small arrange-btn" onClick={() => fold.setArranging(!fold.arranging)}>{fold.arranging ? '✓ Klar med ordningen' : '↕ Ändra ordning på rutorna'}</button>
 
       {shopFor && <ShopForDishes householdId={householdId} me={me} dishes={shopFor} onClose={() => setShopFor(null)} />}
       {picking && <Picker day={t} all={allDishes} onPick={setDinner} onClose={() => setPicking(false)} />}

@@ -5,6 +5,7 @@ import { schoolDay, dayWarnings, freeParent, busyAt } from '../lib/pickup'
 import { withUs, isHandover } from '../lib/custody'
 import { MemberTag } from './MemberPicker'
 import Sheet from './Sheet'
+import Fold from './Fold'
 
 const dayName = (d, t) => (d === t ? 'Idag' : d === addDays(t, 1) ? 'Imorgon' : prettyDay(d))
 
@@ -60,8 +61,10 @@ export default function Pickups(props) {
   const openSoon = open.filter((x) => x.d <= addDays(t, 1))
   if (!mine.length && !warnings.length && !open.length) return null
   return (
-    <div className="card compact pickups">
-      <button className="card-head" onClick={() => go('pickups')}><strong>🚸 Lämna och hämta</strong>{open.length > 0 && <span className="count">{open.length}</span>}</button>
+    <Fold id="pickups" className="pickups" onOpen={() => go('pickups')} title={<strong>🚸 Lämna och hämta</strong>} count={open.length}
+      summary={<>{mine.length ? mine.slice(0, 2).map(({ d, kid, s }) => `${s.both ? 'Ni' : 'Du'} ${s.kind === 'lamna' ? 'lämnar' : 'hämtar'} ${kid.name} ${dayName(d, t).toLowerCase()} ${s.time}`).join(' · ') : ''}
+        {warnings.length > 0 && <span className="error">{mine.length ? ' · ' : ''}⚠️ {warnings.length} varning{warnings.length > 1 ? 'ar' : ''}</span>}
+        {open.length > 0 && <span>{mine.length || warnings.length ? ' · ' : ''}{open.length} saknar någon</span>}</>}>
       <div className="pk-day">
       {mine.map(({ d, kid, s }) => (
         <div key={d + kid.id + s.kind} className="pk-mine"><MemberTag member={kid} size={22} /><span><strong>{s.both ? 'Ni' : 'Du'} {s.kind === 'lamna' ? 'lämnar' : 'hämtar'} {kid.name}{s.both ? ' tillsammans' : ''}</strong> {dayName(d, t).toLowerCase()} kl {s.time}{s.auto ? <span className="muted small"> · enligt kalendern</span> : ''}</span></div>
@@ -75,7 +78,7 @@ export default function Pickups(props) {
       {open.length > openSoon.length && <button className="link small" onClick={() => go('pickups')}>{open.length - openSoon.length} fler tider den här veckan saknar någon →</button>}
       </div>
       {pick && <PickSheet pick={pick} t={t} {...props} parents={parents} onPick={async (p) => { await set(pick, p); setPick(null) }} onClose={() => setPick(null)} />}
-    </div>
+    </Fold>
   )
 }
 

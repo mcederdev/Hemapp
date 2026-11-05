@@ -1,3 +1,4 @@
+import Fold from './Fold'
 import { useState } from 'react'
 import { useTable } from '../useTable'
 import { today, prettyDay } from '../lib/dates'
@@ -90,13 +91,11 @@ export function Soon({ householdId, go, bare = false }) {
   if (!items.length) return bare ? <p className="muted small">Inga påminnelser eller födelsedagar de närmaste dagarna.</p> : null
   if (bare) return <ul className="list flush">{items.map((x) => <li key={x.id}><span>{x.emoji} {x.text}</span><span className={`small ${x.n < 0 ? 'error' : 'muted'}`}>{x.n === 0 ? 'idag' : x.n === 1 ? 'imorgon' : x.n < 0 ? `${-x.n} dagar sen` : `om ${x.n} dagar`}</span></li>)}</ul>
   return (
-    <div className="card compact">
-      <button className="card-head" onClick={() => go('reminders')}>
-        <span className="row"><strong>⏰ Snart</strong></span>
-      </button>
+    <Fold id="soon" onOpen={() => go('reminders')} title={<strong>⏰ Snart</strong>} count={items.length}
+      summary={items.slice(0, 2).map((x) => `${x.emoji} ${x.text}`).join(' · ') + (items.length > 2 ? ' …' : '')}>
       <ul className="list flush">
         {items.map((x) => <li key={x.id}><span>{x.emoji} {x.text}</span><span className={`small ${x.n < 0 ? 'error' : 'muted'}`}>{x.n === 0 ? 'idag' : x.n === 1 ? 'imorgon' : x.n < 0 ? `${-x.n} dagar sen` : `om ${x.n} dagar`}</span></li>)}
       </ul>
-    </div>
+    </Fold>
   )
 }

@@ -615,3 +615,19 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 .med-dose.late div.small { color: var(--danger); }
 .med-time { gap: 8px; align-items: center; } .med-time input[inputmode] { width: 4.5em; flex: none; } .med-time input[type=time] { flex: 1; }
 .med-today .med-taken { margin: 0 10px 8px; }
+.tabs { z-index: 8; }
+.fold-head { display: flex; align-items: center; }
+.fold-head .card-head { flex: 1; min-width: 0; justify-content: flex-start; gap: 6px; }
+.fold-head .card-head > .row { flex: 1; min-width: 0; }
+.fold-caret { transform: rotate(-90deg); transition: transform .15s; }
+.fold.folded .fold-caret { transform: rotate(90deg); }
+.fold-open { margin-right: 6px; color: var(--muted); }
+.fold-sum { margin: -2px .85rem .7rem; color: var(--muted); }
+.fold-sum .error { color: var(--danger); }
+.today-cards { display: flex; flex-direction: column; }
+.fold-arrows { display: flex; gap: 2px; margin-right: 6px; }
+.fold-arrows .icon-btn { font-size: 1.1rem; padding: 4px 8px; }
+.movable { position: relative; }
+.movable.arranging > .fold-arrows { position: absolute; right: 8px; top: 8px; z-index: 2; background: var(--card); border-radius: 10px; }
+.fold-meta { margin-left: auto; }
+.arrange-btn { display: block; margin: 0 auto 12px; }

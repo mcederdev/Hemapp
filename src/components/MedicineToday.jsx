@@ -6,6 +6,7 @@ import { withUs } from '../lib/custody'
 import { MemberTag } from './MemberPicker'
 import { Check } from './Swipe'
 import { forFocus } from './FamilyStrip'
+import Fold from './Fold'
 
 const fmtN = (n) => String(Math.round(Number(n) * 10) / 10).replace('.', ',')
 const hm = (iso) => new Date(iso).toTimeString().slice(0, 5)
@@ -31,6 +32,9 @@ export default function MedicineToday({ householdId, members, people, me, custod
     .sort((a, b) => a.slot.localeCompare(b.slot))
   if (!rows.length) return null
 
+  const pending = rows.filter((r) => !r.dose)
+  const lateN = pending.filter((r) => r.late).length
+  const nextUp = pending.find((r) => !r.late)
   const who = (m) => byId[m.member_id]
   const what = (r) => `${r.m.name} ${fmtN(r.amount)} ${r.m.unit === 'st' ? 'st' : r.m.unit} ${r.label}`
   const take = async (r) => {
@@ -48,8 +52,9 @@ export default function MedicineToday({ householdId, members, people, me, custod
   }
 
   return (
-    <div className="card compact med-today">
-      <div className="card-head"><strong>💊 Medicin idag</strong><span className="muted small">{rows.filter((r) => r.dose).length} av {rows.length}</span></div>
+    <Fold id="med" className="med-today" title={<><strong>💊 Medicin idag</strong><span className="muted small fold-meta">{rows.filter((r) => r.dose).length} av {rows.length}</span></>}
+      summary={pending.length === 0 ? <span className="ok">✓ All medicin är tagen idag</span>
+        : <>{lateN > 0 && <span className="error">{lateN} inte {lateN === 1 ? 'tagen' : 'tagna'} i tid</span>}{nextUp && <span>{lateN ? ' · ' : ''}nästa {nextUp.m.name} {nextUp.label}</span>}</>}>
       <ul className="list plain">
         {rows.filter((r) => showTaken || !r.dose).map((r) => (
           <li key={r.m.id + r.slot} className={`row med-dose ${r.dose ? 'taken' : r.late ? 'late' : ''}`}>
@@ -68,6 +73,6 @@ export default function MedicineToday({ householdId, members, people, me, custod
           {showTaken ? 'Dölj tagna' : `✓ ${rows.every((r) => r.dose) ? 'All medicin är tagen idag' : (rows.filter((r) => r.dose).length === 1 ? '1 tagen' : `${rows.filter((r) => r.dose).length} tagna`)} · visa`}
         </button>
       )}
-    </div>
+    </Fold>
   )
 }
