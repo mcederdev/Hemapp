@@ -90,7 +90,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
       <FamilyStrip members={members} focus={focus} setFocus={setFocus} counts={overdue} extra={<NoteButton onClick={() => setNoteOpen(true)} />} />
       <Notes householdId={householdId} members={members} me={me} guests={guests} open={noteOpen} setOpen={setNoteOpen} />
       <CustodyLine custody={(custody || []).filter((c) => forFocus(focus, c.child_id))} members={members} me={me} linked={linked} />
-      <Pickups householdId={householdId} members={members} people={[...(people || members), ...(guests || []).map((g) => ({ ...g, role: 'guest', short: g.name.slice(0, 1).toUpperCase() }))]} me={me} custody={custody} events={events.rows} />
+      <Pickups householdId={householdId} members={members} people={[...(people || members), ...(guests || []).map((g) => ({ ...g, role: 'guest', short: g.name.slice(0, 1).toUpperCase() }))]} me={me} custody={custody} events={events.rows} go={go} />
 
       <div className="hero">
         <div className="hero-label"><Icon name="food" size={16} /> Middag ikväll</div>

@@ -5,6 +5,7 @@ import { useLinked } from './useLinked'
 import Car from './components/Car'
 import Messages, { lastSeen } from './components/Messages'
 import Medicines from './components/Medicines'
+import { PickupsPage } from './components/Pickups'
 import Landing from './components/Landing'
 import GuestHome from './components/GuestHome'
 import Setup from './components/Setup'
@@ -37,6 +38,7 @@ const MORE = [
   { id: 'finance', label: 'Ekonomi', icon: 'wallet' },
   { id: 'kids', label: 'Barnens sida', icon: 'star' },
   { id: 'vab', label: 'VAB & Sjukdagar', icon: 'thermo' },
+  { id: 'pickups', label: 'Lämna och hämta', icon: 'calendar' },
   { id: 'car', label: 'Bilen', icon: 'car' },
   { id: 'medicine', label: 'Medicin', icon: 'pill' },
   { id: 'stats', label: 'Statistik', icon: 'chart' },
@@ -160,6 +162,7 @@ function Home({ me }) {
         {tab === 'reminders' && <Reminders {...props} />}
         {tab === 'car' && <Car {...props} />}
         {tab === 'medicine' && <Medicines {...props} />}
+        {tab === 'pickups' && <PickupsPage {...props} people={[...people, ...guestsT.rows.map((g) => ({ ...g, role: 'guest', short: g.name.slice(0, 1).toUpperCase() }))]} />}
         {tab === 'messages' && <section><h2>Meddelanden</h2><Messages {...props} /></section>}
         {tab === 'family' && <Family {...props} />}
       </main>
