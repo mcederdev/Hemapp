@@ -12,6 +12,7 @@ import Family from './components/Family'
 import Today from './components/Today'
 import Kids from './components/Kids'
 import Kitchen from './components/Kitchen'
+import Vab from './components/Vab'
 import Icon from './components/Icon'
 import { withInitials } from './components/MemberPicker'
 
@@ -26,6 +27,7 @@ const TABS = [
 const MORE = [
   { id: 'finance', label: 'Ekonomi', icon: 'wallet' },
   { id: 'kids', label: 'Barnens sida', icon: 'star' },
+  { id: 'vab', label: 'VAB', icon: 'thermo' },
   { id: 'kitchen', label: 'Köksskärm (iPad)', icon: 'home' },
   { id: 'family', label: 'Familj & inställningar', icon: 'users' }
 ]
@@ -103,6 +105,7 @@ function Home({ me }) {
         {tab === 'calendar' && <Calendar {...props} />}
         {tab === 'meals' && <Meals {...props} />}
         {tab === 'finance' && <Finance {...props} />}
+        {tab === 'vab' && <Vab {...props} />}
         {tab === 'family' && <Family {...props} />}
       </main>
       <nav className="tabs">

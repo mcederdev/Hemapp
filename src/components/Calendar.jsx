@@ -11,6 +11,7 @@ import Icon from './Icon'
 import Sheet, { Fab } from './Sheet'
 import FamilyStrip, { forFocus } from './FamilyStrip'
 import DayColumns from './DayColumns'
+import VabForm from './VabForm'
 
 const REPEATS = [
   { v: '', label: 'Upprepa inte' }, { v: 'daily', label: 'Varje dag' }, { v: 'weekdays', label: 'Vardagar (mån–fre)' }, { v: 'weekdays2', label: 'Vardagar varannan vecka' }, { v: 'weekly', label: 'Varje vecka' },
@@ -19,8 +20,11 @@ const REPEATS = [
 const REMIND = [{ v: 0, label: 'Ingen påminnelse' }, { v: 15, label: '15 min innan' }, { v: 30, label: '30 min innan' }, { v: 60, label: '1 timme innan' }, { v: 120, label: '2 timmar innan' }]
 const WD = ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön']
 
-export default function Calendar({ householdId, members, focus: who, setFocus: setWho }) {
+export default function Calendar({ householdId, members, me, go, focus: who, setFocus: setWho }) {
   const events = useTable('events', householdId, 'starts_at')
+  const vab = useTable('vab_days', householdId, 'day')
+  const [vabForm, setVabForm] = useState(null)
+  const [opened, setOpened] = useState(null)
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [selected, setSelected] = useState(today())
   const [showForm, setShowForm] = useState(false)
@@ -89,6 +93,28 @@ export default function Calendar({ householdId, members, focus: who, setFocus: s
   }
   const switchMode = (m) => { setMode(m); try { localStorage.setItem('calMode', m) } catch { /* ignoreras */ } }
   const dots = (d) => dayList(occ, d).slice(0, 4).map((o) => <i key={o.key} style={{ background: byId[o.member_id]?.color || 'var(--accent)' }} />)
+  // VAB: märk barnets händelser de dagar barnet varit sjukt
+  const vabOn = (o) => {
+    if (byId[o.member_id]?.role !== 'child') return []
+    const d = iso(o.start < parseDay(selected) ? parseDay(selected) : o.start)
+    return vab.rows.filter((r) => r.child_id === o.member_id && r.day === d)
+  }
+  const badgeFor = (o, day) => {
+    const d = iso(day)
+    // Förälderns pass den dag hen vabbar
+    if (byId[o.member_id] && byId[o.member_id].role !== 'child') {
+      return !o.all_day && vab.rows.some((r) => r.parent_id === o.member_id && r.day === d) ? 'VAB' : null
+    }
+    if (byId[o.member_id]?.role !== 'child') return null
+    const list = vab.rows.filter((r) => r.child_id === o.member_id && r.day === d)
+    return list.length ? `VAB · ${list.map((r) => byId[r.parent_id]?.name).filter(Boolean).join(' + ')}` : null
+  }
+  const startVab = (o) => {
+    setOpened(null)
+    const d = iso(o.start < parseDay(selected) ? parseDay(selected) : o.start)
+    const existing = vab.rows.find((r) => r.child_id === o.member_id && r.day === d)
+    setVabForm(existing || { day: d, child_id: o.member_id, event_id: o.id })
+  }
   const [removing, setRemoving] = useState(null)
   const removeEvent = (o) => {
     if (o.rrule) return setRemoving(o)
@@ -185,8 +211,23 @@ export default function Calendar({ householdId, members, focus: who, setFocus: s
       )}
 
       {mode === 'day'
-        ? <DayColumns occ={selOcc} day={selDate} members={who ? members.filter((m) => m.id === who) : members} onRemove={removeEvent} />
-        : <EventList list={selOcc} day={selDate} byId={byId} onRemove={removeEvent} empty="Inget denna dag." />}
+        ? <DayColumns occ={selOcc} day={selDate} members={who ? members.filter((m) => m.id === who) : members} onRemove={removeEvent} onVab={startVab} badgeFor={badgeFor} />
+        : <EventList list={selOcc} day={selDate} byId={byId} onRemove={removeEvent} onOpen={setOpened} badgeFor={badgeFor} empty="Inget denna dag." />}
+
+      {opened && (
+        <Sheet title={opened.title} onClose={() => setOpened(null)}>
+          <ul className="list"><EventRow occ={opened} day={selDate} byId={byId} badge={badgeFor(opened, selDate)} /></ul>
+          <div className="stack">
+            {byId[opened.member_id]?.role === 'child' && (
+              <button className="primary" onClick={() => startVab(opened)}>
+                🤒 {vabOn(opened).length ? 'Ändra VAB' : `${byId[opened.member_id].name} är sjuk – VAB`}
+              </button>
+            )}
+            <button className="danger" onClick={() => { const o = opened; setOpened(null); removeEvent(o) }}>Ta bort händelsen</button>
+          </div>
+        </Sheet>
+      )}
+      {vabForm && <VabForm vab={vab} events={events.rows} members={members} me={me} initial={vabForm} onClose={() => setVabForm(null)} />}
 
       {removing && (
         <Sheet title={`Ta bort "${removing.title}"`} onClose={() => setRemoving(null)}>
@@ -203,7 +244,7 @@ export default function Calendar({ householdId, members, focus: who, setFocus: s
       {groupByDay(upcoming).map(([day, evs]) => (
         <div key={day}>
           <h4 className="day">{day}</h4>
-          <EventList list={evs} day={evs[0].start} byId={byId} onRemove={removeEvent} />
+          <EventList list={evs} day={evs[0].start} byId={byId} onRemove={removeEvent} onOpen={(o) => { pickDay(iso(evs[0].start)); setOpened(o) }} badgeFor={badgeFor} />
         </div>
       ))}
       {!events.loading && upcoming.length === 0 && <p className="muted">Inget inplanerat.</p>}
@@ -221,9 +262,9 @@ export default function Calendar({ householdId, members, focus: who, setFocus: s
   )
 }
 
-function EventList({ list, day, byId, onRemove, empty }) {
+function EventList({ list, day, byId, onRemove, onOpen, badgeFor, empty }) {
   if (list.length === 0) return empty ? <p className="muted">{empty}</p> : null
-  return <ul className="list">{list.map((o) => <EventRow key={o.key} occ={o} day={day} byId={byId} onRemove={onRemove} />)}</ul>
+  return <ul className="list">{list.map((o) => <EventRow key={o.key} occ={o} day={day} byId={byId} onRemove={onRemove} onOpen={onOpen} badge={badgeFor?.(o, day)} />)}</ul>
 }
 
 function groupByDay(list) {

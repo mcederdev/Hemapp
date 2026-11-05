@@ -5,7 +5,7 @@ import SwipeRow from './Swipe'
 import Icon from './Icon'
 
 // Tidslinjerad: tid till vänster, färgad stapel per person, titel och detaljer
-export default function EventRow({ occ, day, byId, onRemove, className = '' }) {
+export default function EventRow({ occ, day, byId, onRemove, onOpen, badge, className = '' }) {
   const l = timeLabel(occ, day)
   const [main, sub] = splitTime(l.time)
   const member = byId[occ.member_id]
@@ -17,8 +17,8 @@ export default function EventRow({ occ, day, byId, onRemove, className = '' }) {
         {sub && <span className="muted small">{sub}</span>}
       </div>
       <div className="tl-bar" style={{ background: member?.color || 'var(--accent)' }} />
-      <div className="tl-body">
-        <div className="tl-title">{occ.title}</div>
+      <div className={`tl-body ${onOpen ? 'tap' : ''}`} onClick={onOpen ? () => onOpen(occ) : undefined}>
+        <div className="tl-title">{occ.title}{badge && <span className="vab-badge">{badge}</span>}</div>
         {(details.length > 0 || occ.rrule) && (
           <div className="muted small row-icons">
             {details.join(' · ')}

@@ -383,3 +383,15 @@ html.kiosk body { overflow: hidden; }
   .k-day, .k-shop { grid-column: auto; }
   .k-clock { font-size: 2.6rem; }
 }
+
+/* VAB */
+.vab-badge { display: inline-block; margin-left: 6px; font-size: .7rem; font-weight: 700; color: #fff; background: var(--danger);
+  border-radius: 99px; padding: 1px 7px; vertical-align: 2px; }
+.dc-vab { font-style: normal; font-size: .6rem; font-weight: 700; color: #fff; background: var(--danger); border-radius: 4px; padding: 0 4px; align-self: flex-start; }
+.chip.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.small-btn { font-size: .85rem; padding: .4rem .7rem; }
+.vab-sum .vab-parents { display: grid; gap: 6px; margin-top: 8px; }
+.vab-hint { margin: -4px 0 0; }
+.app[data-tab="vab"] { --accent: #b8503f; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .app[data-tab="vab"] { --accent: #f08a78; } }
+:root[data-theme="dark"] .app[data-tab="vab"] { --accent: #f08a78; }

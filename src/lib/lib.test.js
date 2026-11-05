@@ -105,3 +105,25 @@ test('händelse över midnatt visar bara sluttid dagen efter', () => {
   const normal = { start: new Date(2026, 10, 5, 15), end: new Date(2026, 10, 5, 16, 30), all_day: false }
   assert.equal(timeLabel(normal, day).time, '15:00–16:30')
 })
+
+import { workTime, hoursBetween, sickDayNumber } from './vab.js'
+test('vab: arbetstid från pass i kalendern', () => {
+  const ev = [{ id: 'a', member_id: 'p', all_day: false, starts_at: new Date('2026-11-10T07:00').toISOString(), ends_at: new Date('2026-11-10T16:00').toISOString() },
+    { id: 'b', member_id: 'x', all_day: false, starts_at: new Date('2026-11-10T05:00').toISOString(), ends_at: new Date('2026-11-10T20:00').toISOString() }]
+  const w = workTime(ev, 'p', '2026-11-10')
+  assert.equal(w.start, '07:00'); assert.equal(w.end, '16:00')
+  assert.equal(workTime(ev, 'p', '2026-11-11'), null)
+  assert.equal(hoursBetween('07:00', '16:00'), 9)
+  assert.equal(hoursBetween('12:00', '16:30'), 4.5)
+})
+test('vab: dag i sjukperiod räknar med helg', () => {
+  const rows = ['2026-11-05', '2026-11-06', '2026-11-09', '2026-11-10'].map((day) => ({ child_id: 'c', day }))
+  assert.equal(sickDayNumber(rows, 'c', '2026-11-05'), 1)
+  assert.equal(sickDayNumber(rows, 'c', '2026-11-10'), 6)
+})
+test('vab: nattpass räknas till dagen det börjar', () => {
+  const ev = [{ id: 'n', member_id: 'p', all_day: false, starts_at: new Date('2026-11-10T20:00').toISOString(), ends_at: new Date('2026-11-11T07:00').toISOString() }]
+  assert.deepEqual([workTime(ev, 'p', '2026-11-10').start, workTime(ev, 'p', '2026-11-10').end], ['20:00', '07:00'])
+  assert.equal(workTime(ev, 'p', '2026-11-11'), null)
+  assert.equal(hoursBetween('20:00', '07:00'), 11)
+})

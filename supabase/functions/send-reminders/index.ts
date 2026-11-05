@@ -105,6 +105,20 @@ Deno.serve(async (req) => {
       await db.from('households').update({ last_morning_push: todayLocal }).eq('id', h.id)
       log.push(`morgon ${h.name}: ${parts.length} rader`)
     }
+
+    // VAB: påminnelse söndag kväll om dagar som inte är anmälda till Försäkringskassan
+    const weekday = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short' }).format(now)
+    if (weekday === 'Sun' && hour >= 18 && h.last_vab_push !== todayLocal) {
+      const { data: vab } = await db.from('vab_days').select('day, parent_id, hours').eq('household_id', h.id).eq('reported', false).order('day')
+      const byParent = new Map<string, { day: string }[]>()
+      for (const r of vab ?? []) { if (!r.parent_id) continue; byParent.set(r.parent_id, [...(byParent.get(r.parent_id) ?? []), r]) }
+      for (const [pid, list] of byParent) {
+        const days = list.map((r) => new Date(r.day + 'T12:00:00Z').toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' }))
+        await send({ title: `Anmäl ${list.length} VAB-dag${list.length === 1 ? '' : 'ar'} till Försäkringskassan`, body: days.join(', '), url: '/?tab=vab' }, pid)
+      }
+      await db.from('households').update({ last_vab_push: todayLocal }).eq('id', h.id)
+      if (byParent.size) log.push(`vab-påminnelse ${h.name}`)
+    }
   }
   return new Response(JSON.stringify({ ok: true, log }), { headers: { 'Content-Type': 'application/json' } })
 })
