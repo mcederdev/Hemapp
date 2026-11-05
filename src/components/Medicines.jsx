@@ -5,7 +5,7 @@ import { medicineStatus } from '../lib/medicine'
 import { MemberTag } from './MemberPicker'
 import Sheet, { Fab } from './Sheet'
 
-const blank = (memberId) => ({ name: '', member_id: memberId, unit: 'ml', full_size: 100, dose: 5, doses_per_day: 1, remind_days: 5, opened_on: today(), note: '' })
+const blank = (memberId) => ({ name: '', member_id: memberId, unit: 'ml', full_size: 100, dose: 5, doses_per_day: 1, remind_days: 5, opened_on: today(), note: '', spare: 0 })
 
 // Medicin: flaskans storlek och dosen ger hur länge den räcker. "Ny flaska" nollställer.
 export default function Medicines({ householdId, members }) {
@@ -22,11 +22,11 @@ export default function Medicines({ householdId, members }) {
     const v = { name: edit.name.trim(), member_id: edit.member_id, unit: edit.unit, full_size: full, dose: Number(String(edit.dose).replace(',', '.')) || 0,
       doses_per_day: Number(String(edit.doses_per_day).replace(',', '.')) || 0, remind_days: Number(edit.remind_days) || 0, note: edit.note || null }
     if (edit.id) await meds.update(edit.id, v)
-    else await meds.insert({ ...v, bottle_size: full, opened_on: edit.opened_on || t })
+    else await meds.insert({ ...v, bottle_size: full, opened_on: edit.opened_on || t, spare: Number(edit.spare) || 0 })
     setEdit(null)
   }
-  const newBottle = (m) => confirm(`Öppna en ny flaska ${m.name} (${m.full_size || m.bottle_size} ${m.unit})?`) &&
-    meds.update(m.id, { bottle_size: m.full_size || m.bottle_size, opened_on: t, notified_for: null, notified_by: {} })
+  const newBottle = (m) => confirm(`Öppna en ny ${m.unit === 'st' ? 'ask' : 'flaska'} ${m.name} (${m.full_size || m.bottle_size} ${m.unit})?${m.spare > 0 ? ' Den tas från de ni har hemma.' : ''}`) &&
+    meds.update(m.id, { bottle_size: m.full_size || m.bottle_size, opened_on: t, spare: Math.max(0, (m.spare || 0) - 1), notified_for: null, notified_by: {} })
   const adjust = (m) => {
     const v = prompt(`Hur mycket finns kvar i flaskan nu (${m.unit})?`, String(medicineStatus(m, t).left))
     if (v === null) return
@@ -41,7 +41,8 @@ export default function Medicines({ householdId, members }) {
       <ul className="list">
         {meds.rows.map((m) => {
           const s = medicineStatus(m, t)
-          const low = s.daysLeft <= m.remind_days
+          const spare = m.spare || 0
+          const low = spare === 0 && s.daysLeft <= m.remind_days
           return (
             <li key={m.id} className="col med">
               <div className="row between w100">
@@ -49,6 +50,11 @@ export default function Medicines({ householdId, members }) {
                   <span className="big-emoji">💊</span>
                   <span><strong>{m.name}</strong> <MemberTag member={byId[m.member_id]} size={20} />
                     <div className="muted small">{fmtN(m.dose)} {m.unit} × {fmtN(m.doses_per_day)} om dagen{m.note ? ` · ${m.note}` : ''}</div></span>
+                </span>
+                <span className="med-spare" title={`${spare} ${m.unit === 'st' ? 'askar' : 'flaskor'} hemma`}>
+                  <button className="icon-btn" disabled={spare === 0} onClick={() => meds.update(m.id, { spare: spare - 1 })} aria-label="En mindre hemma">−</button>
+                  <span className="spare-n"><Pack unit={m.unit} />{spare}</span>
+                  <button className="icon-btn" onClick={() => meds.update(m.id, { spare: spare + 1, notified_for: null, notified_by: {} })} aria-label="En till hemma">+</button>
                 </span>
               </div>
               <div className="med-bar"><i style={{ width: `${Math.round(s.share * 100)}%`, background: low ? 'var(--danger)' : 'var(--accent)' }} /></div>
@@ -59,14 +65,14 @@ export default function Medicines({ householdId, members }) {
                 </span>
                 <span className="row">
                   <button className="chip" onClick={() => adjust(m)}>Justera</button>
-                  <button className="chip on" onClick={() => newBottle(m)}>Ny flaska</button>
+                  <button className="chip on" onClick={() => newBottle(m)}>{m.unit === 'st' ? 'Ny ask' : 'Ny flaska'}</button>
                 </span>
               </div>
             </li>
           )
         })}
       </ul>
-      <p className="muted small mt">Ni får en notis när det är så många dagar kvar som ni valt. Delas med andra hushållet om barnet har delad vårdnad.</p>
+      <p className="muted small mt">Tryck + när ni hämtat ut fler flaskor. Ni får bara en notis när det inte finns någon mer hemma och det är så många dagar kvar som ni valt. Delas med andra hushållet om barnet har delad vårdnad.</p>
       <Fab onClick={() => setEdit(blank(members.find((m) => m.role === 'child')?.id || members[0]?.id))} label="Ny medicin" />
       {edit && (
         <Sheet title={edit.id ? edit.name : 'Ny medicin'} onClose={() => setEdit(null)}>
@@ -87,6 +93,7 @@ export default function Medicines({ householdId, members }) {
               <label className="field"><span className="muted small">Dos ({edit.unit})</span><input inputMode="decimal" value={edit.dose} onChange={(e) => setEdit({ ...edit, dose: e.target.value })} /></label>
               <label className="field"><span className="muted small">Gånger om dagen</span><input inputMode="decimal" value={edit.doses_per_day} onChange={(e) => setEdit({ ...edit, doses_per_day: e.target.value })} /></label>
             </div>
+            {!edit.id && <label className="field"><span className="muted small">Oöppnade hemma</span><input inputMode="numeric" value={edit.spare} onChange={(e) => setEdit({ ...edit, spare: e.target.value })} /></label>}
             {!edit.id && <label className="field"><span className="muted small">Flaskan öppnades</span><input type="date" value={edit.opened_on} max={today()} onChange={(e) => setEdit({ ...edit, opened_on: e.target.value })} /></label>}
             <label className="field"><span className="muted small">Påminn</span>
               <select value={edit.remind_days} onChange={(e) => setEdit({ ...edit, remind_days: e.target.value })}>
@@ -106,5 +113,12 @@ const fmtN = (n) => String(Math.round(Number(n) * 10) / 10).replace('.', ',')
 
 // Medicin som snart tar slut, för "Snart" på Idag och köksskärmen
 export function lowMedicines(rows, t = today()) {
-  return rows.map((m) => ({ m, s: medicineStatus(m, t) })).filter(({ m, s }) => s.daysLeft <= m.remind_days)
+  return rows.map((m) => ({ m, s: medicineStatus(m, t) })).filter(({ m, s }) => !(m.spare > 0) && s.daysLeft <= m.remind_days)
+}
+
+// Flaska för ml/doser, ask för tabletter
+function Pack({ unit }) {
+  return unit === 'st'
+    ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="12" rx="2" /><path d="M3 11h18M8 7V5h8v2" /><circle cx="8" cy="15" r="1" fill="currentColor" /><circle cx="12" cy="15" r="1" fill="currentColor" /><circle cx="16" cy="15" r="1" fill="currentColor" /></svg>
+    : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M9 2h6v3H9zM8 5h8l1 3v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V8z" /><path d="M7 12h10" /></svg>
 }

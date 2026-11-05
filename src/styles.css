@@ -595,3 +595,7 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .app.own-accent[data-tab] { --accent: var(--accent-dark); --accent-text: var(--accent-dark-text); } }
 :root[data-theme="dark"] .app.own-accent[data-tab] { --accent: var(--accent-dark); --accent-text: var(--accent-dark-text); }
 .bar-n { white-space: nowrap; }
+.med-spare { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.med-spare .icon-btn { width: 32px; height: 32px; font-size: 1.2rem; border: 1px solid var(--line); border-radius: 50%; }
+.med-spare .icon-btn:disabled { opacity: .35; }
+.spare-n { display: inline-flex; align-items: center; gap: 3px; min-width: 2.6em; justify-content: center; font-weight: 700; }
