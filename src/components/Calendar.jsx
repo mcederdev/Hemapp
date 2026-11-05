@@ -13,7 +13,7 @@ import FamilyStrip, { forFocus } from './FamilyStrip'
 import DayColumns from './DayColumns'
 
 const REPEATS = [
-  { v: '', label: 'Upprepa inte' }, { v: 'daily', label: 'Varje dag' }, { v: 'weekly', label: 'Varje vecka' },
+  { v: '', label: 'Upprepa inte' }, { v: 'daily', label: 'Varje dag' }, { v: 'weekdays', label: 'Vardagar (mån–fre)' }, { v: 'weekly', label: 'Varje vecka' },
   { v: 'biweekly', label: 'Varannan vecka' }, { v: 'monthly', label: 'Varje månad' }, { v: 'yearly', label: 'Varje år' }
 ]
 const REMIND = [{ v: 0, label: 'Ingen påminnelse' }, { v: 15, label: '15 min innan' }, { v: 30, label: '30 min innan' }, { v: 60, label: '1 timme innan' }, { v: 120, label: '2 timmar innan' }]

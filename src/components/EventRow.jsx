@@ -44,6 +44,11 @@ function splitTime(t) {
 export function describe(rrule) {
   const r = parseRrule(rrule)
   if (!r) return ''
+  if (r.FREQ === 'WEEKLY' && r.BYDAY && (!r.INTERVAL || r.INTERVAL === '1')) {
+    const d = r.BYDAY.split(',').map((x) => x.slice(-2)).sort().join(',')
+    if (d === 'FR,MO,TH,TU,WE') return 'vardagar'
+    if (d === 'SA,SU') return 'helger'
+  }
   const n = Number(r.INTERVAL || 1)
   const base = { DAILY: 'dag', WEEKLY: 'vecka', MONTHLY: 'månad', YEARLY: 'år' }[r.FREQ] || ''
   if (n === 1) return `varje ${base}`

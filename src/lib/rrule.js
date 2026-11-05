@@ -68,5 +68,5 @@ export function occurrences(start, rruleStr, from, to) {
 
 // Bygger en enkel RRULE från appens val
 export function simpleRrule(freq) {
-  return { weekly: 'FREQ=WEEKLY', biweekly: 'FREQ=WEEKLY;INTERVAL=2', monthly: 'FREQ=MONTHLY', daily: 'FREQ=DAILY', yearly: 'FREQ=YEARLY' }[freq] || null
+  return { weekdays: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', weekly: 'FREQ=WEEKLY', biweekly: 'FREQ=WEEKLY;INTERVAL=2', monthly: 'FREQ=MONTHLY', daily: 'FREQ=DAILY', yearly: 'FREQ=YEARLY' }[freq] || null
 }
