@@ -426,3 +426,10 @@ html.kiosk body { overflow: hidden; }
 .card-head.flat { padding: 0; }
 .ico.rot { transform: rotate(90deg); }
 h4.day.error { color: var(--danger); }
+.weeks { grid-template-columns: repeat(8, 1fr); }
+.stack-col { width: 100%; max-width: 26px; display: flex; flex-direction: column-reverse; border-radius: 4px 4px 0 0; overflow: hidden; min-height: 2px; }
+.stack-col i { display: block; width: 100%; }
+.small-seg button { padding: .4rem; font-size: .9rem; }
+.app[data-tab="stats"] { --accent: #4a6fa5; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .app[data-tab="stats"] { --accent: #8fb0e0; } }
+:root[data-theme="dark"] .app[data-tab="stats"] { --accent: #8fb0e0; }

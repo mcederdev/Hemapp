@@ -6,7 +6,6 @@ import { MemberTag } from './MemberPicker'
 import { Check } from './Swipe'
 import VabForm from './VabForm'
 import { Fab } from './Sheet'
-import VabStats from './VabStats'
 
 const FK_URL = 'https://www.forsakringskassan.se/'
 
@@ -62,10 +61,8 @@ export default function Vab({ householdId, members, me }) {
       <div className="seg mb">
         <button className={view === 'vab' ? 'active' : ''} onClick={() => setView('vab')}>VAB{open.length > 0 ? ` (${open.length})` : ''}</button>
         <button className={view === 'sick' ? 'active' : ''} onClick={() => setView('sick')}>Sjuk själv</button>
-        <button className={view === 'stats' ? 'active' : ''} onClick={() => setView('stats')}>Statistik</button>
       </div>
 
-      {view === 'stats' && <VabStats rows={all} members={members} />}
 
       {view === 'sick' && (
         <>
@@ -111,7 +108,7 @@ export default function Vab({ householdId, members, me }) {
         </>
       )}
 
-      <p className="muted small mt">Tips: tryck på barnets skoltid i kalendern och välj VAB. Ni får en påminnelse på söndagkvällar om det finns VAB som inte är anmäld.</p>
+      <p className="muted small mt">Statistik över sjukdagar finns under Mer → Statistik. Tips: tryck på barnets skoltid i kalendern och välj VAB. Ni får en påminnelse på söndagkvällar om det finns VAB som inte är anmäld.</p>
 
       {kids.length > 0 && <Fab onClick={() => setForm({ day: t })} label="Registrera VAB" />}
       </>}
