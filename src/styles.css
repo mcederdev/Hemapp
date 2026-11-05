@@ -4,9 +4,12 @@
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #151716; --card: #202322; --text: #eceeed; --muted: #9aa09d;
-    --line: #333735; --accent: #5fb39a; --accent-text: #0e1a16; }
+  :root:not([data-theme="light"]) { --bg: #151716; --card: #202322; --text: #eceeed; --muted: #9aa09d;
+    --line: #333735; --accent: #5fb39a; --accent-text: #0e1a16; color-scheme: dark; }
 }
+:root[data-theme="dark"] { --bg: #151716; --card: #202322; --text: #eceeed; --muted: #9aa09d;
+  --line: #333735; --accent: #5fb39a; --accent-text: #0e1a16; color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text);
   font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -118,3 +121,86 @@ h4.day::first-letter { text-transform: uppercase; }
 .close-btn { width: 36px; height: 36px; border-radius: 50%; padding: 0; font-size: 1rem; background: var(--bg); border: none; }
 body.no-scroll { overflow: hidden; }
 .app main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+
+/* ---------- Layout v3 ---------- */
+.ico { flex: none; vertical-align: middle; }
+.row-icons { display: flex; flex-wrap: wrap; gap: 0 8px; align-items: center; }
+.row-icons .ico { margin-top: -2px; }
+button .ico { margin-top: -2px; }
+.tabs button { gap: 2px; padding-top: .55rem; }
+.tabs button.active { color: var(--accent); }
+button.sq { width: 38px; height: 38px; padding: 0; display: grid; place-items: center; }
+
+/* Initialer */
+.avatar { display: inline-grid; place-items: center; border-radius: 50%; color: #fff; font-size: .72rem; font-weight: 700;
+  flex: none; letter-spacing: -.02em; text-shadow: 0 1px 1px rgba(0,0,0,.15); }
+
+/* Kryssruta med animation */
+.cbox { width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--muted); background: transparent; padding: 0;
+  display: grid; place-items: center; flex: none; color: var(--accent-text); transition: background .15s, border-color .15s; }
+.cbox.on { background: var(--accent); border-color: var(--accent); }
+.cbox.pop { animation: pop .32s ease; }
+.cbox.pop + span { text-decoration: line-through; color: var(--muted); transition: color .2s; }
+@keyframes pop { 0% { transform: scale(1) } 40% { transform: scale(1.25) } 100% { transform: scale(1) } }
+
+/* Svep */
+.list li.swipe { position: relative; padding: 0; overflow: hidden; display: block; }
+.swipe-bg { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 16px;
+  font-weight: 600; font-size: .9rem; }
+.swipe-check { color: var(--accent); display: flex; gap: 6px; align-items: center; transition: transform .15s; }
+.swipe-del { color: var(--danger); display: flex; gap: 6px; align-items: center; transition: transform .15s; }
+.swipe-check.armed, .swipe-del.armed { transform: scale(1.12); }
+.swipe-fg { position: relative; background: var(--card); display: flex; justify-content: space-between; align-items: center;
+  gap: 8px; padding: .7rem .8rem; touch-action: pan-y; }
+.list.done .swipe-fg, .is-done .swipe-fg { color: var(--muted); }
+@media (hover: none) { .icon-btn.del { display: none; } }
+
+/* Tidslinje */
+.tl, .tl .swipe-fg { gap: 10px; }
+.list li.tl:not(.swipe), .tl .swipe-fg { justify-content: flex-start; align-items: stretch; }
+.tl-time { width: 54px; flex: none; display: flex; flex-direction: column; font-variant-numeric: tabular-nums; font-size: .92rem; line-height: 1.25; }
+.tl-time .small { font-size: .8rem; }
+.tl-bar { width: 4px; border-radius: 2px; flex: none; }
+.tl-body { flex: 1; min-width: 0; }
+.tl-title { font-weight: 500; }
+.tl .avatar { align-self: center; }
+.tl .icon-btn { align-self: center; }
+
+/* Idag */
+.today-head h2 { margin: .3rem 0 0; font-size: 1.4rem; }
+.today-head p { margin: 0 0 12px; }
+.card.compact { padding: 0; overflow: hidden; margin-bottom: 10px; }
+.card-head { width: 100%; display: flex; justify-content: space-between; align-items: center; border: none; border-radius: 0;
+  background: none; padding: .7rem .85rem .5rem; }
+.card-head .row { gap: 8px; }
+.count { background: var(--bg); color: var(--muted); border-radius: 99px; font-size: .75rem; padding: 0 .5rem; font-weight: 600; }
+.list.flush { border: none; border-radius: 0; margin: 0; border-top: 1px solid var(--line); }
+.list.flush li, .list.flush .swipe-fg { padding: .55rem .85rem; }
+.pad { margin: 0; padding: .5rem .85rem .7rem; }
+.stars-sm { display: inline-flex; align-items: center; gap: 2px; font-size: .8rem; color: #e0a100; }
+.stars-sm .ico { fill: currentColor; }
+
+.hero { background: var(--accent); color: var(--accent-text); border-radius: 16px; padding: 14px 16px; margin-bottom: 10px; }
+.hero-label { font-size: .8rem; font-weight: 600; opacity: .85; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.hero-dish { font-size: 1.45rem; font-weight: 700; margin: 4px 0 10px; line-height: 1.2; }
+.hero-btn { background: rgba(255,255,255,.22); color: inherit; border: none; font-weight: 600; display: inline-flex; gap: 6px; align-items: center; }
+.hero-btn.ghost { background: transparent; border: 1px solid rgba(255,255,255,.4); }
+
+/* Veckoremsa */
+.strip { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 2px 8px; margin: 0 -2px 4px;
+  scrollbar-width: none; }
+.strip::-webkit-scrollbar { display: none; }
+.strip-day { flex: 0 0 calc((100% - 36px) / 7); scroll-snap-align: start; display: flex; flex-direction: column; align-items: center;
+  gap: 2px; padding: 6px 0; border-radius: 12px; background: var(--card); }
+.strip-day .wd { font-size: .68rem; color: var(--muted); text-transform: capitalize; }
+.strip-day .num { font-weight: 600; font-size: 1.05rem; }
+.strip-day .dots { display: flex; gap: 2px; height: 6px; }
+.strip-day .dots i { width: 6px; height: 6px; border-radius: 50%; }
+.strip-day.today .num { color: var(--accent); }
+.strip-day.sel { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.strip-day.sel .wd, .strip-day.sel .num { color: var(--accent-text); }
+
+/* Lite tätare listor överallt */
+.list li { padding: .6rem .8rem; }
+h2 { font-size: 1.35rem; }
+.avatar { font-size: .68rem; }

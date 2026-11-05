@@ -3,6 +3,8 @@ import { useTable } from '../useTable'
 import { guessSection, SECTIONS, DEFAULT_STAPLES } from '../lib/sections'
 import { parseDay } from '../lib/dates'
 import Sheet, { Fab } from './Sheet'
+import SwipeRow, { Check } from './Swipe'
+import { MemberTag } from './MemberPicker'
 
 export default function Shopping({ householdId, me, members }) {
   const lists = useTable('shopping_lists', householdId)
@@ -91,16 +93,16 @@ export default function Shopping({ householdId, me, members }) {
               {section && <h4 className="day">{section}</h4>}
               <ul className="list">
                 {rows.map((i) => (
-                  <li key={i.id}>
-                    <label className="check">
-                      <input type="checkbox" checked={false} onChange={() => items.update(i.id, { done: true })} />
+                  <SwipeRow key={i.id} onCheck={() => items.update(i.id, { done: true })} onDelete={() => items.remove(i.id)} checkLabel="I korgen">
+                    <span className="check">
+                      <Check checked={false} onChange={() => items.update(i.id, { done: true })} label={`Bocka av ${i.name}`} />
                       <span>{i.name}</span>
-                    </label>
-                    <span className="meta">
-                      {byId[i.added_by] && <span className="dot" style={{ background: byId[i.added_by].color }} title={`Tillagd av ${byId[i.added_by].name}`}>{byId[i.added_by].name[0]}</span>}
-                      <button className="icon-btn" onClick={() => items.remove(i.id)} aria-label="Ta bort">✕</button>
                     </span>
-                  </li>
+                    <span className="meta">
+                      <MemberTag member={byId[i.added_by]} size={22} />
+                      <button className="icon-btn del" onClick={() => items.remove(i.id)} aria-label="Ta bort">✕</button>
+                    </span>
+                  </SwipeRow>
                 ))}
               </ul>
             </div>
@@ -122,12 +124,12 @@ export default function Shopping({ householdId, me, members }) {
               <div className="row between"><h3>I korgen</h3><button className="link" onClick={clearDone}>Rensa</button></div>
               <ul className="list done">
                 {done.map((i) => (
-                  <li key={i.id}>
-                    <label className="check">
-                      <input type="checkbox" checked onChange={() => items.update(i.id, { done: false })} />
+                  <SwipeRow key={i.id} onDelete={() => items.remove(i.id)}>
+                    <span className="check">
+                      <Check checked onChange={() => items.update(i.id, { done: false })} label={`Ångra ${i.name}`} />
                       <span>{i.name}</span>
-                    </label>
-                  </li>
+                    </span>
+                  </SwipeRow>
                 ))}
               </ul>
             </>

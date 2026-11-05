@@ -4,6 +4,8 @@ import { COMMON_CHORES } from '../lib/defaults'
 import { nextDue, repeatLabel, prettyDay, today } from '../lib/dates'
 import MemberPicker, { MemberTag } from './MemberPicker'
 import Sheet, { Fab } from './Sheet'
+import SwipeRow, { Check } from './Swipe'
+import Icon from './Icon'
 
 const REPEATS = [
   { v: '', label: 'Upprepa inte' },
@@ -81,7 +83,7 @@ export default function Chores({ householdId, members }) {
           </select>
           {(isChild || stars > 0) && (
             <select value={stars} onChange={(e) => setStars(e.target.value)} style={{ maxWidth: 120 }}>
-              {[0, 1, 2, 3, 5].map((n) => <option key={n} value={n}>{n === 0 ? 'Inga ⭐' : `${n} ⭐`}</option>)}
+              {[0, 1, 2, 3, 5].map((n) => <option key={n} value={n}>{n === 0 ? 'Inga stjärnor' : `${n} stjärn${n === 1 ? 'a' : 'or'}`}</option>)}
             </select>
           )}
         </div>
@@ -106,25 +108,25 @@ export default function Chores({ householdId, members }) {
       </div>
       <ul className="list">
         {open.map((c) => (
-          <li key={c.id}>
-            <label className="check">
-              <input type="checkbox" checked={false} onChange={() => completeChore(chores, c)} />
+          <SwipeRow key={c.id} onCheck={() => completeChore(chores, c)} onDelete={() => chores.remove(c.id)}>
+            <span className="check">
+              <Check checked={false} onChange={() => completeChore(chores, c)} label={`Bocka av ${c.title}`} />
               <span>
                 {c.title}
-                <div className="muted small">
+                <div className="muted small row-icons">
                   {c.due_date && <span className={c.due_date < t ? 'error' : ''}>{c.due_date === t ? 'Idag' : prettyDay(c.due_date)}</span>}
-                  {c.repeat_unit && <span> · 🔁 {repeatLabel(c.repeat_every, c.repeat_unit)}</span>}
+                  {c.repeat_unit && <span><Icon name="repeat" size={13} /> {repeatLabel(c.repeat_every, c.repeat_unit)}</span>}
                 </div>
               </span>
-            </label>
-            <span className="meta">
-              {c.stars > 0 && <span className="small">⭐{c.stars}</span>}
-              <MemberTag member={byId[c.assigned_to]} />
-              <button className="icon-btn" onClick={() => chores.remove(c.id)} aria-label="Ta bort">✕</button>
             </span>
-          </li>
+            <span className="meta">
+              {c.stars > 0 && <span className="stars-sm"><Icon name="star" size={14} />{c.stars}</span>}
+              <MemberTag member={byId[c.assigned_to]} />
+              <button className="icon-btn del" onClick={() => chores.remove(c.id)} aria-label="Ta bort">✕</button>
+            </span>
+          </SwipeRow>
         ))}
-        {!chores.loading && open.length === 0 && <li className="muted">Inget att göra 🎉</li>}
+        {!chores.loading && open.length === 0 && <li className="muted">Inget att göra just nu</li>}
       </ul>
 
       <button className="link" onClick={() => setShowDone(!showDone)}>{showDone ? 'Dölj gjorda' : 'Visa gjorda'}</button>
@@ -132,12 +134,12 @@ export default function Chores({ householdId, members }) {
         <ul className="list done">
           {done.map((c) => (
             <li key={c.id} className="is-done">
-              <label className="check">
-                <input type="checkbox" checked onChange={() => chores.update(c.id, { done: false, done_at: null })} />
+              <span className="check">
+                <Check checked onChange={() => chores.update(c.id, { done: false, done_at: null })} label={`Ångra ${c.title}`} />
                 <span>{c.title}</span>
-              </label>
+              </span>
               <span className="meta">
-                {c.stars > 0 && <span className="small">⭐{c.stars}</span>}
+                {c.stars > 0 && <span className="stars-sm"><Icon name="star" size={14} />{c.stars}</span>}
                 <MemberTag member={byId[c.assigned_to]} />
               </span>
             </li>

@@ -4,6 +4,7 @@ import { splitBills } from '../lib/finance'
 import { swishUrl } from '../lib/swish'
 import { monthStart, addMonths, monthName, today } from '../lib/dates'
 import MemberPicker from './MemberPicker'
+import SwipeRow from './Swipe'
 import Sheet, { Fab } from './Sheet'
 
 const kr = (n) => Math.round(n).toLocaleString('sv-SE') + ' kr'
@@ -101,12 +102,12 @@ export default function Finance({ householdId, members, membersTable, go }) {
             </div>
           ))}
           {result.transfers.length === 0
-            ? <p className="swish">Ni är kvitt, ingen behöver swisha. 👍</p>
+            ? <p className="swish">Ni är kvitt, ingen behöver swisha.</p>
             : result.transfers.map((t, i) => {
               const to = byName[t.to]
               return (
                 <div key={i} className="swish stack">
-                  <span>📲 {t.from} swishar <strong>{kr(t.amount)}</strong> till {t.to}</span>
+                  <span>{t.from} swishar <strong>{kr(t.amount)}</strong> till {t.to}</span>
                   {settled?.paid
                     ? <span className="ok">✓ Swishat {new Date(settled.paid_at).toLocaleDateString('sv-SE')}</span>
                     : (
@@ -147,13 +148,13 @@ function BillList({ title, rows, byId, onRemove }) {
       <h4 className="day">{title}</h4>
       <ul className="list">
         {rows.map((b) => (
-          <li key={b.id}>
+          <SwipeRow key={b.id} onDelete={() => confirm(`Ta bort ${b.name}?`) && onRemove(b.id)}>
             <span>{b.name}<span className="muted small"> · {byId[b.paid_by]?.name || '?'} betalar</span></span>
             <span className="meta">
               <strong>{kr(b.amount)}</strong>
-              <button className="icon-btn" onClick={() => confirm(`Ta bort ${b.name}?`) && onRemove(b.id)} aria-label="Ta bort">✕</button>
+              <button className="icon-btn del" onClick={() => confirm(`Ta bort ${b.name}?`) && onRemove(b.id)} aria-label="Ta bort">✕</button>
             </span>
-          </li>
+          </SwipeRow>
         ))}
       </ul>
     </>

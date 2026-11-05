@@ -2,10 +2,12 @@ import { useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { useTable } from '../useTable'
 import { parseIcs } from '../lib/ics'
-import { simpleRrule, parseRrule } from '../lib/rrule'
-import { expandEvents, dayList, timeLabel } from '../lib/events'
-import { iso, today, parseDay } from '../lib/dates'
-import MemberPicker, { MemberTag } from './MemberPicker'
+import { simpleRrule } from '../lib/rrule'
+import { expandEvents, dayList } from '../lib/events'
+import { iso, today, parseDay, startOfWeek, addDays } from '../lib/dates'
+import MemberPicker from './MemberPicker'
+import EventRow from './EventRow'
+import Icon from './Icon'
 import Sheet, { Fab } from './Sheet'
 
 const REPEATS = [
@@ -24,6 +26,7 @@ export default function Calendar({ householdId, members }) {
   const [importMember, setImportMember] = useState(null)
   const [msg, setMsg] = useState('')
   const [who, setWho] = useState(null)
+  const [mode, setMode] = useState(() => { try { return localStorage.getItem('calMode') || 'week' } catch { return 'week' } })
   const fileRef = useRef()
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
 
@@ -31,7 +34,12 @@ export default function Calendar({ householdId, members }) {
   const gridStart = new Date(month); gridStart.setDate(1 - ((month.getDay() + 6) % 7))
   const gridEnd = new Date(gridStart); gridEnd.setDate(gridStart.getDate() + 42)
   const filtered = events.rows.filter((e) => !who || e.member_id === who || !e.member_id)
-  const occ = expandEvents(filtered, gridStart, gridEnd)
+  // Veckoremsa: två veckor från måndagen i vald vecka
+  const stripStart = parseDay(startOfWeek(selected))
+  const stripDays = Array.from({ length: 14 }, (_, i) => { const d = new Date(stripStart); d.setDate(d.getDate() + i); return d })
+  const stripEnd = new Date(stripStart); stripEnd.setDate(stripEnd.getDate() + 14)
+  const rangeFrom = new Date(Math.min(gridStart, stripStart)), rangeTo = new Date(Math.max(gridEnd, stripEnd))
+  const occ = expandEvents(filtered, rangeFrom, rangeTo)
   const days = Array.from({ length: 42 }, (_, i) => { const d = new Date(gridStart); d.setDate(d.getDate() + i); return d })
   const selDate = parseDay(selected)
   const selOcc = dayList(occ, selDate)
@@ -72,7 +80,13 @@ export default function Calendar({ householdId, members }) {
     events.reload()
   }
 
-  const shift = (n) => setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1))
+  const pickDay = (key) => { setSelected(key); const d = parseDay(key); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)) }
+  const shift = (n) => {
+    if (mode === 'week') return pickDay(addDays(selected, 7 * n))
+    setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1))
+  }
+  const switchMode = () => { const m = mode === 'week' ? 'month' : 'week'; setMode(m); try { localStorage.setItem('calMode', m) } catch { /* ignoreras */ } }
+  const dots = (d) => dayList(occ, d).slice(0, 4).map((o) => <i key={o.key} style={{ background: byId[o.member_id]?.color || 'var(--accent)' }} />)
   const removeEvent = (o) => {
     const msg = o.rrule ? `Ta bort "${o.title}" och alla dess upprepningar?` : `Ta bort "${o.title}"?`
     if (confirm(msg)) events.remove(o.id)
@@ -81,31 +95,46 @@ export default function Calendar({ householdId, members }) {
   return (
     <section>
       <div className="row between">
-        <h2 className="cap">{month.toLocaleDateString('sv-SE', { month: 'long', year: 'numeric' })}</h2>
+        <h2 className="cap">{(mode === 'week' ? selDate : month).toLocaleDateString('sv-SE', { month: 'long', year: 'numeric' })}</h2>
         <span className="row">
-          <button onClick={() => shift(-1)} aria-label="Föregående månad">‹</button>
-          <button onClick={() => { const d = new Date(); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)); setSelected(t) }}>Idag</button>
-          <button onClick={() => shift(1)} aria-label="Nästa månad">›</button>
+          <button className="sq" onClick={() => shift(-1)} aria-label="Bakåt"><Icon name="left" size={18} /></button>
+          <button onClick={() => pickDay(t)}>Idag</button>
+          <button className="sq" onClick={() => shift(1)} aria-label="Framåt"><Icon name="chevron" size={18} /></button>
         </span>
       </div>
-      <div className="row mb"><span className="muted">Visa:</span><MemberPicker members={members} value={who} onChange={setWho} emptyLabel="Alla" /></div>
+      <div className="row mb">
+        <MemberPicker members={members} value={who} onChange={setWho} emptyLabel="Alla i familjen" />
+        <button className="nowrap" onClick={switchMode}><Icon name="calendar" size={16} /> {mode === 'week' ? 'Månad' : 'Vecka'}</button>
+      </div>
 
-      <div className="month">
+      {mode === 'week' && (
+        <div className="strip">
+          {stripDays.map((d) => {
+            const key = iso(d)
+            return (
+              <button key={key} className={`strip-day ${key === t ? 'today' : ''} ${key === selected ? 'sel' : ''}`} onClick={() => setSelected(key)}>
+                <span className="wd">{d.toLocaleDateString('sv-SE', { weekday: 'short' }).replace('.', '')}</span>
+                <span className="num">{d.getDate()}</span>
+                <span className="dots">{dots(d)}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {mode === 'month' && <div className="month">
         {WD.map((w) => <div key={w} className="wd">{w}</div>)}
         {days.map((d) => {
           const key = iso(d)
-          const dayOcc = dayList(occ, d)
           return (
             <button key={key} className={`day-cell ${d.getMonth() !== month.getMonth() ? 'other' : ''} ${key === t ? 'today' : ''} ${key === selected ? 'sel' : ''}`}
-              onClick={() => setSelected(key)}>
+              onClick={() => pickDay(key)}>
               <span className="num">{d.getDate()}</span>
-              <span className="dots">
-                {dayOcc.slice(0, 4).map((o) => <i key={o.key} style={{ background: byId[o.member_id]?.color || 'var(--accent)' }} />)}
-              </span>
+              <span className="dots">{dots(d)}</span>
             </button>
           )
         })}
-      </div>
+      </div>}
 
       <div className="row between mt">
         <h3 className="cap">{selDate.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
@@ -161,36 +190,7 @@ export default function Calendar({ householdId, members }) {
 
 function EventList({ list, day, byId, onRemove, empty }) {
   if (list.length === 0) return empty ? <p className="muted">{empty}</p> : null
-  return (
-    <ul className="list">
-      {list.map((o) => (
-        <li key={o.key} style={{ borderLeft: `4px solid ${byId[o.member_id]?.color || 'var(--accent)'}` }}>
-          <div>
-            <div>{o.title}</div>
-            <div className="muted small">
-              {(() => { const l = timeLabel(o, day); return l.time + (l.note ? ` (${l.note})` : '') })()}
-              {o.location ? ` · ${o.location}` : ''}
-              {o.rrule && ` · 🔁 ${describe(o.rrule)}`}
-            </div>
-          </div>
-          <span className="meta">
-            <MemberTag member={byId[o.member_id]} />
-            <button className="icon-btn" onClick={() => onRemove(o)} aria-label="Ta bort">✕</button>
-          </span>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function describe(rrule) {
-  const r = parseRrule(rrule)
-  if (!r) return ''
-  const n = Number(r.INTERVAL || 1)
-  const base = { DAILY: 'dag', WEEKLY: 'vecka', MONTHLY: 'månad', YEARLY: 'år' }[r.FREQ] || ''
-  if (n === 1) return `varje ${base}`
-  if (n === 2) return `var${base === 'år' ? 'tannat' : 'annan'} ${base}`
-  return `var ${n}:e ${base}`
+  return <ul className="list">{list.map((o) => <EventRow key={o.key} occ={o} day={day} byId={byId} onRemove={onRemove} />)}</ul>
 }
 
 function groupByDay(list) {

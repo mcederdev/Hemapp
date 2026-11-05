@@ -3,6 +3,8 @@ import { supabase } from '../supabase'
 import { useTable } from '../useTable'
 import { MEMBER_COLORS } from '../lib/defaults'
 import Sheet, { Fab } from './Sheet'
+import Icon from './Icon'
+import { getTheme, setTheme } from '../lib/theme'
 import { pushSupport, currentSubscription, enablePush, disablePush } from '../lib/push'
 
 export default function Family({ me, householdId, members, membersTable, household, households }) {
@@ -22,6 +24,7 @@ export default function Family({ me, householdId, members, membersTable, househo
     <section>
       <h2>{household?.name || 'Familjen'}</h2>
       <Notifications me={me} household={household} households={households} />
+      <ThemePicker />
 
       <div className="card stack">
         <h3>Medlemmar</h3>
@@ -104,7 +107,7 @@ function Notifications({ me, household, households }) {
 
   return (
     <div className="card stack">
-      <h3>🔔 Notiser</h3>
+      <h3 className="row"><Icon name="bell" size={18} /> Notiser</h3>
       {support === 'install' && <p>För notiser på iPhone: öppna appen i Safari, tryck på dela-knappen och välj <strong>Lägg till på hemskärmen</strong>. Öppna sedan appen från hemskärmen och slå på notiser här.</p>}
       {support === 'unsupported' && <p className="muted">Den här webbläsaren stöder inte notiser.</p>}
       {support === 'ok' && (
@@ -125,6 +128,21 @@ function Notifications({ me, household, households }) {
         </>
       )}
       {msg && <p className="muted">{msg}</p>}
+    </div>
+  )
+}
+
+function ThemePicker() {
+  const [theme, set] = useState(getTheme())
+  const pick = (t) => { set(t); setTheme(t) }
+  return (
+    <div className="card stack">
+      <h3 className="row"><Icon name="sun" size={18} /> Utseende</h3>
+      <div className="seg">
+        {[['auto', 'Som telefonen'], ['light', 'Ljust'], ['dark', 'Mörkt']].map(([v, l]) => (
+          <button key={v} className={theme === v ? 'active' : ''} onClick={() => pick(v)}>{l}</button>
+        ))}
+      </div>
     </div>
   )
 }

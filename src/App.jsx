@@ -11,19 +11,21 @@ import Finance from './components/Finance'
 import Family from './components/Family'
 import Today from './components/Today'
 import Kids from './components/Kids'
+import Icon from './components/Icon'
+import { withInitials } from './components/MemberPicker'
 
 const TABS = [
-  { id: 'today', label: 'Idag', icon: '🏠' },
-  { id: 'shopping', label: 'Handla', icon: '🛒' },
-  { id: 'chores', label: 'Sysslor', icon: '✅' },
-  { id: 'calendar', label: 'Kalender', icon: '📅' },
-  { id: 'meals', label: 'Mat', icon: '🍝' },
-  { id: 'more', label: 'Mer', icon: '☰' }
+  { id: 'today', label: 'Idag', icon: 'home' },
+  { id: 'shopping', label: 'Handla', icon: 'cart' },
+  { id: 'chores', label: 'Sysslor', icon: 'checks' },
+  { id: 'calendar', label: 'Kalender', icon: 'calendar' },
+  { id: 'meals', label: 'Mat', icon: 'food' },
+  { id: 'more', label: 'Mer', icon: 'menu' }
 ]
 const MORE = [
-  { id: 'finance', label: 'Ekonomi', icon: '💰' },
-  { id: 'kids', label: 'Barnens sida', icon: '⭐' },
-  { id: 'family', label: 'Familj & inställningar', icon: '👪' }
+  { id: 'finance', label: 'Ekonomi', icon: 'wallet' },
+  { id: 'kids', label: 'Barnens sida', icon: 'star' },
+  { id: 'family', label: 'Familj & inställningar', icon: 'users' }
 ]
 
 export default function App() {
@@ -69,7 +71,7 @@ function Home({ me }) {
   const households = useTable('households', me.household_id)
   const pick = (id) => { setTab(id); localStorageSet('tab', id); window.scrollTo(0, 0) }
   const household = households.rows[0]
-  const props = { me, householdId: me.household_id, members: members.rows, membersTable: members, household, households, go: pick }
+  const props = { me, householdId: me.household_id, members: withInitials(members.rows), membersTable: members, household, households, go: pick }
   const active = MORE.some((m) => m.id === tab) ? 'more' : tab
 
   return (
@@ -81,7 +83,7 @@ function Home({ me }) {
             <h2>Mer</h2>
             <ul className="list">
               {MORE.map((m) => (
-                <li key={m.id} className="tap" onClick={() => pick(m.id)}><span>{m.icon} {m.label}</span><span className="muted">›</span></li>
+                <li key={m.id} className="tap" onClick={() => pick(m.id)}><span className="row"><Icon name={m.icon} /> {m.label}</span><Icon name="chevron" size={18} className="muted" /></li>
               ))}
             </ul>
           </section>
@@ -97,7 +99,7 @@ function Home({ me }) {
       <nav className="tabs">
         {TABS.map((t) => (
           <button key={t.id} className={active === t.id ? 'active' : ''} onClick={() => pick(t.id)}>
-            <span className="icon">{t.icon}</span>
+            <Icon name={t.icon} size={24} strokeWidth={active === t.id ? 2.4 : 1.8} />
             <span>{t.label}</span>
           </button>
         ))}

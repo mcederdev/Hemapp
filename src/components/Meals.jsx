@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useTable } from '../useTable'
 import { COMMON_DISHES } from '../lib/defaults'
 import { addDays, startOfWeek, today, weekdayName, parseDay } from '../lib/dates'
+import Icon from './Icon'
+import SwipeRow from './Swipe'
 import Sheet, { Fab } from './Sheet'
 
 const shuffle = (a) => [...a].sort(() => Math.random() - 0.5)
@@ -61,7 +63,7 @@ export default function Meals({ householdId }) {
               )
             })}
           </ul>
-          <button className="primary wide" onClick={fillWeek}>🎲 Fyll tomma dagar med förslag</button>
+          <button className="primary wide" onClick={fillWeek}><Icon name="dice" size={18} /> Fyll tomma dagar med förslag</button>
           <Fab onClick={() => setPicking(days.find((d) => d >= t && !planFor(d)) || (days.includes(t) ? t : days[0]))} label="Välj middag" />
         </>
       )}
@@ -72,13 +74,13 @@ export default function Meals({ householdId }) {
   )
 }
 
-function Picker({ day, all, onPick, onClose }) {
+export function Picker({ day, all, onPick, onClose }) {
   const [tips, setTips] = useState(() => shuffle(all).slice(0, 3))
   const [q, setQ] = useState('')
   const hits = q ? all.filter((d) => d.name.toLowerCase().includes(q.toLowerCase())) : all
   return (
     <Sheet title={`Middag ${weekdayName(day)}`} onClose={onClose}>
-        <div className="row between"><span className="muted">Förslag</span><button className="link" onClick={() => setTips(shuffle(all).slice(0, 3))}>🎲 Nya förslag</button></div>
+        <div className="row between"><span className="muted">Förslag</span><button className="link" onClick={() => setTips(shuffle(all).slice(0, 3))}><Icon name="dice" size={16} /> Nya förslag</button></div>
         <div className="tips">
           {tips.map((t) => <button key={t.name} className="tip" onClick={() => onPick(t.name)}><strong>{t.name}</strong>{t.category && <span className="muted small"> · {t.category}</span>}</button>)}
         </div>
@@ -119,13 +121,13 @@ function Dishes({ dishes, all }) {
       )}
       <ul className="list">
         {all.map((d) => (
-          <li key={d.id || d.name}>
+          <SwipeRow key={d.id || d.name} onDelete={d.own ? () => dishes.remove(d.id) : undefined}>
             <span>{d.name} {d.own && <span className="tag own">Egen</span>}</span>
             <span className="meta">
               {d.category && <span className="muted small">{d.category}</span>}
-              {d.own && <button className="icon-btn" onClick={() => dishes.remove(d.id)} aria-label="Ta bort">✕</button>}
+              {d.own && <button className="icon-btn del" onClick={() => dishes.remove(d.id)} aria-label="Ta bort">✕</button>}
             </span>
-          </li>
+          </SwipeRow>
         ))}
       </ul>
     </>
