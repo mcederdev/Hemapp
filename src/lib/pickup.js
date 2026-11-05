@@ -43,3 +43,9 @@ export function dayWarnings({ events, kids, parents, pickups, dayStr, here, hand
   }
   return out
 }
+
+// Förval enligt kalendern: är bara en förälder ledig vid tiden blir det den. Är båda (eller ingen) lediga: null, man väljer själv.
+export function freeParent(events, parents, at) {
+  const free = parents.filter((m) => !busyAt(events, m.id, at))
+  return free.length === 1 ? free[0] : null
+}

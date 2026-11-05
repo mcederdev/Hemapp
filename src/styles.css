@@ -602,3 +602,5 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 /* Popup med fast höjd (t.ex. sök bland rätter): innehållet krymper inte, så sökfältet står still */
 .sheet.tall { height: 85vh; height: 85dvh; display: flex; flex-direction: column; }
 .sheet.tall > .list { flex: 1; overflow-y: auto; min-height: 0; margin-bottom: 0; }
+.pk-btn.auto { border-style: solid; }
+.pk-btn.auto .pk-who { opacity: .85; }

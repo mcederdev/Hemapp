@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTable } from '../useTable'
 import { today, addDays } from '../lib/dates'
-import { schoolDay, dayWarnings } from '../lib/pickup'
+import { schoolDay, dayWarnings, freeParent, busyAt } from '../lib/pickup'
 import { withUs, isHandover } from '../lib/custody'
 import { MemberTag } from './MemberPicker'
 import Sheet from './Sheet'
@@ -46,12 +46,15 @@ export default function Pickups({ householdId, members, people, me, custody, eve
           {rows.map(({ kid, s }) => (
             <div key={kid.id} className="pk-row">
               <MemberTag member={kid} size={24} />
-              {[['lamna', 'Lämna', s.startHM], ['hamta', 'Hämta', s.endHM]].map(([kind, label, time]) => {
+              {[['lamna', 'Lämna', s.startHM, s.start], ['hamta', 'Hämta', s.endHM, s.end]].map(([kind, label, time, at]) => {
                 const p = who(kid, d, kind)
+                // Inget valt än: den som är ledig enligt kalendern (om bara en är det)
+                const auto = !p ? freeParent(events, parents, at) : null
+                const person = p?.person_id ? byId[p.person_id] : auto
                 return (
-                  <button key={kind} className={`pk-btn ${p?.person_name || p?.person_id ? 'set' : ''}`} onClick={() => setPick({ kid, day: d, kind, label, time })}>
-                    <span className="muted small">{label} {time}</span>
-                    <span className="pk-who">{p?.person_id && byId[p.person_id] ? <MemberTag member={byId[p.person_id]} size={20} /> : null}{p?.person_name || byId[p?.person_id]?.name || 'Vem?'}</span>
+                  <button key={kind} className={`pk-btn ${p?.person_name || p?.person_id ? 'set' : auto ? 'auto' : ''}`} onClick={() => setPick({ kid, day: d, kind, label, time, at })}>
+                    <span className="muted small">{label} {time}{auto ? ' · ledig' : ''}</span>
+                    <span className="pk-who">{person ? <MemberTag member={person} size={20} /> : null}{p?.person_name || person?.name || 'Vem?'}</span>
                   </button>
                 )
               })}
@@ -62,7 +65,8 @@ export default function Pickups({ householdId, members, people, me, custody, eve
       {pick && (
         <Sheet title={`${pick.label} ${pick.kid.name} ${pick.day === t ? 'idag' : 'imorgon'} kl ${pick.time}`} onClose={() => setPick(null)}>
           <div className="stack">
-            {adults.map((m) => <button key={m.id} className="row" onClick={() => set(m)}><MemberTag member={m} size={26} /> {m.name}{m.linked ? <span className="muted small"> · {m.household_name}</span> : ''}</button>)}
+            {adults.map((m) => <button key={m.id} className="row" onClick={() => set(m)}><MemberTag member={m} size={26} /> {m.name}{m.linked ? <span className="muted small"> · {m.household_name}</span> : ''}
+              {parents.some((x) => x.id === m.id) && <span className={`small ${busyAt(events, m.id, pick.at) ? 'error' : 'ok'}`} style={{ marginLeft: 'auto' }}>{busyAt(events, m.id, pick.at) ? 'jobbar' : 'ledig'}</span>}</button>)}
             <button onClick={() => { const n = prompt('Vem? (t.ex. Mormor, Kompisens pappa)'); if (n?.trim()) set(n.trim()) }}>Någon annan…</button>
             <button className="link" onClick={() => set(null)}>Ingen bestämd</button>
           </div>

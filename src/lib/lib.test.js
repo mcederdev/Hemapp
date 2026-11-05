@@ -229,3 +229,13 @@ test('avbockade varor hamnar på rätt ställe hemma', () => {
   assert.equal(pantryPlace({ name: 'Tandkräm', section: 'Hygien' }), null)
   assert.equal(pantryPlace({ name: 'Nötfärs', section: 'Kött & fisk' }).days, 2)
 })
+
+import { freeParent } from './pickup.js'
+test('hämta/lämna förväljs till den som är ledig', () => {
+  const at = new Date('2026-11-06T15:00')
+  const job = (id, s, e) => ({ id: 'j' + id + s, member_id: id, category: 'jobb', all_day: false, starts_at: new Date(`2026-11-06T${s}`).toISOString(), ends_at: new Date(`2026-11-06T${e}`).toISOString() })
+  const P = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }]
+  assert.equal(freeParent([job('a', '08:00', '17:00')], P, at).id, 'b')
+  assert.equal(freeParent([], P, at), null)
+  assert.equal(freeParent([job('a', '08:00', '17:00'), job('b', '07:00', '16:00')], P, at), null)
+})
