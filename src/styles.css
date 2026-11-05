@@ -631,3 +631,4 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 .movable.arranging > .fold-arrows { position: absolute; right: 8px; top: 8px; z-index: 2; background: var(--card); border-radius: 10px; }
 .fold-meta { margin-left: auto; }
 .arrange-btn { display: block; margin: 0 auto 12px; }
+.order-btns { display: inline-flex; } .order-btns .icon-btn { padding: 2px 6px; }

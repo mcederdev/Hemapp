@@ -114,9 +114,13 @@ function Home({ me }) {
   const setFocus = (id) => { setFocusState(id); localStorageSet('focus', id || '') }
   const pick = (id) => { if (id !== 'kitchen') localStorageSet('tab', id); setTab(id); window.scrollTo(0, 0) }
   const household = households.rows[0]
-  const all = withInitials(members.rows)
+  // Familjens ordning (Familj → Medlemmar), annars i den ordning de lades till
+  const ord = household?.member_order || []
+  const rank = (m) => { const i = ord.indexOf(m.id); return i === -1 ? 999 : i }
+  const sorted = (list) => [...list].sort((a, b) => rank(a) - rank(b))
+  const all = withInitials(sorted(members.rows))
   // Alla personer vi kan behöva visa namn för, även föräldrar i det andra hushållet
-  const people = withInitials([...members.rows, ...linked.people.filter((p) => !members.rows.some((m) => m.id === p.id)).map((p) => ({ ...p, role: 'parent', linked: true }))])
+  const people = withInitials([...sorted(members.rows), ...linked.people.filter((p) => !members.rows.some((m) => m.id === p.id)).map((p) => ({ ...p, role: 'parent', linked: true }))])
   const props = { me, householdId: me.household_id, members: all, people, linked, custody: custody.rows, custodyTable: custodyRaw, custodyExc, membersTable: members, household, households, go: pick, guests: guestsT.rows, guestsTable: guestsT,
     focus: all.some((m) => m.id === focus) ? focus : null, setFocus }
   useEffect(() => { applyAccent(household?.theme?.accent) }, [household?.theme?.accent])

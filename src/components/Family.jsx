@@ -23,6 +23,19 @@ export default function Family({ me, householdId, members, membersTable, househo
     setAdding(false)
   }
 
+  // Flytta upp/ner: sparas för hushållet och styr ordningen överallt
+  const move = (i, dir) => {
+    const ids = members.map((m) => m.id); const j = i + dir
+    if (j < 0 || j >= ids.length || !household) return
+    ;[ids[i], ids[j]] = [ids[j], ids[i]]
+    households.update(household.id, { member_order: ids })
+  }
+  const Order = ({ i }) => (
+    <span className="order-btns">
+      <button className="icon-btn" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Flytta upp">↑</button>
+      <button className="icon-btn" disabled={i === members.length - 1} onClick={() => move(i, 1)} aria-label="Flytta ner">↓</button>
+    </span>
+  )
   return (
     <section>
       <h2>{household?.name || 'Familjen'}</h2>
@@ -32,11 +45,11 @@ export default function Family({ me, householdId, members, membersTable, househo
       <div className="card stack">
         <h3>Medlemmar</h3>
         <ul className="list">
-          {members.map((m) => m.household_id !== householdId ? (
+          {members.map((m, i) => m.household_id !== householdId ? (
             <li key={m.id} className="col">
               <div className="row between w100">
                 <span className="row"><MemberTag member={m} size={26} /><span>{m.name}</span></span>
-                <span className="muted small">Delas med {linked?.households.find((h) => h.household_id === m.household_id)?.name || 'andra hushållet'}</span>
+                <span className="meta"><span className="muted small">Delas med {linked?.households.find((h) => h.household_id === m.household_id)?.name || 'andra hushållet'}</span><Order i={i} /></span>
               </div>
               <CustodyEditor child={m} custody={custody} table={custodyTable} me={me} linked={linked} excTable={custodyExc} />
             </li>
@@ -51,6 +64,7 @@ export default function Family({ me, householdId, members, membersTable, househo
                 <span className="meta">
                   <span className="muted small">{m.role === 'child' ? 'Barn, inget konto' : 'Förälder'}</span>
                   {m.role === 'child' && <button className="icon-btn" onClick={() => confirm(`Ta bort ${m.name}?`) && membersTable.remove(m.id)} aria-label="Ta bort">✕</button>}
+                  <Order i={i} />
                 </span>
               </div>
               {m.role === 'parent' && (
