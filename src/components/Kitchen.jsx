@@ -11,7 +11,7 @@ import { COMMON_DISHES } from '../lib/defaults'
 import EventRow from './EventRow'
 
 // Köksskärm för en iPad på kylskåpet: klocka, dagen, sysslor, mat och inköp på en skärm
-export default function Kitchen({ householdId, members, onExit }) {
+export default function Kitchen({ householdId, members, me, onExit }) {
   useWakeLock(true)
   const now = useNow(15000)
   const events = useTable('events', householdId, 'starts_at')
@@ -63,7 +63,7 @@ export default function Kitchen({ householdId, members, onExit }) {
           <h3>Sysslor</h3>
           <div className="k-chores">
             {todo.map((c) => (
-              <button key={c.id} className="kid-task" onClick={() => completeChore(chores, c)}>
+              <button key={c.id} className="kid-task" onClick={() => completeChore(chores, c, me?.id)}>
                 <span className="box" /><span className="grow">{c.title}</span>
                 {c.stars > 0 && <span>⭐{c.stars}</span>}
                 <MemberTag member={byId[c.assigned_to]} size={30} />

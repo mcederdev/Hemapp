@@ -7,6 +7,7 @@ const nextWeekday = (d) => { let n = addDays(d, 1); while ([0, 6].includes(new D
 
 // Fyll i eller ändra en VAB-dag. initial = { day, child_id, event_id } eller en befintlig rad.
 export default function VabForm({ vab, events, members, me, initial, onClose }) {
+  const sick = (initial.kind || 'vab') === 'sick'
   const kids = members.filter((m) => m.role === 'child')
   const parents = members.filter((m) => m.role !== 'child')
   const editing = !!initial.id
@@ -53,7 +54,7 @@ export default function VabForm({ vab, events, members, me, initial, onClose }) 
   }
 
   const row = (base, day = f.day) => ({
-    child_id: f.child_id, day, parent_id: base.parent_id, full_day: split ? false : f.full_day,
+    kind: sick ? 'sick' : 'vab', child_id: sick ? null : f.child_id, day, parent_id: base.parent_id, full_day: split ? false : f.full_day,
     start_time: base.start_time || null, end_time: base.end_time || null, hours: base.hours === '' ? null : Number(base.hours),
     illness: f.illness.trim() || null, temperature: f.temperature === '' ? null : Number(String(f.temperature).replace(',', '.')),
     note: f.note.trim() || null, event_id: f.event_id
@@ -74,10 +75,10 @@ export default function VabForm({ vab, events, members, me, initial, onClose }) 
   const name = (id) => members.find((m) => m.id === id)?.name
 
   return (
-    <Sheet title={editing ? 'Ändra VAB' : 'Registrera VAB'} onClose={onClose}>
+    <Sheet title={sick ? (editing ? 'Ändra sjukdag' : 'Sjukanmälan') : editing ? 'Ändra VAB' : 'Registrera VAB'} onClose={onClose}>
       <form className="stack" onSubmit={(e) => { e.preventDefault(); save(false) }}>
         <div className="row">
-          {kids.length > 1 && (
+          {!sick && kids.length > 1 && (
             <label className="field"><span className="muted small">Barn</span>
               <select value={f.child_id || ''} onChange={(e) => set({ child_id: e.target.value })}>{kids.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}</select></label>
           )}
@@ -86,7 +87,7 @@ export default function VabForm({ vab, events, members, me, initial, onClose }) 
         </div>
 
         <div>
-          <span className="muted small">Vem vabbade?</span>
+          <span className="muted small">{sick ? 'Vem är sjuk?' : 'Vem vabbade?'}</span>
           <div className="seg">
             {parents.map((p) => <button type="button" key={p.id} className={f.parent_id === p.id ? 'active' : ''} onClick={() => { setTouched(false); set({ parent_id: p.id }) }}>{p.name}</button>)}
           </div>
@@ -99,15 +100,15 @@ export default function VabForm({ vab, events, members, me, initial, onClose }) 
           </div>
         )}
 
-        <TimeRow label={split ? name(f.parent_id) : 'Arbetstid som du var borta'} v={f} onChange={setTime} />
+        <TimeRow label={split ? name(f.parent_id) : 'Arbetstid som var borta'} v={f} onChange={setTime} />
         <p className="muted small vab-hint">
           {touched ? 'Ändrat för hand.' : auto ? `Hämtat från ${auto.titles.join(', ')} i kalendern.` : 'Inget pass hittades i kalendern, fyll i tiderna själv.'}
         </p>
         {split && <TimeRow label={name(split.parent_id)} v={split} onChange={(p) => { const n = { ...split, ...p }; setSplit({ ...n, hours: 'hours' in p ? p.hours : hoursBetween(n.start_time, n.end_time) ?? n.hours }) }} />}
-        {other && !editing && <button type="button" className="link" onClick={toggleSplit}>{split ? 'Ångra delning' : `Dela dagen med ${other.name}`}</button>}
+        {!sick && other && !editing && <button type="button" className="link" onClick={toggleSplit}>{split ? 'Ångra delning' : `Dela dagen med ${other.name}`}</button>}
 
         <div>
-          <span className="muted small">Vad var det?</span>
+          <span className="muted small">{sick ? 'Vad är det?' : 'Vad var det?'}</span>
           <div className="chips">
             {ILLNESSES.map((i) => <button type="button" key={i} className={`chip ${f.illness === i ? 'on' : ''}`} onClick={() => set({ illness: f.illness === i ? '' : i })}>{i}</button>)}
           </div>
@@ -120,6 +121,7 @@ export default function VabForm({ vab, events, members, me, initial, onClose }) 
 
         <button className="primary">Spara</button>
         {!editing && <button type="button" onClick={() => save(true)}>Spara, och sjuk imorgon också</button>}
+        {sick && <p className="muted small">Kom ihåg att sjukanmäla dig till arbetsgivaren. Från dag 8 behövs läkarintyg och från dag 15 betalar Försäkringskassan.</p>}
         {editing && <button type="button" className="danger" onClick={remove}>Ta bort</button>}
       </form>
     </Sheet>

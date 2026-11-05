@@ -6,6 +6,7 @@ import { MemberTag } from './MemberPicker'
 import { Check } from './Swipe'
 import VabForm from './VabForm'
 import { Fab } from './Sheet'
+import VabStats from './VabStats'
 
 const FK_URL = 'https://www.forsakringskassan.se/'
 
@@ -14,10 +15,13 @@ export default function Vab({ householdId, members, me }) {
   const events = useTable('events', householdId, 'starts_at')
   const [form, setForm] = useState(null)
   const [showAll, setShowAll] = useState(false)
+  const [view, setView] = useState('vab')
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
   const t = today()
   const year = t.slice(0, 4)
-  const rows = [...vab.rows].sort((a, b) => b.day.localeCompare(a.day))
+  const all = [...vab.rows].sort((a, b) => b.day.localeCompare(a.day))
+  const rows = all.filter((r) => (r.kind || 'vab') === 'vab')
+  const sickRows = all.filter((r) => r.kind === 'sick')
   const open = rows.filter((r) => !r.reported)
   const done = rows.filter((r) => r.reported)
   const parents = members.filter((m) => m.role !== 'child')
@@ -29,19 +33,19 @@ export default function Vab({ householdId, members, me }) {
   const sum = (list) => list.reduce((s, r) => s + (Number(r.hours) || 0), 0)
 
   const Row = ({ r }) => {
-    const n = sickDayNumber(vab.rows, r.child_id, r.day)
+    const n = r.kind === 'sick' ? sickDayNumber(sickRows.map((x) => ({ ...x, child_id: x.parent_id })), r.parent_id, r.day) : sickDayNumber(rows, r.child_id, r.day)
     const age = daysSince(r.day, t)
     return (
       <li className={r.reported ? 'is-done' : ''}>
         <span className="check">
-          <Check checked={r.reported} onChange={() => toggle(r)} label={r.reported ? 'Markera som ej anmäld' : 'Markera som anmäld'} />
+          {r.kind !== 'sick' && <Check checked={r.reported} onChange={() => toggle(r)} label={r.reported ? 'Markera som ej anmäld' : 'Markera som anmäld'} />}
           <span className="tap grow" onClick={() => setForm(r)}>
-            <span className="cap">{prettyDay(r.day)}</span> · {byId[r.child_id]?.name || 'Barn'}
+            <span className="cap">{prettyDay(r.day)}</span> · {r.kind === 'sick' ? `${byId[r.parent_id]?.name || ''} sjuk` : byId[r.child_id]?.name || 'Barn'}
             <div className="muted small row-icons">
               <span>{r.full_day ? 'Heldag' : 'Del av dag'}{r.start_time ? ` ${r.start_time.slice(0, 5)}–${r.end_time?.slice(0, 5) || ''}` : ''}{r.hours ? ` · ${fmt(r.hours)} tim` : ''}</span>
               {r.illness && <span>🤒 {r.illness}{r.temperature ? ` ${String(r.temperature).replace('.', ',')}°` : ''}</span>}
             </div>
-            {!r.reported && age > 60 && <div className="error small">Anmäl snart, FK måste ha ansökan inom 90 dagar ({90 - age} dagar kvar)</div>}
+            {r.kind !== 'sick' && !r.reported && age > 60 && <div className="error small">Anmäl snart, FK måste ha ansökan inom 90 dagar ({90 - age} dagar kvar)</div>}
             {n >= 8 && <div className="error small">Dag {n} i rad: läkarintyg behövs från dag 8</div>}
           </span>
         </span>
@@ -54,7 +58,25 @@ export default function Vab({ householdId, members, me }) {
 
   return (
     <section>
-      <h2>VAB</h2>
+      <h2>VAB & sjukdagar</h2>
+      <div className="seg mb">
+        <button className={view === 'vab' ? 'active' : ''} onClick={() => setView('vab')}>VAB{open.length > 0 ? ` (${open.length})` : ''}</button>
+        <button className={view === 'sick' ? 'active' : ''} onClick={() => setView('sick')}>Sjuk själv</button>
+        <button className={view === 'stats' ? 'active' : ''} onClick={() => setView('stats')}>Statistik</button>
+      </div>
+
+      {view === 'stats' && <VabStats rows={all} members={members} />}
+
+      {view === 'sick' && (
+        <>
+          <p className="muted small">Här fyller ni i när någon av er vuxna är sjuk. Tryck på ditt pass i kalendern så fylls arbetstiden i automatiskt.</p>
+          {sickRows.length === 0 && <p className="muted">Inga sjukdagar registrerade.</p>}
+          <ul className="list">{sickRows.map((r) => <Row key={r.id} r={r} />)}</ul>
+          <Fab onClick={() => setForm({ day: t, kind: 'sick', parent_id: me.id })} label="Registrera sjukdag" />
+        </>
+      )}
+
+      {view === 'vab' && <>
       {kids.length === 0 && <p className="muted">Lägg till barnet under Familj först.</p>}
 
       <div className="card vab-sum">
@@ -92,6 +114,7 @@ export default function Vab({ householdId, members, me }) {
       <p className="muted small mt">Tips: tryck på barnets skoltid i kalendern och välj VAB. Ni får en påminnelse på söndagkvällar om det finns VAB som inte är anmäld.</p>
 
       {kids.length > 0 && <Fab onClick={() => setForm({ day: t })} label="Registrera VAB" />}
+      </>}
       {form && <VabForm vab={vab} events={events.rows} members={members} me={me} initial={form} onClose={() => setForm(null)} />}
     </section>
   )

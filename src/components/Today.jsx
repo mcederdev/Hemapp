@@ -3,7 +3,7 @@ import { useNow } from '../lib/useNow'
 import { useTable } from '../useTable'
 import { COMMON_DISHES } from '../lib/defaults'
 import { expandEvents, dayList, shortLine, timeOf } from '../lib/events'
-import { today, parseDay } from '../lib/dates'
+import { today, parseDay, addDays, startOfWeek } from '../lib/dates'
 import { completeChore } from './Chores'
 import { MemberTag } from './MemberPicker'
 import { Picker } from './Meals'
@@ -48,8 +48,10 @@ export default function Today({ householdId, members, go, me, focus, setFocus })
   const { allDay, flow } = buildFlow({ events: events.rows, day: d0, dinner, now, focus, withDinner: false })
   const tomorrows = dayList(expandEvents(events.rows.filter((e) => forFocus(focus, e.member_id)), d1, d2), d1).filter((o) => o.all_day || o.start >= d1)
 
-  const mine = chores.rows.filter((c) => forFocus(focus, c.assigned_to))
-  const todo = mine.filter((c) => !c.done && (!c.due_date || c.due_date <= t))
+  const mine = chores.rows.filter((c) => forFocus(focus, c.done ? c.done_by || c.assigned_to : c.assigned_to))
+  // Idag: det som ska göras idag eller är sent, plus veckans/månadens återkommande
+  const weekEnd = addDays(startOfWeek(t), 6)
+  const todo = mine.filter((c) => !c.done && (!c.due_date || c.due_date <= t || (c.plan_id && c.due_date <= weekEnd)))
     .sort((a, b) => (a.due_date || '9').localeCompare(b.due_date || '9'))
   const doneToday = mine.filter((c) => c.done && c.done_at && c.done_at.slice(0, 10) === t)
   const overdue = {}
@@ -126,9 +128,9 @@ export default function Today({ householdId, members, go, me, focus, setFocus })
         </button>
         <ul className="list flush">
           {todo.slice(0, 8).map((c) => (
-            <SwipeRow key={c.id} onCheck={() => completeChore(chores, c)}>
+            <SwipeRow key={c.id} onCheck={() => completeChore(chores, c, me.id)}>
               <span className="check">
-                <Check checked={false} onChange={() => completeChore(chores, c)} label={`Bocka av ${c.title}`} />
+                <Check checked={false} onChange={() => completeChore(chores, c, me.id)} label={`Bocka av ${c.title}`} />
                 <span>{c.title}{c.due_date && c.due_date < t && <span className="error small"> · sen</span>}</span>
               </span>
               <span className="meta">
@@ -143,7 +145,7 @@ export default function Today({ householdId, members, go, me, focus, setFocus })
                 <Check checked onChange={() => chores.update(c.id, { done: false, done_at: null })} label={`Ångra ${c.title}`} />
                 <span>{c.title}</span>
               </span>
-              <span className="muted small">{[byId[c.assigned_to]?.name, c.stars > 0 && `${c.stars} ⭐`].filter(Boolean).join(' · ')}</span>
+              <span className="muted small">{[byId[c.done_by || c.assigned_to]?.name, c.stars > 0 && `${c.stars} ⭐`].filter(Boolean).join(' · ')}</span>
             </li>
           ))}
           {todo.length === 0 && doneToday.length === 0 && <li className="muted small">Inga sysslor idag.</li>}

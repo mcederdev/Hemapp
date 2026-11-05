@@ -3,6 +3,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.119.0'
 import webpush from 'npm:web-push@3.6.7'
 import { occurrences } from './rrule.js'
+import { planDue } from './plans.js'
 
 const TZ = 'Europe/Stockholm'
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
@@ -28,6 +29,22 @@ Deno.serve(async (req) => {
 
   const { data: households } = await db.from('households').select('*')
   for (const h of households ?? []) {
+    // Återkommande sysslor: lägg till nya när det är dags (efter kl 04)
+    if (!body.test && !body.notify && hour >= 4) {
+      const { data: plans } = await db.from('chore_plans').select('*').eq('household_id', h.id)
+      for (const pl of plans ?? []) {
+        const due = planDue(pl, todayLocal)
+        if (!due) continue
+        // Finns förra omgången kvar ogjord låter vi den ligga kvar i stället för att dubblera
+        const { data: open } = await db.from('chores').select('id').eq('plan_id', pl.id).eq('done', false).limit(1)
+        if (!open?.length) {
+          await db.from('chores').insert({ household_id: h.id, title: pl.title, assigned_to: pl.assigned_to, stars: pl.stars, due_date: due, plan_id: pl.id })
+          log.push(`syssla ${pl.title}`)
+        }
+        await db.from('chore_plans').update({ last_added: todayLocal }).eq('id', pl.id)
+      }
+    }
+
     const { data: subs } = await db.from('push_subscriptions').select('*').eq('household_id', h.id)
     if (!subs?.length) continue
     const send = async (payload: Record<string, string>, onlyMember?: string, exceptMember?: string) => {
@@ -109,7 +126,7 @@ Deno.serve(async (req) => {
     // VAB: påminnelse söndag kväll om dagar som inte är anmälda till Försäkringskassan
     const weekday = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short' }).format(now)
     if (weekday === 'Sun' && hour >= 18 && h.last_vab_push !== todayLocal) {
-      const { data: vab } = await db.from('vab_days').select('day, parent_id, hours').eq('household_id', h.id).eq('reported', false).order('day')
+      const { data: vab } = await db.from('vab_days').select('day, parent_id, hours').eq('household_id', h.id).eq('kind', 'vab').eq('reported', false).order('day')
       const byParent = new Map<string, { day: string }[]>()
       for (const r of vab ?? []) { if (!r.parent_id) continue; byParent.set(r.parent_id, [...(byParent.get(r.parent_id) ?? []), r]) }
       for (const [pid, list] of byParent) {

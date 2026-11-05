@@ -127,3 +127,16 @@ test('vab: nattpass räknas till dagen det börjar', () => {
   assert.equal(workTime(ev, 'p', '2026-11-11'), null)
   assert.equal(hoursBetween('20:00', '07:00'), 11)
 })
+import { planDue } from './plans.js'
+test('återkommande sysslor', () => {
+  // 2026-11-05 är en torsdag
+  assert.equal(planDue({ unit: 'week', every: 1 }, '2026-11-05'), '2026-11-08')
+  assert.equal(planDue({ unit: 'week', every: 1, last_added: '2026-11-05' }, '2026-11-08'), null)
+  assert.equal(planDue({ unit: 'week', every: 1, last_added: '2026-11-05' }, '2026-11-09'), '2026-11-15')
+  assert.equal(planDue({ unit: 'week', every: 2, last_added: '2026-11-05' }, '2026-11-09'), null)
+  assert.equal(planDue({ unit: 'week', every: 2, last_added: '2026-11-05' }, '2026-11-16'), '2026-11-22')
+  assert.equal(planDue({ unit: 'month', every: 1, last_added: '2026-11-05' }, '2026-11-30'), null)
+  assert.equal(planDue({ unit: 'month', every: 1, last_added: '2026-11-05' }, '2026-12-01'), '2026-12-31')
+  assert.equal(planDue({ unit: 'day', every: 2, last_added: '2026-11-05' }, '2026-11-06'), null)
+  assert.equal(planDue({ unit: 'day', every: 2, last_added: '2026-11-05' }, '2026-11-07'), '2026-11-07')
+})

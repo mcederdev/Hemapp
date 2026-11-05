@@ -97,23 +97,31 @@ export default function Calendar({ householdId, members, me, go, focus: who, set
   const vabOn = (o) => {
     if (byId[o.member_id]?.role !== 'child') return []
     const d = iso(o.start < parseDay(selected) ? parseDay(selected) : o.start)
-    return vab.rows.filter((r) => r.child_id === o.member_id && r.day === d)
+    return vab.rows.filter((r) => r.kind !== 'sick' && r.child_id === o.member_id && r.day === d)
   }
   const badgeFor = (o, day) => {
     const d = iso(day)
     // Förälderns pass den dag hen vabbar
     if (byId[o.member_id] && byId[o.member_id].role !== 'child') {
-      return !o.all_day && vab.rows.some((r) => r.parent_id === o.member_id && r.day === d) ? 'VAB' : null
+      const r = !o.all_day && vab.rows.find((r) => r.parent_id === o.member_id && r.day === d)
+      return r ? (r.kind === 'sick' ? 'Sjuk' : 'VAB') : null
     }
     if (byId[o.member_id]?.role !== 'child') return null
-    const list = vab.rows.filter((r) => r.child_id === o.member_id && r.day === d)
+    const list = vab.rows.filter((r) => r.kind !== 'sick' && r.child_id === o.member_id && r.day === d)
     return list.length ? `VAB · ${list.map((r) => byId[r.parent_id]?.name).filter(Boolean).join(' + ')}` : null
   }
   const startVab = (o) => {
     setOpened(null)
     const d = iso(o.start < parseDay(selected) ? parseDay(selected) : o.start)
-    const existing = vab.rows.find((r) => r.child_id === o.member_id && r.day === d)
+    const existing = vab.rows.find((r) => r.kind !== 'sick' && r.child_id === o.member_id && r.day === d)
     setVabForm(existing || { day: d, child_id: o.member_id, event_id: o.id })
+  }
+  // Egen sjukdag från förälderns pass
+  const startSick = (o) => {
+    setOpened(null)
+    const d = iso(o.start < parseDay(selected) ? parseDay(selected) : o.start)
+    const existing = vab.rows.find((r) => r.kind === 'sick' && r.parent_id === o.member_id && r.day === d)
+    setVabForm(existing || { day: d, kind: 'sick', parent_id: o.member_id, event_id: o.id })
   }
   const [removing, setRemoving] = useState(null)
   const removeEvent = (o) => {
@@ -211,7 +219,7 @@ export default function Calendar({ householdId, members, me, go, focus: who, set
       )}
 
       {mode === 'day'
-        ? <DayColumns occ={selOcc} day={selDate} members={who ? members.filter((m) => m.id === who) : members} onRemove={removeEvent} onVab={startVab} badgeFor={badgeFor} />
+        ? <DayColumns occ={selOcc} day={selDate} members={who ? members.filter((m) => m.id === who) : members} onRemove={removeEvent} onVab={startVab} onSick={startSick} me={me} badgeFor={badgeFor} />
         : <EventList list={selOcc} day={selDate} byId={byId} onRemove={removeEvent} onOpen={setOpened} badgeFor={badgeFor} empty="Inget denna dag." />}
 
       {opened && (
@@ -222,6 +230,9 @@ export default function Calendar({ householdId, members, me, go, focus: who, set
               <button className="primary" onClick={() => startVab(opened)}>
                 🤒 {vabOn(opened).length ? 'Ändra VAB' : `${byId[opened.member_id].name} är sjuk – VAB`}
               </button>
+            )}
+            {byId[opened.member_id] && byId[opened.member_id].role !== 'child' && !opened.all_day && (
+              <button onClick={() => startSick(opened)}>🤒 {opened.member_id === me.id ? 'Jag är sjuk' : `${byId[opened.member_id].name} är sjuk`}</button>
             )}
             <button className="danger" onClick={() => { const o = opened; setOpened(null); removeEvent(o) }}>Ta bort händelsen</button>
           </div>

@@ -37,9 +37,10 @@ export default function Kids({ householdId, members, household, households, memb
   }
 
   const theirs = chores.rows.filter((c) => c.assigned_to === kid.id)
-  const todo = theirs.filter((c) => !c.done && (!c.due_date || c.due_date <= addDays(t, 1)))
+  const todo = theirs.filter((c) => !c.done && (!c.due_date || c.due_date <= addDays(t, 1) || (c.plan_id && c.due_date <= addDays(week, 6))))
     .sort((a, b) => (a.due_date || '9').localeCompare(b.due_date || '9'))
-  const doneIn = (from, to) => theirs.filter((c) => c.done && c.done_at && c.done_at.slice(0, 10) >= from && c.done_at.slice(0, 10) < to)
+  const doneBy = chores.rows.filter((c) => (c.done_by || c.assigned_to) === kid.id)
+  const doneIn = (from, to) => doneBy.filter((c) => c.done && c.done_at && c.done_at.slice(0, 10) >= from && c.done_at.slice(0, 10) < to)
   const thisWeek = doneIn(week, addDays(week, 7))
   const lastWeek = doneIn(addDays(week, -7), week)
   const stars = (list) => list.reduce((s, c) => s + (c.stars || 0), 0)
@@ -70,7 +71,7 @@ export default function Kids({ householdId, members, household, households, memb
 
   // Sparmål: stjärnor intjänade sedan målet sattes
   const hasGoal = kid.goal_title && kid.goal_amount > 0
-  const saved = hasGoal ? stars(theirs.filter((c) => c.done && c.done_at && c.done_at.slice(0, 10) >= (kid.goal_since || '0'))) * perStar : 0
+  const saved = hasGoal ? stars(doneBy.filter((c) => c.done && c.done_at && c.done_at.slice(0, 10) >= (kid.goal_since || '0'))) * perStar : 0
   const goalPct = hasGoal ? Math.min(100, (saved / kid.goal_amount) * 100) : 0
   const saveGoal = async (e) => {
     e.preventDefault()
@@ -145,7 +146,7 @@ export default function Kids({ householdId, members, household, households, memb
       <h3>Sysslor</h3>
       <div className="kid-tasks">
         {todo.map((c) => (
-          <button key={c.id} className="kid-task" onClick={() => completeChore(chores, c)}>
+          <button key={c.id} className="kid-task" onClick={() => completeChore(chores, c, kid.id)}>
             <span className="box" />
             <span className="grow">
               {c.title}

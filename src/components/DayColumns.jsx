@@ -8,7 +8,7 @@ import { useNow } from '../lib/useNow'
 const PX = 46 // pixlar per timme
 
 // Dagvy med en kolumn per person, händelser som block i rätt höjd
-export default function DayColumns({ occ, day, members, onRemove, onVab, badgeFor }) {
+export default function DayColumns({ occ, day, members, onRemove, onVab, onSick, me, badgeFor }) {
   const [open, setOpen] = useState(null)
   const now = useNow()
   const d0 = new Date(day); d0.setHours(0, 0, 0, 0)
@@ -74,7 +74,7 @@ export default function DayColumns({ occ, day, members, onRemove, onVab, badgeFo
                 <button key={o.key} className={`dc-ev ${o.end && o.end < now ? 'past' : ''}`} onClick={() => setOpen(o)}
                   style={{ top: (s - from) * PX + 1, height: Math.max(22, (e - s) * PX - 2), left: `${(lane / lanes) * 100}%`, width: `calc(${100 / lanes}% - 3px)`, '--c': color }}>
                   <strong>{o.title}</strong>
-                  {badgeFor?.(o, day) && <em className="dc-vab">VAB</em>}
+                  {badgeFor?.(o, day) && <em className="dc-vab">{badgeFor(o, day).startsWith('Sjuk') ? 'Sjuk' : 'VAB'}</em>}
                   <span>{label}</span>
                 </button>
               )
@@ -91,6 +91,7 @@ export default function DayColumns({ occ, day, members, onRemove, onVab, badgeFo
           <ul className="list"><EventRow occ={open} day={day} byId={byId} badge={badgeFor?.(open, day)} /></ul>
           <div className="stack">
             {onVab && byId[open.member_id]?.role === 'child' && <button className="primary" onClick={() => { const o = open; setOpen(null); onVab(o) }}>🤒 {byId[open.member_id].name} är sjuk – VAB</button>}
+            {onSick && byId[open.member_id] && byId[open.member_id].role !== 'child' && !open.all_day && <button onClick={() => { const o = open; setOpen(null); onSick(o) }}>🤒 {open.member_id === me?.id ? 'Jag är sjuk' : `${byId[open.member_id].name} är sjuk`}</button>}
             {onRemove && <button className="danger w100" onClick={() => { onRemove(open); setOpen(null) }}>Ta bort händelsen</button>}
           </div>
         </Sheet>
