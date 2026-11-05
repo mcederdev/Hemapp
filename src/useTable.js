@@ -45,39 +45,71 @@ if (typeof window !== 'undefined') {
 }
 const queue = (m) => { writeOutbox([...readOutbox(), m]); window.dispatchEvent(new Event('outbox-changed')) }
 
+// Delade lager: alla komponenter som läser samma tabell (och filter) delar en hämtning
+// och en live-prenumeration, i stället för att varje ruta på Idag öppnar sin egen.
+const stores = new Map()
+function storeFor(table, col, val, order, shared) {
+  const key = `${table}:${col}:${val}:${order}`
+  let s = stores.get(key)
+  if (!s) {
+    const ck = cacheKey(table, col, val) + (order === 'created_at' ? '' : `:${order}`)
+    const cached = val ? readCache(ck) : null
+    s = { key, ck, table, col, val, order, shared, rows: cached || [], loading: !cached, subs: new Set(), refs: 0, channel: null, timer: null }
+    stores.set(key, s)
+  }
+  return s
+}
+const emit = (s) => { const v = { rows: s.rows, loading: s.loading }; for (const f of s.subs) f(v) }
+const setStoreRows = (s, f) => { s.rows = typeof f === 'function' ? f(s.rows) : f; writeCache(s.ck, s.rows); emit(s) }
+async function loadStore(s) {
+  if (!s.val) { s.rows = []; s.loading = false; return emit(s) }
+  if (readOutbox().some((m) => m.table === s.table)) { s.loading = false; return emit(s) } // vänta tills offline-ändringarna skickats
+  let q = supabase.from(s.table).select('*')
+  if (!s.shared) q = q.eq(s.col, s.val)
+  const { data, error } = await q.order(s.order, { ascending: true })
+  s.loading = false
+  if (!error) setStoreRows(s, data); else emit(s)
+}
+// Flera ändringar i rad (t.ex. någon bockar av fem varor) ger bara en ny hämtning
+const soon = (s) => { clearTimeout(s.timer); s.timer = setTimeout(() => loadStore(s), 250) }
+function acquire(s) {
+  if (s.refs++ > 0) return
+  loadStore(s)
+  if (!s.val) return
+  s.onFlush = () => loadStore(s)
+  window.addEventListener('outbox-flushed', s.onFlush)
+  s.channel = supabase
+    .channel(`${s.key}-${Math.random().toString(36).slice(2)}`)
+    .on('postgres_changes',
+      s.shared ? { event: '*', schema: 'public', table: s.table } : { event: '*', schema: 'public', table: s.table, filter: `${s.col}=eq.${s.val}` },
+      () => soon(s))
+    .subscribe()
+}
+function release(s) {
+  if (--s.refs > 0) return
+  clearTimeout(s.timer)
+  if (s.channel) supabase.removeChannel(s.channel)
+  if (s.onFlush) window.removeEventListener('outbox-flushed', s.onFlush)
+  s.channel = null; s.onFlush = null
+}
+
 // Hämtar en tabell för hushållet och håller den uppdaterad live
 // när någon annan i familjen ändrar något.
 // where = [kolumn, värde] hämtar på något annat än hushållet, t.ex. ['car_id', id]
 export function useTable(table, householdId, order = 'created_at', where = null) {
   const shared = SHARED.has(table) && !where
   const [col, val] = where || [table === 'households' ? 'id' : 'household_id', householdId]
-  const key = cacheKey(table, col, val)
-  const [rows, setRowsRaw] = useState(() => (val && readCache(key)) || [])
-  const [loading, setLoading] = useState(() => !(val && readCache(key)))
-  const setRows = useCallback((f) => setRowsRaw((r) => { const n = typeof f === 'function' ? f(r) : f; writeCache(key, n); return n }), [key])
-
-  const load = useCallback(async () => {
-    if (!val) { setRowsRaw([]); setLoading(false); return }
-    if (readOutbox().some((m) => m.table === table)) { setLoading(false); return } // vänta tills offline-ändringarna skickats
-    let q = supabase.from(table).select('*')
-    if (!shared) q = q.eq(col, val)
-    const { data, error } = await q.order(order, { ascending: true })
-    if (!error) setRows(data)
-    setLoading(false)
-  }, [table, val, order, col, shared, setRows])
-
+  const s = storeFor(table, col, val, order, shared)
+  const [state, setState] = useState(() => ({ rows: s.rows, loading: s.loading }))
   useEffect(() => {
-    setRowsRaw((val && readCache(key)) || [])
-    load()
-    const channel = supabase
-      .channel(`${table}-${val}-${Math.random().toString(36).slice(2)}`)
-      .on('postgres_changes',
-        shared ? { event: '*', schema: 'public', table } : { event: '*', schema: 'public', table, filter: `${col}=eq.${val}` },
-        load)
-      .subscribe()
-    window.addEventListener('outbox-flushed', load)
-    return () => { supabase.removeChannel(channel); window.removeEventListener('outbox-flushed', load) }
-  }, [load, table, val, shared, col, key])
+    s.subs.add(setState)
+    setState({ rows: s.rows, loading: s.loading })
+    acquire(s)
+    return () => { s.subs.delete(setState); release(s) }
+  }, [s])
+  const { rows, loading } = state
+  const load = useCallback(() => loadStore(s), [s])
+  const setRows = (f) => setStoreRows(s, f)
 
   const insert = async (values) => {
     const base = where ? { [col]: val } : NO_HOUSEHOLD.has(table) ? {} : { household_id: householdId }

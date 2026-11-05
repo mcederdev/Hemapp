@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  // React och Supabase i egna filer: de ändras sällan och ligger kvar i telefonens cache när appen uppdateras
+  build: { rollupOptions: { output: { manualChunks: (id) => (/node_modules\/(react|react-dom|scheduler)\//.test(id) ? 'react' : /node_modules\/@supabase\//.test(id) ? 'supabase' : undefined) } } },
   plugins: [
     react(),
     VitePWA({

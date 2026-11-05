@@ -1,29 +1,31 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { supabase, isConfigured } from './supabase'
 import { useTable, pendingCount } from './useTable'
 import { useLinked } from './useLinked'
-import Car from './components/Car'
 import Messages, { lastSeen } from './components/Messages'
-import Medicines from './components/Medicines'
-import { PickupsPage } from './components/Pickups'
-import Landing from './components/Landing'
-import GuestHome from './components/GuestHome'
-import Setup from './components/Setup'
 import Shopping from './components/Shopping'
 import Chores from './components/Chores'
-import Calendar from './components/Calendar'
-import Meals from './components/Meals'
-import Finance from './components/Finance'
-import Family from './components/Family'
 import Today from './components/Today'
-import Kids from './components/Kids'
-import Kitchen from './components/Kitchen'
-import Vab from './components/Vab'
-import Stats from './components/Stats'
-import Reminders from './components/Reminders'
 import Icon from './components/Icon'
 import { withInitials } from './components/MemberPicker'
 import { applyAccent } from './lib/accent'
+
+// Flikarna laddas först när de öppnas, så att appen startar snabbare
+const Car = lazy(() => import('./components/Car'))
+const Medicines = lazy(() => import('./components/Medicines'))
+const Landing = lazy(() => import('./components/Landing'))
+const GuestHome = lazy(() => import('./components/GuestHome'))
+const Setup = lazy(() => import('./components/Setup'))
+const Calendar = lazy(() => import('./components/Calendar'))
+const Meals = lazy(() => import('./components/Meals'))
+const Finance = lazy(() => import('./components/Finance'))
+const Family = lazy(() => import('./components/Family'))
+const Kids = lazy(() => import('./components/Kids'))
+const Kitchen = lazy(() => import('./components/Kitchen'))
+const Vab = lazy(() => import('./components/Vab'))
+const Stats = lazy(() => import('./components/Stats'))
+const Reminders = lazy(() => import('./components/Reminders'))
+const PickupsPage = lazy(() => import('./components/Pickups').then((m) => ({ default: m.PickupsPage })))
 
 const TABS = [
   { id: 'today', label: 'Idag', icon: 'home' },
@@ -147,6 +149,7 @@ function Home({ me }) {
     <div className={`app ${household?.theme?.accent ? 'own-accent' : ''}`} data-tab={tab}>
       {offlineBar}
       <main>
+        <Suspense fallback={<p className="muted pad">Laddar…</p>}>
         {tab === 'today' && <Today {...props} />}
         {tab === 'more' && (
           <section>
@@ -172,6 +175,7 @@ function Home({ me }) {
         {tab === 'pickups' && <PickupsPage {...props} people={[...people, ...guestsT.rows.map((g) => ({ ...g, role: 'guest', short: g.name.slice(0, 1).toUpperCase() }))]} />}
         {tab === 'messages' && <section><h2>Meddelanden</h2><Messages {...props} /></section>}
         {tab === 'family' && <Family {...props} />}
+        </Suspense>
       </main>
       <nav className="tabs">
         {TABS.map((t) => (
