@@ -137,63 +137,92 @@ export default function Shopping({ householdId, me, members }) {
         </>
       )}
 
-      {view === 'home' && <OutAtHome catalog={catalog} onList={onList} add={(n) => add(n, defaultList)} defaultList={defaultList} />}
+      {view === 'home' && <OutAtHome catalog={catalog} items={items} add={(n) => add(n, defaultList)} defaultList={defaultList} />}
       {view === 'lists' && <Lists lists={lists} items={items} onOpen={(id) => { setListId(id); setView('list') }} />}
     </section>
   )
 }
 
-// "Slut hemma": tryck på det som tar slut så hamnar det på veckohandlingen
-function OutAtHome({ catalog, onList, add, defaultList }) {
-  const [name, setName] = useState('')
+// "Slut hemma": tryck på det som tar slut så hamnar det på veckohandlingen, tryck igen för att ångra
+function OutAtHome({ catalog, items, add, defaultList }) {
   const [edit, setEdit] = useState(false)
-  const [adding, setAdding] = useState(false)
+  const [sheet, setSheet] = useState(null) // null | { id?, name, section }
   const staples = catalog.rows.filter((c) => c.is_staple).sort((a, b) => a.name.localeCompare(b.name, 'sv'))
   const usingDefaults = staples.length === 0
-
   const tiles = usingDefaults ? DEFAULT_STAPLES.map((n) => ({ id: n, name: n })) : staples
 
-  const addStaple = async (e) => {
-    e.preventDefault()
-    const n = name.trim()
-    if (!n) return
-    const existing = catalog.rows.find((c) => c.name.toLowerCase() === n.toLowerCase())
-    if (existing) await catalog.update(existing.id, { is_staple: true })
-    else await catalog.insert({ name: n, section: guessSection(n), is_staple: true })
-    setName('')
-    setAdding(false)
+  const onDefault = items.rows.filter((i) => i.list_id === defaultList?.id && !i.done)
+  const itemFor = (n) => onDefault.find((i) => i.name.toLowerCase() === n.toLowerCase())
+
+  const toggle = (t) => {
+    const existing = itemFor(t.name)
+    if (existing) items.remove(existing.id)
+    else add(t.name)
   }
+
   const adoptDefaults = async () => {
     const missing = DEFAULT_STAPLES.filter((n) => !catalog.rows.some((c) => c.name.toLowerCase() === n.toLowerCase()))
     if (missing.length) await catalog.insert(missing.map((n) => ({ name: n, section: guessSection(n), is_staple: true })))
     for (const c of catalog.rows) if (DEFAULT_STAPLES.some((n) => n.toLowerCase() === c.name.toLowerCase())) catalog.update(c.id, { is_staple: true })
   }
+  const startEdit = async () => { if (usingDefaults) await adoptDefaults(); setEdit(true) }
+
+  const save = async (e) => {
+    e.preventDefault()
+    const n = sheet.name.trim()
+    if (!n) return
+    const section = sheet.section || guessSection(n)
+    const same = catalog.rows.find((c) => c.name.toLowerCase() === n.toLowerCase() && c.id !== sheet.id)
+    if (sheet.id) {
+      const old = catalog.rows.find((c) => c.id === sheet.id)
+      if (same) { await catalog.update(same.id, { is_staple: true, section }); await catalog.update(sheet.id, { is_staple: false }) }
+      else await catalog.update(sheet.id, { name: n, section })
+      // byt namn även på varan om den redan ligger på listan
+      const onListItem = old && itemFor(old.name)
+      if (onListItem) items.update(onListItem.id, { name: n, section })
+    } else if (same) await catalog.update(same.id, { is_staple: true, section })
+    else await catalog.insert({ name: n, section, is_staple: true })
+    setSheet(null)
+  }
+  const removeStaple = async () => {
+    if (!confirm(`Ta bort ${sheet.name} från Slut hemma?`)) return
+    await catalog.update(sheet.id, { is_staple: false })
+    setSheet(null)
+  }
 
   return (
     <div className="mt">
-      <p className="muted small">Tryck på det som håller på att ta slut så läggs det direkt på {defaultList?.name || 'inköpslistan'}.</p>
+      <p className="muted small">
+        {edit ? 'Tryck på en vara för att ändra eller ta bort den.' : `Tryck på det som håller på att ta slut så läggs det på ${defaultList?.name || 'inköpslistan'}. Tryck igen för att ångra.`}
+      </p>
       <div className="tiles">
         {tiles.map((t) => {
-          const added = onList.has(t.name.toLowerCase())
+          const added = !!itemFor(t.name)
           return (
-            <button key={t.id} className={`tile ${added ? 'on' : ''}`}
-              onClick={() => (edit && !usingDefaults ? catalog.update(t.id, { is_staple: false }) : add(t.name))}>
-              {edit && !usingDefaults ? `✕ ${t.name}` : added ? `✓ ${t.name}` : t.name}
+            <button key={t.id} className={`tile ${added && !edit ? 'on' : ''} ${edit ? 'editing' : ''}`}
+              onClick={() => (edit ? setSheet({ id: t.id, name: t.name, section: t.section || guessSection(t.name) }) : toggle(t))}>
+              {edit ? `✎ ${t.name}` : added ? `✓ ${t.name}` : t.name}
             </button>
           )
         })}
       </div>
-      {usingDefaults && <p className="muted small">Det här är förslag. <button className="link" onClick={adoptDefaults}>Använd dem som våra</button> eller lägg till egna nedan.</p>}
-      <Fab onClick={() => setAdding(true)} label="Ny basvara" />
-      {adding && (
-        <Sheet title="Ny vara som brukar ta slut" onClose={() => setAdding(false)}>
-          <form className="row" onSubmit={addStaple}>
-            <input placeholder="T.ex. Havregryn" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+      {usingDefaults && <p className="muted small">Det här är förslag. <button className="link" onClick={adoptDefaults}>Använd dem som våra</button> eller lägg till egna med plusset.</p>}
+      <Fab onClick={() => setSheet({ name: '', section: '' })} label="Ny vara" />
+      {sheet && (
+        <Sheet title={sheet.id ? 'Ändra vara' : 'Ny vara som brukar ta slut'} onClose={() => setSheet(null)}>
+          <form className="stack" onSubmit={save}>
+            <input placeholder="T.ex. Havregryn" value={sheet.name} onChange={(e) => setSheet({ ...sheet, name: e.target.value })} autoFocus={!sheet.id} />
+            <label className="field"><span className="muted small">Avdelning i butiken</span>
+              <select value={sheet.section || guessSection(sheet.name)} onChange={(e) => setSheet({ ...sheet, section: e.target.value })}>
+                {SECTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
             <button className="primary">Spara</button>
+            {sheet.id && <button type="button" className="danger" onClick={removeStaple}>Ta bort varan</button>}
           </form>
         </Sheet>
       )}
-      {!usingDefaults && <button className="link" onClick={() => setEdit(!edit)}>{edit ? 'Klar' : 'Ta bort varor'}</button>}
+      <button className="link" onClick={() => (edit ? setEdit(false) : startEdit())}>{edit ? 'Klar' : 'Redigera varor'}</button>
     </div>
   )
 }

@@ -91,6 +91,8 @@ a.button.primary { background: var(--accent); color: var(--accent-text); font-we
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .tile { padding: .9rem .4rem; border-radius: 12px; white-space: normal; font-weight: 500; }
 .tile.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.tile.editing { border-style: dashed; }
+button.danger { color: var(--danger); border-color: var(--danger); background: none; }
 .month { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 6px; }
 .month .wd { text-align: center; font-size: .7rem; color: var(--muted); padding: 2px 0 4px; }
 .day-cell { border: none; border-radius: 8px; background: none; padding: 4px 0; min-height: 44px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
