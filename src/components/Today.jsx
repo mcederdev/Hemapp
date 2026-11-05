@@ -13,6 +13,7 @@ import SwipeRow, { Check } from './Swipe'
 import Icon from './Icon'
 import ShopForDishes from './ShopForDishes'
 import Notes, { Soon } from './Notes'
+import { CustodyLine } from './Custody'
 
 // Bygger dagens flöde: händelser och middag i tidsordning, med nu-linjen på rätt plats
 export function buildFlow({ events, day, dinner, now, focus, withDinner = true }) {
@@ -32,7 +33,7 @@ export function buildFlow({ events, day, dinner, now, focus, withDinner = true }
   return { allDay, flow: timed, d0 }
 }
 
-export default function Today({ householdId, members, go, me, focus, setFocus }) {
+export default function Today({ householdId, members, go, me, focus, setFocus, custody, linked }) {
   const events = useTable('events', householdId, 'starts_at')
   const chores = useTable('chores', householdId)
   const meals = useTable('meal_plan', householdId, 'day')
@@ -85,6 +86,7 @@ export default function Today({ householdId, members, go, me, focus, setFocus })
 
       <FamilyStrip members={members} focus={focus} setFocus={setFocus} counts={overdue} />
       <Notes householdId={householdId} members={members} me={me} />
+      <CustodyLine custody={(custody || []).filter((c) => forFocus(focus, c.child_id))} members={members} me={me} linked={linked} />
 
       <div className="hero">
         <div className="hero-label"><Icon name="food" size={16} /> Middag ikväll</div>

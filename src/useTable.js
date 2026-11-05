@@ -1,36 +1,42 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase'
 
+// Tabeller där delade barns rader från det andra hushållet också ska med.
+// Där sköter databasens behörighetsregler vad vi får se.
+const SHARED = new Set(['events', 'vab_days', 'members', 'custody', 'cars'])
+
 // Hämtar en tabell för hushållet och håller den uppdaterad live
 // när någon annan i familjen ändrar något.
-export function useTable(table, householdId, order = 'created_at') {
-  const col = table === 'households' ? 'id' : 'household_id'
+// where = [kolumn, värde] hämtar på något annat än hushållet, t.ex. ['car_id', id]
+export function useTable(table, householdId, order = 'created_at', where = null) {
+  const shared = SHARED.has(table) && !where
+  const [col, val] = where || [table === 'households' ? 'id' : 'household_id', householdId]
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase
-      .from(table)
-      .select('*')
-      .eq(col, householdId)
-      .order(order, { ascending: true })
+    if (!val) { setRows([]); setLoading(false); return }
+    let q = supabase.from(table).select('*')
+    if (!shared) q = q.eq(col, val)
+    const { data, error } = await q.order(order, { ascending: true })
     if (!error) setRows(data)
     setLoading(false)
-  }, [table, householdId, order, col])
+  }, [table, val, order, col, shared])
 
   useEffect(() => {
     load()
     const channel = supabase
-      .channel(`${table}-${householdId}-${Math.random().toString(36).slice(2)}`)
+      .channel(`${table}-${val}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes',
-        { event: '*', schema: 'public', table, filter: `${col}=eq.${householdId}` },
+        shared ? { event: '*', schema: 'public', table } : { event: '*', schema: 'public', table, filter: `${col}=eq.${val}` },
         load)
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [load, table, householdId])
+  }, [load, table, val, shared, col])
 
   const insert = async (values) => {
-    const rows = (Array.isArray(values) ? values : [values]).map((v) => ({ household_id: householdId, ...v }))
+    const base = where ? { [col]: val } : { household_id: householdId }
+    const rows = (Array.isArray(values) ? values : [values]).map((v) => ({ ...base, ...v }))
     const { data, error } = await supabase.from(table).insert(rows).select()
     if (error) alert(error.message)
     load()

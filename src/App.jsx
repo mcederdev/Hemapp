@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase, isConfigured } from './supabase'
 import { useTable } from './useTable'
+import { useLinked } from './useLinked'
+import Car from './components/Car'
 import Auth from './components/Auth'
 import Setup from './components/Setup'
 import Shopping from './components/Shopping'
@@ -30,6 +32,7 @@ const MORE = [
   { id: 'finance', label: 'Ekonomi', icon: 'wallet' },
   { id: 'kids', label: 'Barnens sida', icon: 'star' },
   { id: 'vab', label: 'VAB & Sjukdagar', icon: 'thermo' },
+  { id: 'car', label: 'Bilen', icon: 'car' },
   { id: 'stats', label: 'Statistik', icon: 'chart' },
   { id: 'reminders', label: 'Påminnelser & födelsedagar', icon: 'bell' },
   { id: 'kitchen', label: 'Köksskärm (iPad)', icon: 'home' },
@@ -77,13 +80,17 @@ function Home({ me }) {
   })
   const members = useTable('members', me.household_id)
   const households = useTable('households', me.household_id)
+  const linked = useLinked(me.household_id)
+  const custody = useTable('custody', me.household_id)
   // Familjeremsan: vald person filtrerar Idag, Kalender och Sysslor
   const [focus, setFocusState] = useState(() => localStorageGet('focus') || null)
   const setFocus = (id) => { setFocusState(id); localStorageSet('focus', id || '') }
   const pick = (id) => { if (id !== 'kitchen') localStorageSet('tab', id); setTab(id); window.scrollTo(0, 0) }
   const household = households.rows[0]
   const all = withInitials(members.rows)
-  const props = { me, householdId: me.household_id, members: all, membersTable: members, household, households, go: pick,
+  // Alla personer vi kan behöva visa namn för, även föräldrar i det andra hushållet
+  const people = withInitials([...members.rows, ...linked.people.filter((p) => !members.rows.some((m) => m.id === p.id)).map((p) => ({ ...p, role: 'parent', linked: true }))])
+  const props = { me, householdId: me.household_id, members: all, people, linked, custody: custody.rows, custodyTable: custody, membersTable: members, household, households, go: pick,
     focus: all.some((m) => m.id === focus) ? focus : null, setFocus }
   const active = MORE.some((m) => m.id === tab) ? 'more' : tab
 
@@ -112,6 +119,7 @@ function Home({ me }) {
         {tab === 'vab' && <Vab {...props} />}
         {tab === 'stats' && <Stats {...props} />}
         {tab === 'reminders' && <Reminders {...props} />}
+        {tab === 'car' && <Car {...props} />}
         {tab === 'family' && <Family {...props} />}
       </main>
       <nav className="tabs">

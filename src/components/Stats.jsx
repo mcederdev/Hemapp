@@ -5,7 +5,7 @@ import { MemberTag } from './MemberPicker'
 import VabStats from './VabStats'
 
 // Statistiksidan: sysslor, sjukdagar och VAB, mat och handling
-export default function Stats({ householdId, members }) {
+export default function Stats({ householdId, members, people }) {
   const [view, setView] = useState('chores')
   const vab = useTable('vab_days', householdId, 'day')
   return (
@@ -17,7 +17,7 @@ export default function Stats({ householdId, members }) {
         <button className={view === 'food' ? 'active' : ''} onClick={() => setView('food')}>Mat & handla</button>
       </div>
       {view === 'chores' && <ChoreStats householdId={householdId} members={members} />}
-      {view === 'sick' && <VabStats rows={vab.rows} members={members} />}
+      {view === 'sick' && <VabStats rows={vab.rows} members={people || members} />}
       {view === 'food' && <FoodStats householdId={householdId} />}
     </section>
   )

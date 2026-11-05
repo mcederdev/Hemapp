@@ -26,12 +26,18 @@ export function advance(due, months) {
   return fmt(d)
 }
 
-export const REMINDER_SUGGESTIONS = [
-  { emoji: '🚗', title: 'Bilbesiktning', months: 12 },
+// Bilens påminnelser visas på bilsidan
+export const CAR_REMINDERS = [
+  { emoji: '✅', title: 'Bilbesiktning', months: 12 },
   { emoji: '🛞', title: 'Byta till sommardäck', months: 12, md: '04-01' },
   { emoji: '❄️', title: 'Byta till vinterdäck', months: 12, md: '10-15' },
+  { emoji: '🛡️', title: 'Bilförsäkringen förnyas', months: 12 },
+  { emoji: '🔧', title: 'Service', months: 12 },
+  { emoji: '🏛️', title: 'Fordonsskatt', months: 12 }
+]
+
+export const REMINDER_SUGGESTIONS = [
   { emoji: '🏠', title: 'Hemförsäkringen förnyas', months: 12 },
-  { emoji: '🚙', title: 'Bilförsäkringen förnyas', months: 12 },
   { emoji: '🔋', title: 'Testa brandvarnare och byta batteri', months: 12, md: '12-01' },
   { emoji: '🦷', title: 'Tandläkare', months: 12 },
   { emoji: '🛂', title: 'Pass eller ID-kort går ut', months: 0 },

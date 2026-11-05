@@ -5,9 +5,10 @@ import { MEMBER_COLORS } from '../lib/defaults'
 import Sheet, { Fab } from './Sheet'
 import Icon from './Icon'
 import { getTheme, setTheme } from '../lib/theme'
+import { CustodyEditor } from './Custody'
 import { pushSupport, currentSubscription, enablePush, disablePush } from '../lib/push'
 
-export default function Family({ me, householdId, members, membersTable, household, households }) {
+export default function Family({ me, householdId, members, membersTable, household, households, linked, custody, custodyTable }) {
   const [childName, setChildName] = useState('')
   const [adding, setAdding] = useState(false)
   const templates = useTable('chore_templates', householdId)
@@ -29,7 +30,15 @@ export default function Family({ me, householdId, members, membersTable, househo
       <div className="card stack">
         <h3>Medlemmar</h3>
         <ul className="list">
-          {members.map((m) => (
+          {members.map((m) => m.household_id !== householdId ? (
+            <li key={m.id} className="col">
+              <div className="row between w100">
+                <span className="row"><span className="avatar" style={{ background: m.color, width: 26, height: 26 }}>{m.short}</span><span>{m.name}</span></span>
+                <span className="muted small">Delas med {linked?.households.find((h) => h.household_id === m.household_id)?.name || 'andra hushållet'}</span>
+              </div>
+              <CustodyEditor child={m} custody={custody} table={custodyTable} me={me} linked={linked} />
+            </li>
+          ) : (
             <li key={m.id} className="col">
               <div className="row between w100">
                 <span className="row">
@@ -45,6 +54,7 @@ export default function Family({ me, householdId, members, membersTable, househo
                 <input type="tel" inputMode="tel" placeholder="Mobilnummer (för Swish)" defaultValue={m.phone || ''}
                   onBlur={(e) => e.target.value !== (m.phone || '') && membersTable.update(m.id, { phone: e.target.value || null })} />
               )}
+              {m.role === 'child' && <CustodyEditor child={m} custody={custody} table={custodyTable} me={me} linked={linked} />}
             </li>
           ))}
         </ul>
@@ -58,6 +68,8 @@ export default function Family({ me, householdId, members, membersTable, househo
           <p className="code">{household.invite_code}</p>
         </div>
       )}
+
+      <SharedCustody members={members} householdId={householdId} linked={linked} membersTable={membersTable} />
 
       {templates.rows.length > 0 && (
         <div className="card stack">
@@ -143,6 +155,69 @@ function ThemePicker() {
           <button key={v} className={theme === v ? 'active' : ''} onClick={() => pick(v)}>{l}</button>
         ))}
       </div>
+    </div>
+  )
+}
+
+// Delad vårdnad: koppla ihop med andra vårdnadshavarens hushåll så att barnets kalender, VAB, schema och bil delas
+function SharedCustody({ members, householdId, linked, membersTable }) {
+  const kids = members.filter((m) => m.role === 'child' && m.household_id === householdId)
+  const [pick, setPick] = useState(null)
+  const [code, setCode] = useState('')
+  const [input, setInput] = useState('')
+  const [msg, setMsg] = useState('')
+  const chosen = pick || kids.map((k) => k.id)
+  const create = async () => {
+    setMsg('')
+    const { data, error } = await supabase.rpc('create_link_invite', { children: chosen })
+    if (error) setMsg(error.message); else setCode(data)
+  }
+  const accept = async (e) => {
+    e.preventDefault(); setMsg('')
+    const { error } = await supabase.rpc('accept_link_invite', { code: input })
+    if (error) return setMsg(error.message)
+    setInput(''); setMsg('Klart! Nu delar ni kalender, schema, bil och barnets VAB.')
+    linked.reload(); membersTable.reload()
+  }
+  const unlink = async (h) => {
+    if (!confirm(`Sluta dela med ${h.name}? Båda hushållen behåller det de själva har lagt in.`)) return
+    await supabase.from('household_links').delete().eq('id', h.link_id)
+    linked.reload(); membersTable.reload()
+  }
+  return (
+    <div className="card stack">
+      <h3 className="row"><Icon name="repeat" size={18} /> Delad vårdnad</h3>
+      <p className="muted small">Barnets kalender, växelvisa schema, bil och VAB syns i båda hushållen. Sysslor, stjärnor, rutiner och egna sjukdagar är fortfarande era egna.</p>
+      {linked?.households.length > 0 && (
+        <ul className="list">
+          {linked.households.map((h) => (
+            <li key={h.link_id}><span>🔗 {h.name}</span><button className="chip" onClick={() => unlink(h)}>Sluta dela</button></li>
+          ))}
+        </ul>
+      )}
+      {kids.length > 0 && (
+        <>
+          {kids.length > 1 && (
+            <div className="chips">{kids.map((k) => (
+              <button key={k.id} className={`chip ${chosen.includes(k.id) ? 'on' : ''}`}
+                onClick={() => setPick(chosen.includes(k.id) ? chosen.filter((x) => x !== k.id) : [...chosen, k.id])}>{k.name}</button>
+            ))}</div>
+          )}
+          {!code && <button onClick={create} disabled={!chosen.length}>Skapa kod till andra vårdnadshavaren</button>}
+          {code && (
+            <>
+              <p>Hen skapar ett eget konto i appen, väljer <em>Delad vårdnad</em> och skriver:</p>
+              <p className="code">{code}</p>
+              <p className="muted small">Har hen redan en egen familj i appen skriver hen koden under Familj → Delad vårdnad. Koden gäller i 30 dagar.</p>
+            </>
+          )}
+        </>
+      )}
+      <form className="row" onSubmit={accept}>
+        <input placeholder="Har du fått en kod? (D…)" value={input} onChange={(e) => setInput(e.target.value)} autoCapitalize="characters" />
+        <button disabled={!input.trim()}>Koppla</button>
+      </form>
+      {msg && <p className="muted">{msg}</p>}
     </div>
   )
 }

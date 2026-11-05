@@ -6,6 +6,7 @@ import { MemberTag } from './MemberPicker'
 import Sheet from './Sheet'
 
 const COLORS = { yellow: '#ffe98a', pink: '#ffc4d6', blue: '#c4e0ff', green: '#c8f0c8' }
+const STICKERS = ['❤️', '💕', '😘', '🥰', '🤗', '⭐', '🌟', '🎉', '👏', '💪', '☀️', '🌈', '🌸', '☕', '🍕', '🐶', '😂', '🙏']
 
 // Lappar på kylskåpet: korta meddelanden till familjen
 export default function Notes({ householdId, members, me, big = false }) {
@@ -16,8 +17,8 @@ export default function Notes({ householdId, members, me, big = false }) {
   const visible = notes.rows.filter((n) => !n.until || n.until >= t)
   const save = async (e) => {
     e.preventDefault()
-    if (!adding.text.trim()) return
-    await notes.insert({ text: adding.text.trim(), color: adding.color, author: me?.id || null, until: adding.until || null })
+    if (!adding.text.trim() && !adding.sticker) return
+    await notes.insert({ text: adding.text.trim(), sticker: adding.sticker || null, to_member: adding.to || null, color: adding.color, author: me?.id || null, until: adding.until || null })
     setAdding(null)
   }
   return (
@@ -26,16 +27,28 @@ export default function Notes({ householdId, members, me, big = false }) {
         {visible.map((n) => (
           <div key={n.id} className="note" style={{ background: COLORS[n.color] || COLORS.yellow }}>
             <button className="note-x" onClick={() => notes.remove(n.id)} aria-label="Ta bort lappen">✕</button>
-            <p>{n.text}</p>
+            {byId[n.to_member] && <span className="note-to">Till {byId[n.to_member].name}</span>}
+            {n.sticker && <span className={`note-sticker ${n.text ? '' : 'solo'}`}>{n.sticker}</span>}
+            {n.text && <p>{n.text}</p>}
             <span className="note-meta">{byId[n.author] && <MemberTag member={byId[n.author]} size={18} />}{n.until && <span>till {prettyDay(n.until)}</span>}</span>
           </div>
         ))}
-        {!big && <button className="note add" onClick={() => setAdding({ text: '', color: 'yellow', until: '' })}>+ Lapp</button>}
+        {!big && <button className="note add" onClick={() => setAdding({ text: '', color: 'yellow', until: '', sticker: '', to: '' })}>+ Lapp</button>}
       </div>
       {adding && (
         <Sheet title="Ny lapp" onClose={() => setAdding(null)}>
           <form className="stack" onSubmit={save}>
-            <textarea className="ta" rows={3} placeholder="T.ex. Glöm inte gympapåsen!" value={adding.text} onChange={(e) => setAdding({ ...adding, text: e.target.value })} autoFocus />
+            <textarea className="ta" rows={3} placeholder="T.ex. Glöm inte gympapåsen! (eller bara en figur)" value={adding.text} onChange={(e) => setAdding({ ...adding, text: e.target.value })} autoFocus />
+            <div className="stickers">
+              {STICKERS.map((x) => <button type="button" key={x} className={adding.sticker === x ? 'on' : ''} onClick={() => setAdding({ ...adding, sticker: adding.sticker === x ? '' : x })} aria-label={`Figur ${x}`}>{x}</button>)}
+            </div>
+            {members.filter((m) => m.id !== me?.id).length > 0 && (
+              <div className="chips">
+                <span className="muted small">Till:</span>
+                <button type="button" className={`chip ${!adding.to ? 'on' : ''}`} onClick={() => setAdding({ ...adding, to: '' })}>Alla</button>
+                {members.filter((m) => m.id !== me?.id && m.household_id === me?.household_id).map((m) => <button type="button" key={m.id} className={`chip ${adding.to === m.id ? 'on' : ''}`} onClick={() => setAdding({ ...adding, to: m.id })}>{m.name}</button>)}
+              </div>
+            )}
             <div className="row">
               {Object.entries(COLORS).map(([k, c]) => <button type="button" key={k} className={`swatch ${adding.color === k ? 'on' : ''}`} style={{ background: c }} onClick={() => setAdding({ ...adding, color: k })} aria-label={k} />)}
             </div>

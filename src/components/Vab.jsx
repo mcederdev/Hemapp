@@ -9,13 +9,13 @@ import { Fab } from './Sheet'
 
 const FK_URL = 'https://www.forsakringskassan.se/'
 
-export default function Vab({ householdId, members, me }) {
+export default function Vab({ householdId, members, people, me }) {
   const vab = useTable('vab_days', householdId, 'day')
   const events = useTable('events', householdId, 'starts_at')
   const [form, setForm] = useState(null)
   const [showAll, setShowAll] = useState(false)
   const [view, setView] = useState('vab')
-  const byId = Object.fromEntries(members.map((m) => [m.id, m]))
+  const byId = Object.fromEntries((people || members).map((m) => [m.id, m]))
   const t = today()
   const year = t.slice(0, 4)
   const all = [...vab.rows].sort((a, b) => b.day.localeCompare(a.day))

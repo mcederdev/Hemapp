@@ -20,13 +20,15 @@ export default function Reminders({ householdId }) {
   )
 }
 
-function YearlyList({ householdId }) {
-  const rows = useTable('reminders', householdId, 'due_date')
+// Årliga saker. Med carId visas bilens påminnelser (på bilsidan) i stället.
+export function YearlyList({ householdId, carId = null, suggestionList = REMINDER_SUGGESTIONS, placeholder = 'T.ex. Tandläkare' }) {
+  const rows = useTable('reminders', householdId, 'due_date', carId ? ['car_id', carId] : null)
   const [edit, setEdit] = useState(null)
   const t = today()
-  const list = [...rows.rows].sort((a, b) => a.due_date.localeCompare(b.due_date))
-  const existing = new Set(rows.rows.map((r) => r.title.toLowerCase()))
-  const suggestions = REMINDER_SUGGESTIONS.filter((s) => !existing.has(s.title.toLowerCase()))
+  const mine = rows.rows.filter((r) => (carId ? r.car_id === carId : !r.car_id))
+  const list = [...mine].sort((a, b) => a.due_date.localeCompare(b.due_date))
+  const existing = new Set(mine.map((r) => r.title.toLowerCase()))
+  const suggestions = suggestionList.filter((s) => !existing.has(s.title.toLowerCase()))
   const done = (r) => {
     if (r.repeat_months > 0) rows.update(r.id, { due_date: advance(r.due_date, r.repeat_months), notified_for: null })
     else if (confirm(`Ta bort "${r.title}"?`)) rows.remove(r.id)
@@ -41,7 +43,7 @@ function YearlyList({ householdId }) {
     if (!edit.title.trim() || !edit.due_date) return
     const v = { title: edit.title.trim(), emoji: edit.emoji || '🔔', due_date: edit.due_date, repeat_months: Number(edit.repeat_months) || 0, remind_days: Number(edit.remind_days) || 0, note: edit.note || null }
     if (edit.id) await rows.update(edit.id, { ...v, notified_for: edit.due_date === edit.orig ? edit.notified_for : null })
-    else await rows.insert(v)
+    else await rows.insert({ ...v, household_id: householdId, car_id: carId })
     setEdit(null)
   }
 
@@ -70,13 +72,15 @@ function YearlyList({ householdId }) {
         </>
       )}
       <p className="muted small mt">Ni får en notis när det är så många dagar kvar som du har valt. "Klar" flyttar påminnelsen till nästa gång.</p>
-      <Fab onClick={() => setEdit({ title: '', emoji: '🔔', due_date: '', repeat_months: 12, remind_days: 14, note: '' })} label="Ny påminnelse" />
+      {carId
+        ? <button className="mt" onClick={() => setEdit({ title: '', emoji: '🚗', due_date: '', repeat_months: 12, remind_days: 14, note: '' })}>+ Ny påminnelse för bilen</button>
+        : <Fab onClick={() => setEdit({ title: '', emoji: '🔔', due_date: '', repeat_months: 12, remind_days: 14, note: '' })} label="Ny påminnelse" />}
       {edit && (
         <Sheet title={edit.id ? 'Ändra påminnelse' : 'Ny påminnelse'} onClose={() => setEdit(null)}>
           <form className="stack" onSubmit={save}>
             <div className="row">
               <input value={edit.emoji} onChange={(e) => setEdit({ ...edit, emoji: e.target.value })} style={{ maxWidth: 60, textAlign: 'center' }} aria-label="Symbol" />
-              <input placeholder="T.ex. Bilbesiktning" value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} autoFocus={!edit.id} />
+              <input placeholder={placeholder} value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} autoFocus={!edit.id} />
             </div>
             <div className="row">
               <label className="field"><span className="muted small">Datum</span><input type="date" value={edit.due_date} onChange={(e) => setEdit({ ...edit, due_date: e.target.value })} required /></label>

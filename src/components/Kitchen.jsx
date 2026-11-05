@@ -10,9 +10,10 @@ import { dishColor } from './Meals'
 import { COMMON_DISHES } from '../lib/defaults'
 import EventRow from './EventRow'
 import Notes, { Soon } from './Notes'
+import { CustodyLine } from './Custody'
 
 // Köksskärm för en iPad på kylskåpet: klocka, dagen, sysslor, mat och inköp på en skärm
-export default function Kitchen({ householdId, members, me, onExit }) {
+export default function Kitchen({ householdId, members, me, onExit, custody, linked }) {
   useWakeLock(true)
   const now = useNow(15000)
   const events = useTable('events', householdId, 'starts_at')
@@ -49,6 +50,7 @@ export default function Kitchen({ householdId, members, me, onExit }) {
       <div className="k-grid">
         <section className="k-card k-day">
           <h3>Idag</h3>
+          <CustodyLine custody={custody} members={members} me={me} linked={linked} big />
           <ul className="list flush flow">
             {allDay.map((o) => <EventRow key={o.key} occ={o} day={d0} byId={byId} />)}
             {flow.map((x) => x.type === 'now'

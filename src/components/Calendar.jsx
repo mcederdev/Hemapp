@@ -12,6 +12,7 @@ import Sheet, { Fab } from './Sheet'
 import FamilyStrip, { forFocus } from './FamilyStrip'
 import DayColumns from './DayColumns'
 import VabForm from './VabForm'
+import { custodyForDay, custodyStatus } from './Custody'
 import { CATEGORIES, catById, guessCategory, rulePrefix } from '../lib/categories'
 
 const REPEATS = [
@@ -21,7 +22,7 @@ const REPEATS = [
 const REMIND = [{ v: 0, label: 'Ingen påminnelse' }, { v: 15, label: '15 min innan' }, { v: 30, label: '30 min innan' }, { v: 60, label: '1 timme innan' }, { v: 120, label: '2 timmar innan' }]
 const WD = ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön']
 
-export default function Calendar({ householdId, members, me, go, household, households, focus: who, setFocus: setWho }) {
+export default function Calendar({ householdId, members, people, me, go, household, households, custody, linked, focus: who, setFocus: setWho }) {
   const rules = household?.category_rules || []
   const events = useTable('events', householdId, 'starts_at')
   const vab = useTable('vab_days', householdId, 'day')
@@ -35,7 +36,12 @@ export default function Calendar({ householdId, members, me, go, household, hous
   const [msg, setMsg] = useState('')
   const [mode, setMode] = useState(() => { try { return localStorage.getItem('calMode') || 'week' } catch { return 'week' } })
   const fileRef = useRef()
-  const byId = Object.fromEntries(members.map((m) => [m.id, m]))
+  const byId = Object.fromEntries((people || members).map((m) => [m.id, m]))
+  // Växelvis boende: streck under dagarna barnet är hos oss
+  const myCustody = (custody || []).filter((c) => byId[c.child_id] && forFocus(who, c.child_id))
+  const custodyBar = (key) => myCustody.length > 0 && (
+    <span className="cal-custody">{custodyForDay(myCustody, me, key).map(({ c, here, swap }) => (here || swap) && <i key={c.id} className={swap ? 'swap' : ''} style={{ '--c': byId[c.child_id].color, transform: swap && here ? 'scaleX(-1)' : undefined }} />)}</span>
+  )
 
   // Rutnät: måndag före månadens första dag, 6 veckor
   const gridStart = new Date(month); gridStart.setDate(1 - ((month.getDay() + 6) % 7))
@@ -175,6 +181,7 @@ export default function Calendar({ householdId, members, me, go, household, hous
                 <span className="wd">{d.toLocaleDateString('sv-SE', { weekday: 'short' }).replace('.', '')}</span>
                 <span className="num">{d.getDate()}</span>
                 <span className="dots">{dots(d)}</span>
+                {custodyBar(key)}
               </button>
             )
           })}
@@ -190,6 +197,7 @@ export default function Calendar({ householdId, members, me, go, household, hous
               onClick={() => pickDay(key)}>
               <span className="num">{d.getDate()}</span>
               <span className="dots">{dots(d)}</span>
+              {custodyBar(key)}
             </button>
           )
         })}
@@ -198,6 +206,13 @@ export default function Calendar({ householdId, members, me, go, household, hous
       <div className="row between mt">
         <h3 className="cap">{selDate.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
       </div>
+      {custodyForDay(myCustody, me, selected).map(({ c, here, swap }) => {
+        const kid = byId[c.child_id]; const other = custodyStatus(c, me, linked, selected, '12:00').other
+        const after = custodyForDay([c], me, addDays(selected, 1))[0].here
+        return <p key={c.id} className="small custody-day" style={{ '--c': kid.color }}>
+          {swap ? `🔁 Byte kl ${String(c.handover_time).slice(0, 5)}: ${kid.name} ${after ? 'kommer till oss' : `åker till ${other}`}` : `🏠 ${kid.name} är ${here ? 'hos oss' : `hos ${other}`}`}
+        </p>
+      })}
 
       <Fab onClick={() => { setForm({ ...form, date: selected }); setShowForm(true) }} label="Ny händelse" />
       {showForm && (

@@ -159,3 +159,33 @@ test('födelsedagar och påminnelser', () => {
   assert.equal(advance('2026-01-31', 1), '2026-02-28')
   assert.equal(advance('2026-04-01', 12), '2027-04-01')
 })
+
+import { withAnchor, isHandover, nextHandover, withUs } from './custody.js'
+test('växelvis boende: söndagar kl 18 varannan vecka', () => {
+  const c = { household_id: 'A', anchor: '2026-11-01', every_days: 7, handover_time: '18:00:00' } // sön 1 nov kommer barnet till A
+  assert.equal(withAnchor(c, '2026-11-01', '17:00'), false)
+  assert.equal(withAnchor(c, '2026-11-01', '18:30'), true)
+  assert.equal(withAnchor(c, '2026-11-05'), true)
+  assert.equal(withAnchor(c, '2026-11-08', '17:59'), true)
+  assert.equal(withAnchor(c, '2026-11-09'), false)
+  assert.equal(withAnchor(c, '2026-10-28'), false)
+  assert.equal(isHandover(c, '2026-11-15'), true)
+  assert.equal(isHandover(c, '2026-11-14'), false)
+  assert.deepEqual(nextHandover(c, '2026-11-05', '10:00'), { date: '2026-11-08', time: '18:00', toAnchor: false })
+  assert.deepEqual(nextHandover(c, '2026-11-08', '10:00'), { date: '2026-11-08', time: '18:00', toAnchor: false })
+  assert.deepEqual(nextHandover(c, '2026-11-08', '19:00'), { date: '2026-11-15', time: '18:00', toAnchor: true })
+  assert.equal(withUs(c, 'B', '2026-11-10'), true)
+})
+
+import { carBalance } from './car.js'
+test('bil: delade kostnader och reglering', () => {
+  const car = { household_id: 'A', owner_share: 50 }
+  const costs = [
+    { amount: 6000, shared: true, paid_by_household: 'A' }, // försäkring: B ska betala 3000
+    { amount: 800, shared: false, paid_by_household: 'A' }, // bensin delas inte
+    { amount: 400, shared: true, paid_by_household: 'B' } // parkering: A ska betala 200
+  ]
+  assert.equal(carBalance(car, costs), 2800)
+  assert.equal(carBalance(car, costs, [{ amount: 2800, from_household: 'B' }]), 0)
+  assert.equal(carBalance({ ...car, owner_share: 70 }, [{ amount: 1000, shared: true, paid_by_household: null }]), -700)
+})

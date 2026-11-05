@@ -456,3 +456,20 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 .notes.big .note p { font-size: 1.1rem; }
 .swatch { width: 38px; height: 38px; border-radius: 50%; border: 2px solid transparent; padding: 0; }
 .swatch.on { border-color: var(--text); }
+.note-sticker { font-size: 1.9rem; line-height: 1; margin-bottom: 4px; }
+.note-sticker.solo { font-size: 3.2rem; text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
+.notes.big .note-sticker { font-size: 2.4rem; }
+.notes.big .note-sticker.solo { font-size: 4rem; }
+.note-to { font-size: .7rem; font-weight: 700; color: rgba(0,0,0,.55); margin-bottom: 2px; }
+.stickers { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.stickers button { font-size: 1.5rem; padding: 6px 0; border-radius: 12px; border: 2px solid transparent; background: var(--bg); }
+.stickers button.on { border-color: var(--accent); background: var(--card); }
+.custody-line { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 12px; font-size: .92rem; }
+.custody-line.big { font-size: 1.1rem; margin: 0 0 10px; }
+.custody-item { gap: 8px; }
+.custody-edit { margin-top: 4px; }
+.custody-edit .link { display: inline-flex; gap: 4px; align-items: center; padding: 0; }
+.cal-custody { display: flex; gap: 2px; justify-content: center; height: 4px; margin-top: 1px; }
+.cal-custody i { width: 12px; height: 3px; border-radius: 2px; background: var(--c); opacity: .8; }
+.cal-custody i.swap { background: linear-gradient(90deg, transparent 50%, var(--c) 50%); }
+.custody-day { margin: -4px 0 8px; padding-left: 8px; border-left: 3px solid var(--c); }
