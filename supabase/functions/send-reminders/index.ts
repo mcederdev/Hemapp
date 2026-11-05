@@ -60,7 +60,8 @@ Deno.serve(async (req) => {
       for (const o of occ) {
         if (e.reminded_at && new Date(e.reminded_at).getTime() >= o.getTime()) continue
         const who = nameOf(e.member_id)
-        await send({ title: `${e.title} kl ${time(o)}`, body: [who, e.location].filter(Boolean).join(' · ') || 'Snart dags', url: '/?tab=calendar' })
+        const endTxt = e.ends_at ? '–' + time(new Date(o.getTime() + new Date(e.ends_at).getTime() - new Date(e.starts_at).getTime())) : ''
+        await send({ title: `${e.title} kl ${time(o)}${endTxt}`, body: [who, e.location].filter(Boolean).join(' · ') || 'Snart dags', url: '/?tab=calendar' })
         await db.from('events').update({ reminded_at: o.toISOString() }).eq('id', e.id)
         log.push(`påminnelse ${e.title}`)
       }
@@ -73,10 +74,20 @@ Deno.serve(async (req) => {
       const offsetH = Number(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: '2-digit', hour12: false }).format(new Date(`${todayLocal}T12:00:00Z`))) - 12
       dayStart.setUTCHours(dayStart.getUTCHours() - offsetH)
       const dayEnd = new Date(dayStart.getTime() + 86400000)
-      const todays = (events ?? []).flatMap((e) =>
-        e.all_day
-          ? (e.starts_at.slice(0, 10) <= todayLocal && (e.ends_at ?? e.starts_at).slice(0, 10) >= todayLocal ? [`${e.title} (heldag)`] : [])
-          : occurrences(new Date(e.starts_at), e.rrule, dayStart, dayEnd).map((o) => `${time(o)} ${e.title}`))
+      const dur = (e: { starts_at: string; ends_at: string | null }) => (e.ends_at ? new Date(e.ends_at).getTime() - new Date(e.starts_at).getTime() : 0)
+      // Händelser som började igår och fortsätter idag
+      const continuing = (events ?? []).filter((e) => !e.all_day && e.ends_at).flatMap((e) =>
+        occurrences(new Date(e.starts_at), e.rrule, new Date(dayStart.getTime() - dur(e)), dayStart)
+          .map((o) => new Date(o.getTime() + dur(e)))
+          .filter((end) => end > dayStart)
+          .map((end) => `Dag2 ${e.title} till ${time(end)}`))
+      const todays = [
+        ...continuing,
+        ...(events ?? []).flatMap((e) =>
+          e.all_day
+            ? (new Date(e.starts_at) < dayEnd && new Date(e.ends_at ?? e.starts_at) > dayStart && !(continuing.length && e.title.trim().toLowerCase() === 'dag2') ? [`${e.title} (heldag)`] : [])
+            : occurrences(new Date(e.starts_at), e.rrule, dayStart, dayEnd).map((o) => `${time(o)}${e.ends_at ? '–' + time(new Date(o.getTime() + dur(e))) : ''} ${e.title}`))
+      ]
       const { data: chores } = await db.from('chores').select('title, assigned_to').eq('household_id', h.id).eq('done', false).lte('due_date', todayLocal)
       const { data: meal } = await db.from('meal_plan').select('dish').eq('household_id', h.id).eq('day', todayLocal).maybeSingle()
       const parts = []

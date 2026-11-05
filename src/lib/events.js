@@ -40,7 +40,22 @@ export function timeLabel(occ, day) {
   const startedBefore = occ.start < d0
   const endsAfter = occ.end && occ.end >= d1
   if (startedBefore && endsAfter) return { time: 'Hela dagen', note: 'pågår' }
-  if (startedBefore) return { time: `→ ${timeOf(occ.end)}`, note: 'fortsätter från igår' }
+  if (startedBefore) return { time: `→ ${timeOf(occ.end)}`, note: 'Dag2' }
   if (endsAfter) return { time: `${timeOf(occ.start)} →`, note: `slutar ${occ.end.toLocaleDateString('sv-SE', { weekday: 'short' })} ${timeOf(occ.end)}` }
   return { time: occ.end ? `${timeOf(occ.start)}–${timeOf(occ.end)}` : timeOf(occ.start), note: '' }
+}
+
+// Förekomster för en dag. En heldagspost som heter "Dag2" döljs om samma dag
+// redan har en händelse som fortsätter från dagen innan (den visas då som Dag2).
+export function dayList(occs, day) {
+  const d0 = new Date(day); d0.setHours(0, 0, 0, 0)
+  const list = occs.filter((o) => onDay(o, d0))
+  const hasContinuation = list.some((o) => !o.all_day && o.start < d0)
+  return list.filter((o) => !(hasContinuation && o.all_day && o.title.trim().toLowerCase() === 'dag2'))
+}
+
+// "13:00–20:00 Jobb" för korta sammanfattningar
+export function shortLine(o) {
+  if (o.all_day) return o.title
+  return `${timeOf(o.start)}${o.end ? '–' + timeOf(o.end) : ''} ${o.title}`
 }

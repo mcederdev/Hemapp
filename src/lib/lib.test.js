@@ -86,7 +86,7 @@ test('swish-länk', () => {
   assert.equal(data.amount.value, 1234)
 })
 
-import { expandEvents, onDay, timeLabel } from './events.js'
+import { expandEvents, onDay, timeLabel, dayList, shortLine } from './events.js'
 
 test('händelse över midnatt visar bara sluttid dagen efter', () => {
   const e = { id: 'x', title: 'M1L494', starts_at: new Date(2026, 10, 4, 19, 23).toISOString(), ends_at: new Date(2026, 10, 5, 11, 5).toISOString(), all_day: false }
@@ -95,6 +95,11 @@ test('händelse över midnatt visar bara sluttid dagen efter', () => {
   const occ = expandEvents([e], day, next).filter((o) => onDay(o, day))
   assert.equal(occ.length, 1)
   assert.equal(timeLabel(occ[0], day).time, '→ 11:05')
+  assert.equal(timeLabel(occ[0], day).note, 'Dag2')
+  const dag2 = { id: 'y', title: 'Dag2', starts_at: new Date(2026, 10, 5).toISOString(), ends_at: new Date(2026, 10, 6).toISOString(), all_day: true }
+  const list = dayList(expandEvents([e, dag2], day, next), day)
+  assert.deepEqual(list.map((o) => o.title), ['M1L494'])
+  assert.equal(shortLine({ start: new Date(2026, 10, 6, 13), end: new Date(2026, 10, 6, 20), title: 'Jobb', all_day: false }), '13:00–20:00 Jobb')
   const yday = new Date(2026, 10, 4)
   assert.equal(timeLabel(occ[0], yday).time, '19:23 →')
   const normal = { start: new Date(2026, 10, 5, 15), end: new Date(2026, 10, 5, 16, 30), all_day: false }

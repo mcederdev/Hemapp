@@ -1,5 +1,5 @@
 import { useTable } from '../useTable'
-import { expandEvents, onDay, timeOf, timeLabel } from '../lib/events'
+import { expandEvents, dayList, timeLabel, shortLine } from '../lib/events'
 import { today, parseDay } from '../lib/dates'
 import { completeChore } from './Chores'
 import { MemberTag } from './MemberPicker'
@@ -14,9 +14,9 @@ export default function Today({ householdId, members, go, me }) {
 
   const t = today()
   const d0 = parseDay(t), d1 = new Date(d0); d1.setDate(d1.getDate() + 1)
-  const todays = expandEvents(events.rows, d0, d1).filter((o) => onDay(o, d0))
+  const todays = dayList(expandEvents(events.rows, d0, d1), d0)
   const tomorrow = new Date(d1); const d2 = new Date(d1); d2.setDate(d2.getDate() + 1)
-  const tomorrows = expandEvents(events.rows, tomorrow, d2).filter((o) => onDay(o, tomorrow))
+  const tomorrows = dayList(expandEvents(events.rows, tomorrow, d2), tomorrow)
   const due = chores.rows.filter((c) => !c.done && c.due_date && c.due_date <= t)
   const open = chores.rows.filter((c) => !c.done && !c.due_date)
   const dinner = meals.rows.find((m) => m.day === t)
@@ -57,7 +57,7 @@ export default function Today({ householdId, members, go, me }) {
           })}
         </ul>
         {tomorrows.length > 0 && (
-          <p className="muted small">Imorgon: {tomorrows.filter((o) => o.all_day || o.start >= tomorrow).map((o) => (o.all_day ? '' : timeOf(o.start) + ' ') + o.title).join(', ') || 'bara fortsättning från idag'}</p>
+          <p className="muted small">Imorgon: {tomorrows.filter((o) => o.all_day || o.start >= tomorrow).map(shortLine).join(', ') || 'bara fortsättning från idag'}</p>
         )}
       </div>
 

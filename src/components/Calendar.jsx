@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { useTable } from '../useTable'
 import { parseIcs } from '../lib/ics'
 import { simpleRrule, parseRrule } from '../lib/rrule'
-import { expandEvents, onDay, timeLabel } from '../lib/events'
+import { expandEvents, dayList, timeLabel } from '../lib/events'
 import { iso, today, parseDay } from '../lib/dates'
 import MemberPicker, { MemberTag } from './MemberPicker'
 import Sheet, { Fab } from './Sheet'
@@ -34,12 +34,12 @@ export default function Calendar({ householdId, members }) {
   const occ = expandEvents(filtered, gridStart, gridEnd)
   const days = Array.from({ length: 42 }, (_, i) => { const d = new Date(gridStart); d.setDate(d.getDate() + i); return d })
   const selDate = parseDay(selected)
-  const selOcc = occ.filter((o) => onDay(o, selDate))
+  const selOcc = dayList(occ, selDate)
   const t = today()
 
   // Kommande 14 dagar
   const now0 = parseDay(t); const in14 = new Date(now0); in14.setDate(in14.getDate() + 14)
-  const upcoming = expandEvents(filtered, now0, in14)
+  const upcoming = expandEvents(filtered, now0, in14).filter((o) => !(o.all_day && o.title.trim().toLowerCase() === 'dag2' && occ.some((x) => !x.all_day && x.start < o.start && x.end && x.end > o.start)))
 
   const add = (e) => {
     e.preventDefault()
@@ -94,7 +94,7 @@ export default function Calendar({ householdId, members }) {
         {WD.map((w) => <div key={w} className="wd">{w}</div>)}
         {days.map((d) => {
           const key = iso(d)
-          const dayOcc = occ.filter((o) => onDay(o, d))
+          const dayOcc = dayList(occ, d)
           return (
             <button key={key} className={`day-cell ${d.getMonth() !== month.getMonth() ? 'other' : ''} ${key === t ? 'today' : ''} ${key === selected ? 'sel' : ''}`}
               onClick={() => setSelected(key)}>
