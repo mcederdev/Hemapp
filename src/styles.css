@@ -608,3 +608,4 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 .pk-open { box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; text-align: left; border: 1px dashed var(--line); border-radius: 12px; padding: .5rem .7rem; margin: 4px 0; background: none; }
 .pickups .card-head { display: flex; align-items: center; gap: 8px; }
 .pk-open { white-space: normal; } .pk-open > span:first-child { flex: 1; min-width: 0; } .pk-open .chip { flex-shrink: 0; }
+.med-group { margin-bottom: 14px; } .med-person { gap: 10px; align-items: center; margin: 6px 2px 8px; font-size: 1.05rem; }
