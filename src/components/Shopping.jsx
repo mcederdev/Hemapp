@@ -5,6 +5,8 @@ import { parseDay } from '../lib/dates'
 import Sheet, { Fab } from './Sheet'
 import SwipeRow, { Check } from './Swipe'
 import { MemberTag } from './MemberPicker'
+import ShopMode from './ShopMode'
+import Icon from './Icon'
 
 export default function Shopping({ householdId, me, members }) {
   const lists = useTable('shopping_lists', householdId)
@@ -15,6 +17,7 @@ export default function Shopping({ householdId, me, members }) {
   const [view, setView] = useState('list') // list | home | lists
   const [groupBySection, setGroupBySection] = useState(true)
   const [adding, setAdding] = useState(false)
+  const [shopping, setShopping] = useState(false)
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
 
   const activeLists = lists.rows.filter((l) => !l.archived)
@@ -48,7 +51,7 @@ export default function Shopping({ householdId, me, members }) {
   const clearDone = () => done.forEach((i) => items.remove(i.id))
 
   const groups = groupBySection
-    ? SECTIONS.map((s) => [s, todo.filter((i) => (i.section || 'Övrigt') === s)]).filter(([, v]) => v.length)
+    ? SECTIONS.map((s) => [s, todo.filter((i) => (SECTIONS.includes(i.section) ? i.section : 'Övrigt') === s)]).filter(([, v]) => v.length)
     : [[null, todo]]
 
   return (
@@ -68,7 +71,9 @@ export default function Shopping({ householdId, me, members }) {
 
       {view === 'list' && list && (
         <>
+          {todo.length > 0 && <button className="primary wide shop-now" onClick={() => setShopping(true)}><Icon name="cart" size={18} /> Jag handlar nu</button>}
           <div className="mt" />
+          {shopping && <ShopMode list={list} items={items} onClose={() => setShopping(false)} />}
           <Fab onClick={() => setAdding(true)} label="Lägg till vara" />
           {adding && (
             <Sheet title={`Lägg till i ${list.name}`} onClose={() => { setAdding(false); setText('') }}>

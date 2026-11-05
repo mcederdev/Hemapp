@@ -1,16 +1,36 @@
 import { useState } from 'react'
+import { useNow } from '../lib/useNow'
 import { useTable } from '../useTable'
 import { COMMON_DISHES } from '../lib/defaults'
-import { expandEvents, dayList, shortLine } from '../lib/events'
+import { expandEvents, dayList, shortLine, timeOf } from '../lib/events'
 import { today, parseDay } from '../lib/dates'
 import { completeChore } from './Chores'
 import { MemberTag } from './MemberPicker'
 import { Picker } from './Meals'
 import EventRow from './EventRow'
+import FamilyStrip, { forFocus } from './FamilyStrip'
 import SwipeRow, { Check } from './Swipe'
 import Icon from './Icon'
 
-export default function Today({ householdId, members, go, me }) {
+// Bygger dagens flöde: händelser och middag i tidsordning, med nu-linjen på rätt plats
+export function buildFlow({ events, day, dinner, now, focus }) {
+  const d0 = new Date(day); d0.setHours(0, 0, 0, 0)
+  const d1 = new Date(d0); d1.setDate(d1.getDate() + 1)
+  const occ = dayList(expandEvents(events.filter((e) => forFocus(focus, e.member_id)), d0, d1), d0)
+  const allDay = occ.filter((o) => o.all_day || (o.start < d0 && o.end && o.end >= d1))
+  const timed = occ.filter((o) => !allDay.includes(o)).map((o) => ({ type: 'event', at: o.start < d0 ? d0 : o.start, end: o.end || o.start, occ: o }))
+  const dinnerAt = new Date(d0); dinnerAt.setHours(18, 0, 0, 0)
+  timed.push({ type: 'dinner', at: dinnerAt, end: new Date(dinnerAt.getTime() + 3600000), dinner })
+  timed.sort((a, b) => a.at - b.at)
+  const isToday = now >= d0 && now < d1
+  if (isToday) {
+    const i = timed.findIndex((x) => x.at > now)
+    timed.splice(i === -1 ? timed.length : i, 0, { type: 'now', at: now })
+  }
+  return { allDay, flow: timed, d0 }
+}
+
+export default function Today({ householdId, members, go, me, focus, setFocus }) {
   const events = useTable('events', householdId, 'starts_at')
   const chores = useTable('chores', householdId)
   const meals = useTable('meal_plan', householdId, 'day')
@@ -18,17 +38,23 @@ export default function Today({ householdId, members, go, me }) {
   const items = useTable('shopping_items', householdId)
   const lists = useTable('shopping_lists', householdId)
   const [picking, setPicking] = useState(false)
+  const now = useNow()
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
 
   const t = today()
   const d0 = parseDay(t), d1 = new Date(d0); d1.setDate(d1.getDate() + 1)
   const d2 = new Date(d1); d2.setDate(d2.getDate() + 1)
-  const todays = dayList(expandEvents(events.rows, d0, d1), d0)
-  const tomorrows = dayList(expandEvents(events.rows, d1, d2), d1).filter((o) => o.all_day || o.start >= d1)
-  const due = chores.rows.filter((c) => !c.done && c.due_date && c.due_date <= t)
-  const open = chores.rows.filter((c) => !c.done && !c.due_date)
-  const todo = [...due, ...open].slice(0, 6)
   const dinner = meals.rows.find((m) => m.day === t)
+  const { allDay, flow } = buildFlow({ events: events.rows, day: d0, dinner, now, focus })
+  const tomorrows = dayList(expandEvents(events.rows.filter((e) => forFocus(focus, e.member_id)), d1, d2), d1).filter((o) => o.all_day || o.start >= d1)
+
+  const mine = chores.rows.filter((c) => forFocus(focus, c.assigned_to))
+  const todo = mine.filter((c) => !c.done && (!c.due_date || c.due_date <= t))
+    .sort((a, b) => (a.due_date || '9').localeCompare(b.due_date || '9'))
+  const doneToday = mine.filter((c) => c.done && c.done_at && c.done_at.slice(0, 10) === t)
+  const overdue = {}
+  for (const c of chores.rows) if (!c.done && c.due_date && c.due_date < t && c.assigned_to) overdue[c.assigned_to] = (overdue[c.assigned_to] || 0) + 1
+
   const defaultList = lists.rows.find((l) => l.is_default)
   const toBuy = items.rows.filter((i) => !i.done && i.list_id === defaultList?.id)
   const otherLists = lists.rows.filter((l) => !l.is_default && !l.archived && l.for_date && l.for_date >= t)
@@ -41,8 +67,9 @@ export default function Today({ householdId, members, go, me }) {
     setPicking(false)
   }
 
-  const hour = new Date().getHours()
+  const hour = now.getHours()
   const greet = hour < 10 ? 'God morgon' : hour < 17 ? 'Hej' : 'God kväll'
+  const focusName = byId[focus]?.name
 
   return (
     <section className="today">
@@ -51,65 +78,80 @@ export default function Today({ householdId, members, go, me }) {
         <p className="muted cap">{d0.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </header>
 
-      <div className="hero">
-        <div className="hero-label"><Icon name="food" size={16} /> Middag ikväll</div>
-        <div className="hero-dish">{dinner ? dinner.dish : 'Inte bestämt än'}</div>
-        <div className="row">
-          <button className="hero-btn" onClick={() => setPicking(true)}><Icon name="dice" size={18} /> {dinner ? 'Byt' : 'Tips'}</button>
-          <button className="hero-btn ghost" onClick={() => go('meals')}>Veckomeny</button>
-        </div>
+      <FamilyStrip members={members} focus={focus} setFocus={setFocus} counts={overdue} />
+
+      <div className="card compact">
+        <button className="card-head" onClick={() => go('calendar')}>
+          <span className="row"><Icon name="calendar" size={18} /> <strong>{focusName ? `${focusName}s dag` : 'Dagen'}</strong></span>
+          <Icon name="chevron" size={18} className="muted" />
+        </button>
+        <ul className="list flush flow">
+          {allDay.map((o) => <EventRow key={o.key} occ={o} day={d0} byId={byId} />)}
+          {flow.map((x) => {
+            if (x.type === 'now') return (
+              <li key="now" className="now-line" aria-label={`Klockan är ${timeOf(now)}`}><span>{timeOf(now)}</span><i /></li>
+            )
+            const past = x.end < now
+            if (x.type === 'dinner') return (
+              <li key="dinner" className={`tl dinner ${past ? 'past' : ''}`}>
+                <div className="tl-time"><strong>18:00</strong></div>
+                <div className="tl-bar" style={{ background: 'var(--accent)' }} />
+                <div className="tl-body tap" onClick={() => setPicking(true)}>
+                  <div className="tl-title">🍽 {dinner ? dinner.dish : 'Middag inte bestämd'}</div>
+                  <div className="muted small">Middag{toBuy.length > 0 ? ` · ${toBuy.length} varor på listan` : ''}</div>
+                </div>
+                <button className="chip" onClick={() => setPicking(true)}><Icon name="dice" size={15} /> {dinner ? 'Byt' : 'Tips'}</button>
+              </li>
+            )
+            return <EventRow key={x.occ.key} occ={x.occ} day={d0} byId={byId} className={past ? 'past' : ''} />
+          })}
+        </ul>
+        {tomorrows.length > 0 && <p className="muted small pad">Imorgon: {tomorrows.map(shortLine).join(', ')}</p>}
       </div>
 
-      <Card icon="calendar" title="Idag" onMore={() => go('calendar')}>
-        {todays.length === 0
-          ? <p className="muted small pad">Inget i kalendern idag.</p>
-          : <ul className="list flush">{todays.map((o) => <EventRow key={o.key} occ={o} day={d0} byId={byId} />)}</ul>}
-        {tomorrows.length > 0 && (
-          <p className="muted small pad">Imorgon: {tomorrows.map(shortLine).join(', ')}</p>
-        )}
-      </Card>
+      <div className="card compact">
+        <button className="card-head" onClick={() => go('chores')}>
+          <span className="row"><Icon name="checks" size={18} /> <strong>Under dagen</strong>{todo.length > 0 && <span className="count">{todo.length}</span>}</span>
+          <Icon name="chevron" size={18} className="muted" />
+        </button>
+        <ul className="list flush">
+          {todo.slice(0, 8).map((c) => (
+            <SwipeRow key={c.id} onCheck={() => completeChore(chores, c)}>
+              <span className="check">
+                <Check checked={false} onChange={() => completeChore(chores, c)} label={`Bocka av ${c.title}`} />
+                <span>{c.title}{c.due_date && c.due_date < t && <span className="error small"> · sen</span>}</span>
+              </span>
+              <span className="meta">
+                {c.stars > 0 && <span className="stars-sm"><Icon name="star" size={14} />{c.stars}</span>}
+                <MemberTag member={byId[c.assigned_to]} size={24} />
+              </span>
+            </SwipeRow>
+          ))}
+          {doneToday.map((c) => (
+            <li key={c.id} className="is-done">
+              <span className="check">
+                <Check checked onChange={() => chores.update(c.id, { done: false, done_at: null })} label={`Ångra ${c.title}`} />
+                <span>{c.title}</span>
+              </span>
+              <span className="muted small">{[byId[c.assigned_to]?.name, c.stars > 0 && `${c.stars} ⭐`].filter(Boolean).join(' · ')}</span>
+            </li>
+          ))}
+          {todo.length === 0 && doneToday.length === 0 && <li className="muted small">Inga sysslor idag.</li>}
+        </ul>
+      </div>
 
-      <Card icon="checks" title="Sysslor" count={due.length + open.length} onMore={() => go('chores')}>
-        {todo.length === 0
-          ? <p className="muted small pad">Allt är gjort.</p>
-          : (
-            <ul className="list flush">
-              {todo.map((c) => (
-                <SwipeRow key={c.id} onCheck={() => completeChore(chores, c)}>
-                  <span className="check">
-                    <Check checked={false} onChange={() => completeChore(chores, c)} label={`Bocka av ${c.title}`} />
-                    <span>{c.title}{c.due_date && c.due_date < t && <span className="error small"> · sen</span>}</span>
-                  </span>
-                  <span className="meta">
-                    {c.stars > 0 && <span className="stars-sm"><Icon name="star" size={14} />{c.stars}</span>}
-                    <MemberTag member={byId[c.assigned_to]} size={24} />
-                  </span>
-                </SwipeRow>
-              ))}
-            </ul>
-          )}
-      </Card>
-
-      <Card icon="cart" title="Handla" count={toBuy.length} onMore={() => go('shopping')}>
+      <div className="card compact">
+        <button className="card-head" onClick={() => go('shopping')}>
+          <span className="row"><Icon name="cart" size={18} /> <strong>Handla</strong>{toBuy.length > 0 && <span className="count">{toBuy.length}</span>}</span>
+          <Icon name="chevron" size={18} className="muted" />
+        </button>
         <p className="small pad">
           {toBuy.length === 0 ? <span className="muted">Inget att handla just nu.</span> : toBuy.slice(0, 6).map((i) => i.name).join(', ') + (toBuy.length > 6 ? ' …' : '')}
         </p>
         {otherLists.map((l) => <p key={l.id} className="muted small pad">{l.name} · {parseDay(l.for_date).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })}</p>)}
-      </Card>
+      </div>
 
       {picking && <Picker day={t} all={allDishes} onPick={setDinner} onClose={() => setPicking(false)} />}
     </section>
-  )
-}
-
-function Card({ icon, title, count, onMore, children }) {
-  return (
-    <div className="card compact">
-      <button className="card-head" onClick={onMore}>
-        <span className="row"><Icon name={icon} size={18} /> <strong>{title}</strong>{count > 0 && <span className="count">{count}</span>}</span>
-        <Icon name="chevron" size={18} className="muted" />
-      </button>
-      {children}
-    </div>
   )
 }

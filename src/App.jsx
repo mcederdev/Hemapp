@@ -11,6 +11,7 @@ import Finance from './components/Finance'
 import Family from './components/Family'
 import Today from './components/Today'
 import Kids from './components/Kids'
+import Kitchen from './components/Kitchen'
 import Icon from './components/Icon'
 import { withInitials } from './components/MemberPicker'
 
@@ -25,6 +26,7 @@ const TABS = [
 const MORE = [
   { id: 'finance', label: 'Ekonomi', icon: 'wallet' },
   { id: 'kids', label: 'Barnens sida', icon: 'star' },
+  { id: 'kitchen', label: 'Köksskärm (iPad)', icon: 'home' },
   { id: 'family', label: 'Familj & inställningar', icon: 'users' }
 ]
 
@@ -69,13 +71,20 @@ function Home({ me }) {
   })
   const members = useTable('members', me.household_id)
   const households = useTable('households', me.household_id)
-  const pick = (id) => { setTab(id); localStorageSet('tab', id); window.scrollTo(0, 0) }
+  // Familjeremsan: vald person filtrerar Idag, Kalender och Sysslor
+  const [focus, setFocusState] = useState(() => localStorageGet('focus') || null)
+  const setFocus = (id) => { setFocusState(id); localStorageSet('focus', id || '') }
+  const pick = (id) => { if (id !== 'kitchen') localStorageSet('tab', id); setTab(id); window.scrollTo(0, 0) }
   const household = households.rows[0]
-  const props = { me, householdId: me.household_id, members: withInitials(members.rows), membersTable: members, household, households, go: pick }
+  const all = withInitials(members.rows)
+  const props = { me, householdId: me.household_id, members: all, membersTable: members, household, households, go: pick,
+    focus: all.some((m) => m.id === focus) ? focus : null, setFocus }
   const active = MORE.some((m) => m.id === tab) ? 'more' : tab
 
+  if (tab === 'kitchen') return <Kitchen {...props} onExit={() => pick('today')} />
+
   return (
-    <div className="app">
+    <div className="app" data-tab={tab}>
       <main>
         {tab === 'today' && <Today {...props} />}
         {tab === 'more' && (

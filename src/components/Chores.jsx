@@ -6,6 +6,7 @@ import MemberPicker, { MemberTag } from './MemberPicker'
 import Sheet, { Fab } from './Sheet'
 import SwipeRow, { Check } from './Swipe'
 import Icon from './Icon'
+import FamilyStrip, { forFocus } from './FamilyStrip'
 
 const REPEATS = [
   { v: '', label: 'Upprepa inte' },
@@ -28,7 +29,7 @@ export function completeChore(chores, c) {
   }
 }
 
-export default function Chores({ householdId, members }) {
+export default function Chores({ householdId, members, focus: filter, setFocus: setFilter }) {
   const chores = useTable('chores', householdId)
   const templates = useTable('chore_templates', householdId)
   const [title, setTitle] = useState('')
@@ -36,7 +37,6 @@ export default function Chores({ householdId, members }) {
   const [due, setDue] = useState('')
   const [repeat, setRepeat] = useState('')
   const [stars, setStars] = useState(0)
-  const [filter, setFilter] = useState(null)
   const [showCommon, setShowCommon] = useState(false)
   const [showDone, setShowDone] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -44,7 +44,9 @@ export default function Chores({ householdId, members }) {
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
   const isChild = byId[who]?.role === 'child'
   const t = today()
-  const mine = chores.rows.filter((c) => !filter || c.assigned_to === filter)
+  const mine = chores.rows.filter((c) => forFocus(filter, c.assigned_to))
+  const overdue = {}
+  for (const c of chores.rows) if (!c.done && c.due_date && c.due_date < t && c.assigned_to) overdue[c.assigned_to] = (overdue[c.assigned_to] || 0) + 1
   const open = mine.filter((c) => !c.done).sort((a, b) => (a.due_date || '9').localeCompare(b.due_date || '9'))
   const done = mine.filter((c) => c.done).sort((a, b) => (b.done_at || '').localeCompare(a.done_at || '')).slice(0, 20)
   const common = [...COMMON_CHORES, ...templates.rows.map((x) => x.title)]
@@ -102,10 +104,7 @@ export default function Chores({ householdId, members }) {
       </Sheet>
       )}
 
-      <div className="row mb">
-        <span className="muted">Visa:</span>
-        <MemberPicker members={members} value={filter} onChange={setFilter} />
-      </div>
+      <FamilyStrip members={members} focus={filter} setFocus={setFilter} counts={overdue} />
       <ul className="list">
         {open.map((c) => (
           <SwipeRow key={c.id} onCheck={() => completeChore(chores, c)} onDelete={() => chores.remove(c.id)}>

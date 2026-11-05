@@ -5,7 +5,7 @@ import SwipeRow from './Swipe'
 import Icon from './Icon'
 
 // Tidslinjerad: tid till vänster, färgad stapel per person, titel och detaljer
-export default function EventRow({ occ, day, byId, onRemove }) {
+export default function EventRow({ occ, day, byId, onRemove, className = '' }) {
   const l = timeLabel(occ, day)
   const [main, sub] = splitTime(l.time)
   const member = byId[occ.member_id]
@@ -31,8 +31,8 @@ export default function EventRow({ occ, day, byId, onRemove }) {
     </>
   )
   return onRemove
-    ? <SwipeRow className="tl" onDelete={() => onRemove(occ)}>{body}</SwipeRow>
-    : <li className="tl">{body}</li>
+    ? <SwipeRow className={`tl ${className}`} onDelete={() => onRemove(occ)}>{body}</SwipeRow>
+    : <li className={`tl ${className}`}>{body}</li>
 }
 
 function splitTime(t) {

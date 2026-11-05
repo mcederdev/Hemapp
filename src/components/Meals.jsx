@@ -1,12 +1,91 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTable } from '../useTable'
 import { COMMON_DISHES } from '../lib/defaults'
 import { addDays, startOfWeek, today, weekdayName, parseDay } from '../lib/dates'
 import Icon from './Icon'
-import SwipeRow from './Swipe'
+import SwipeRow, { buzz } from './Swipe'
 import Sheet, { Fab } from './Sheet'
 
 const shuffle = (a) => [...a].sort(() => Math.random() - 0.5)
+// Samma "slumpade" ordning hela dagen så att förslagen inte hoppar runt vid varje uppdatering
+const seeded = (a, key) => {
+  let h = 0; for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return [...a].map((x, i) => [x, ((h ^ (i * 2654435761)) >>> 0) % 1000]).sort((p, q) => p[1] - q[1]).map((p) => p[0])
+}
+
+// En färg per typ av rätt
+const CAT_COLORS = { Pasta: '#e2a03f', Fisk: '#3f8fd8', Kyckling: '#d9a62e', Fredag: '#e0567a', Husman: '#9a6b4f', Vardag: '#5aa36b',
+  Soppa: '#d8743f', Gryta: '#b8503f', Helg: '#8a5cf6', Snabbt: '#2fa3a0', Vegetariskt: '#4caf50' }
+export function dishColor(cat) {
+  if (!cat) return '#8b918e'
+  if (CAT_COLORS[cat]) return CAT_COLORS[cat]
+  let h = 0; for (const ch of cat) h = (h * 31 + ch.charCodeAt(0)) % 360
+  return `hsl(${h} 55% 50%)`
+}
+
+// Veckan som färgade kort. Håll inne på ett kort och tryck (eller släpp) på en annan dag för att byta.
+function WeekCards({ days, t, planFor, all, plan, onPick }) {
+  const [moving, setMoving] = useState(null)
+  const timer = useRef(null)
+  const held = useRef(false)
+  const strip = useRef(null)
+  // Börja med dagens kort längst till vänster
+  useEffect(() => {
+    const el = strip.current?.querySelector('.meal-card.today') || strip.current?.querySelector('.meal-card:not(.past)')
+    if (el) strip.current.scrollLeft = el.offsetLeft - strip.current.offsetLeft - 2
+  }, [days[0]])
+  const cat = (dish) => all.find((d) => d.name.toLowerCase() === dish?.toLowerCase())?.category
+
+  const swap = async (from, to) => {
+    setMoving(null)
+    if (from === to) return
+    const a = planFor(from), b = planFor(to)
+    if (!a) return
+    if (b) { await plan.update(a.id, { dish: b.dish }); await plan.update(b.id, { dish: a.dish }) }
+    else await plan.update(a.id, { day: to })
+  }
+  const down = (d) => {
+    held.current = false
+    if (!planFor(d)) return
+    timer.current = setTimeout(() => { held.current = true; buzz(); setMoving(d) }, 420)
+  }
+  const cancel = () => clearTimeout(timer.current)
+  const up = (e) => {
+    clearTimeout(timer.current)
+    if (!held.current) return
+    // Släppt över ett annat kort? Byt direkt
+    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-day]')
+    if (el && el.dataset.day !== moving) swap(moving, el.dataset.day)
+  }
+  const tap = (d) => {
+    if (held.current) { held.current = false; return }
+    if (moving) return swap(moving, d)
+    onPick(d)
+  }
+
+  return (
+    <>
+      <div className="meal-cards" ref={strip} onContextMenu={(e) => e.preventDefault()}>
+        {days.map((d) => {
+          const p = planFor(d)
+          const c = p ? dishColor(cat(p.dish)) : null
+          return (
+            <button key={d} data-day={d} className={`meal-card ${p ? '' : 'empty'} ${d === t ? 'today' : ''} ${d < t ? 'past' : ''} ${moving === d ? 'moving' : ''} ${moving && moving !== d ? 'target' : ''}`}
+              style={c ? { '--c': c } : undefined}
+              onPointerDown={() => down(d)} onPointerUp={up} onPointerLeave={cancel} onPointerCancel={cancel} onClick={() => tap(d)}>
+              <span className="mc-day cap">{weekdayName(d, 'short').replace('.', '')} {parseDay(d).getDate()}</span>
+              {p ? <span className="mc-dish">{p.dish}</span> : <span className="mc-plus">+<small>Välj</small></span>}
+              {p && cat(p.dish) && <span className="mc-cat">{cat(p.dish)}</span>}
+              {p && !moving && <span className="mc-del" role="button" aria-label="Ta bort" onClick={(e) => { e.stopPropagation(); plan.remove(p.id) }}>✕</span>}
+            </button>
+          )
+        })}
+      </div>
+      <p className="muted small">{moving ? `Tryck på dagen du vill byta ${weekdayName(moving)} med.` : 'Håll inne på en rätt för att flytta den till en annan dag.'}</p>
+      {moving && <button className="link" onClick={() => setMoving(null)}>Avbryt flytt</button>}
+    </>
+  )
+}
 
 export default function Meals({ householdId }) {
   const dishes = useTable('dishes', householdId)
@@ -49,20 +128,21 @@ export default function Meals({ householdId }) {
             <strong>Vecka {weekNumber(week)}</strong>
             <button onClick={() => setWeek(addDays(week, 7))} aria-label="Nästa vecka">›</button>
           </div>
-          <ul className="list mt">
-            {days.map((d) => {
-              const p = planFor(d)
-              return (
-                <li key={d} className={`tap ${d === t ? 'today-row' : ''} ${d < t ? 'past' : ''}`} onClick={() => setPicking(d)}>
-                  <span>
-                    <span className="muted small cap">{weekdayName(d)} {parseDay(d).getDate()}/{parseDay(d).getMonth() + 1}</span>
-                    <div className={p ? '' : 'muted'}>{p ? p.dish : 'Välj middag…'}</div>
-                  </span>
-                  {p && <button className="icon-btn" onClick={(e) => { e.stopPropagation(); plan.remove(p.id) }} aria-label="Ta bort">✕</button>}
-                </li>
-              )
-            })}
-          </ul>
+          <WeekCards days={days} t={t} planFor={planFor} all={all} plan={plan} onPick={setPicking} />
+          {(() => {
+            const next = days.find((d) => d >= t && !planFor(d))
+            if (!next) return null
+            const recent = new Set(plan.rows.filter((p) => p.day >= addDays(t, -14)).map((p) => p.dish.toLowerCase()))
+            const fresh = all.filter((d) => !recent.has(d.name.toLowerCase())).slice(0, 40)
+            const picks = seeded(fresh, next).slice(0, 3)
+            return picks.length > 0 && (
+              <div className="card mt">
+                <strong className="cap">Förslag till {weekdayName(next)}</strong>
+                <p className="muted small">Ni har inte ätit de här på två veckor</p>
+                <div className="chips">{picks.map((d) => <button key={d.name} className="chip" style={{ '--c': dishColor(d.category) }} onClick={() => setDish(next, d.name)}>{d.name}</button>)}</div>
+              </div>
+            )
+          })()}
           <button className="primary wide" onClick={fillWeek}><Icon name="dice" size={18} /> Fyll tomma dagar med förslag</button>
           <Fab onClick={() => setPicking(days.find((d) => d >= t && !planFor(d)) || (days.includes(t) ? t : days[0]))} label="Välj middag" />
         </>

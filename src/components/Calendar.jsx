@@ -9,6 +9,8 @@ import MemberPicker from './MemberPicker'
 import EventRow from './EventRow'
 import Icon from './Icon'
 import Sheet, { Fab } from './Sheet'
+import FamilyStrip, { forFocus } from './FamilyStrip'
+import DayColumns from './DayColumns'
 
 const REPEATS = [
   { v: '', label: 'Upprepa inte' }, { v: 'daily', label: 'Varje dag' }, { v: 'weekly', label: 'Varje vecka' },
@@ -17,7 +19,7 @@ const REPEATS = [
 const REMIND = [{ v: 0, label: 'Ingen påminnelse' }, { v: 15, label: '15 min innan' }, { v: 30, label: '30 min innan' }, { v: 60, label: '1 timme innan' }, { v: 120, label: '2 timmar innan' }]
 const WD = ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön']
 
-export default function Calendar({ householdId, members }) {
+export default function Calendar({ householdId, members, focus: who, setFocus: setWho }) {
   const events = useTable('events', householdId, 'starts_at')
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [selected, setSelected] = useState(today())
@@ -25,7 +27,6 @@ export default function Calendar({ householdId, members }) {
   const [form, setForm] = useState({ title: '', date: today(), time: '', endTime: '', member: null, location: '', repeat: '', remind: 30 })
   const [importMember, setImportMember] = useState(null)
   const [msg, setMsg] = useState('')
-  const [who, setWho] = useState(null)
   const [mode, setMode] = useState(() => { try { return localStorage.getItem('calMode') || 'week' } catch { return 'week' } })
   const fileRef = useRef()
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
@@ -33,7 +34,7 @@ export default function Calendar({ householdId, members }) {
   // Rutnät: måndag före månadens första dag, 6 veckor
   const gridStart = new Date(month); gridStart.setDate(1 - ((month.getDay() + 6) % 7))
   const gridEnd = new Date(gridStart); gridEnd.setDate(gridStart.getDate() + 42)
-  const filtered = events.rows.filter((e) => !who || e.member_id === who || !e.member_id)
+  const filtered = events.rows.filter((e) => forFocus(who, e.member_id))
   // Veckoremsa: två veckor från måndagen i vald vecka
   const stripStart = parseDay(startOfWeek(selected))
   const stripDays = Array.from({ length: 14 }, (_, i) => { const d = new Date(stripStart); d.setDate(d.getDate() + i); return d })
@@ -82,10 +83,11 @@ export default function Calendar({ householdId, members }) {
 
   const pickDay = (key) => { setSelected(key); const d = parseDay(key); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)) }
   const shift = (n) => {
+    if (mode === 'day') return pickDay(addDays(selected, n))
     if (mode === 'week') return pickDay(addDays(selected, 7 * n))
     setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1))
   }
-  const switchMode = () => { const m = mode === 'week' ? 'month' : 'week'; setMode(m); try { localStorage.setItem('calMode', m) } catch { /* ignoreras */ } }
+  const switchMode = (m) => { setMode(m); try { localStorage.setItem('calMode', m) } catch { /* ignoreras */ } }
   const dots = (d) => dayList(occ, d).slice(0, 4).map((o) => <i key={o.key} style={{ background: byId[o.member_id]?.color || 'var(--accent)' }} />)
   const removeEvent = (o) => {
     const msg = o.rrule ? `Ta bort "${o.title}" och alla dess upprepningar?` : `Ta bort "${o.title}"?`
@@ -95,19 +97,21 @@ export default function Calendar({ householdId, members }) {
   return (
     <section>
       <div className="row between">
-        <h2 className="cap">{(mode === 'week' ? selDate : month).toLocaleDateString('sv-SE', { month: 'long', year: 'numeric' })}</h2>
+        <h2 className="cap">{(mode !== 'month' ? selDate : month).toLocaleDateString('sv-SE', { month: 'long', year: 'numeric' })}</h2>
         <span className="row">
           <button className="sq" onClick={() => shift(-1)} aria-label="Bakåt"><Icon name="left" size={18} /></button>
           <button onClick={() => pickDay(t)}>Idag</button>
           <button className="sq" onClick={() => shift(1)} aria-label="Framåt"><Icon name="chevron" size={18} /></button>
         </span>
       </div>
-      <div className="row mb">
-        <MemberPicker members={members} value={who} onChange={setWho} emptyLabel="Alla i familjen" />
-        <button className="nowrap" onClick={switchMode}><Icon name="calendar" size={16} /> {mode === 'week' ? 'Månad' : 'Vecka'}</button>
+      <FamilyStrip members={members} focus={who} setFocus={setWho} />
+      <div className="seg mb">
+        {[['day', 'Dag'], ['week', 'Vecka'], ['month', 'Månad']].map(([m, l]) => (
+          <button key={m} className={mode === m ? 'active' : ''} onClick={() => switchMode(m)}>{l}</button>
+        ))}
       </div>
 
-      {mode === 'week' && (
+      {mode !== 'month' && (
         <div className="strip">
           {stripDays.map((d) => {
             const key = iso(d)
@@ -164,7 +168,9 @@ export default function Calendar({ householdId, members }) {
         </Sheet>
       )}
 
-      <EventList list={selOcc} day={selDate} byId={byId} onRemove={removeEvent} empty="Inget denna dag." />
+      {mode === 'day'
+        ? <DayColumns occ={selOcc} day={selDate} members={who ? members.filter((m) => m.id === who) : members} onRemove={removeEvent} />
+        : <EventList list={selOcc} day={selDate} byId={byId} onRemove={removeEvent} empty="Inget denna dag." />}
 
       <h3>Kommande två veckor</h3>
       {groupByDay(upcoming).map(([day, evs]) => (

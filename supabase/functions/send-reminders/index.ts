@@ -30,9 +30,10 @@ Deno.serve(async (req) => {
   for (const h of households ?? []) {
     const { data: subs } = await db.from('push_subscriptions').select('*').eq('household_id', h.id)
     if (!subs?.length) continue
-    const send = async (payload: Record<string, string>, onlyMember?: string) => {
+    const send = async (payload: Record<string, string>, onlyMember?: string, exceptMember?: string) => {
       for (const sub of subs) {
         if (onlyMember && sub.member_id !== onlyMember) continue
+        if (exceptMember && sub.member_id === exceptMember) continue
         try {
           await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, JSON.stringify(payload))
         } catch (e) {
@@ -46,6 +47,11 @@ Deno.serve(async (req) => {
     // Testnotis från appen
     if (body.test && body.member_id) {
       await send({ title: 'Hemappen', body: 'Notiser fungerar! 🎉', url: '/' }, body.member_id)
+      continue
+    }
+    // Notis till resten av familjen, t.ex. "Magnus har handlat"
+    if (body.notify) {
+      if (body.household_id === h.id) await send({ title: String(body.title || 'Hemappen'), body: '', url: String(body.url || '/') }, undefined, body.member_id)
       continue
     }
 
