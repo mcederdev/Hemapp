@@ -30,7 +30,10 @@ export function dayWarnings({ events, kids, parents, pickups, dayStr, here, hand
     if (!s) continue
     for (const [kind, at, label] of [['lamna', s.start, 'lämna'], ['hamta', s.end, 'hämta']]) {
       const p = pickups.find((x) => x.child_id === kid.id && x.day === dayStr && x.kind === kind)
-      if (p?.person_id) {
+      if (p?.both_parents) {
+        const busy = parents.filter((m) => busyAt(events, m.id, at))
+        if (busy.length) out.push({ kid, kind, text: `Ni ska ${label} ${kid.name} tillsammans kl ${hm(at)} men ${busy.map((m) => m.name).join(' och ')} jobbar då` })
+      } else if (p?.person_id) {
         if (busyAt(events, p.person_id, at)) out.push({ kid, kind, text: `${nameOf(p.person_id)} ska ${label} ${kid.name} kl ${hm(at)} men jobbar då` })
       } else if (!p?.person_name && parents.length && parents.every((m) => busyAt(events, m.id, at))) {
         out.push({ kid, kind, text: `Alla jobbar när ${kid.name} ska ${label}s kl ${hm(at)}` })

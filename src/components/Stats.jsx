@@ -14,11 +14,13 @@ export default function Stats({ householdId, members, people }) {
       <div className="seg mb">
         <button className={view === 'chores' ? 'active' : ''} onClick={() => setView('chores')}>Sysslor</button>
         <button className={view === 'sick' ? 'active' : ''} onClick={() => setView('sick')}>Sjuk & VAB</button>
-        <button className={view === 'food' ? 'active' : ''} onClick={() => setView('food')}>Mat & handla</button>
+        <button className={view === 'food' ? 'active' : ''} onClick={() => setView('food')}>Mat</button>
+        <button className={view === 'pickups' ? 'active' : ''} onClick={() => setView('pickups')}>Hämta</button>
       </div>
       {view === 'chores' && <ChoreStats householdId={householdId} members={members} />}
       {view === 'sick' && <VabStats rows={vab.rows} members={people || members} />}
       {view === 'food' && <FoodStats householdId={householdId} />}
+      {view === 'pickups' && <PickupStats householdId={householdId} people={people || members} />}
     </section>
   )
 }
@@ -199,6 +201,53 @@ function FoodSpend({ householdId }) {
           ))}
         </ul>
       )}
+    </div>
+  )
+}
+
+// Lämna och hämta: vem har gjort det. "Båda" räknas för båda föräldrarna.
+function PickupStats({ householdId, people }) {
+  const pickups = useTable('pickups', householdId, 'day')
+  const [period, setPeriod] = useState('month')
+  const t = today()
+  const from = period === 'week' ? startOfWeek(t) : period === 'month' ? t.slice(0, 7) + '-01' : t.slice(0, 4) + '-01-01'
+  const rows = pickups.rows.filter((p) => p.day >= from && p.day <= t && (p.person_id || p.person_name || p.both_parents))
+  const adults = people.filter((m) => m.role !== 'child' && m.role !== 'guest')
+  const count = new Map()
+  const add = (key, kind) => { const e = count.get(key) || { lamna: 0, hamta: 0 }; e[kind]++; count.set(key, e) }
+  for (const p of rows) {
+    if (p.both_parents) adults.filter((m) => m.household_id === p.household_id).forEach((m) => add(m.id, p.kind))
+    else add(p.person_id || 'n:' + p.person_name, p.kind)
+  }
+  const byId = Object.fromEntries(people.map((m) => [m.id, m]))
+  const list = [...count.entries()].map(([k, e]) => ({ k, m: byId[k], name: byId[k]?.name || k.replace(/^n:/, ''), ...e, n: e.lamna + e.hamta })).sort((a, b) => b.n - a.n)
+  const max = Math.max(1, ...list.map((x) => x.n))
+  const together = rows.filter((p) => p.both_parents).length
+  return (
+    <div>
+      <div className="seg mb small-seg">
+        {PERIODS.map(([v, l]) => <button key={v} className={period === v ? 'active' : ''} onClick={() => setPeriod(v)}>{l}</button>)}
+      </div>
+      <div className="stat-tiles">
+        <div className="stat-tile"><strong>{rows.filter((p) => p.kind === 'lamna').length}</strong><span>lämningar</span></div>
+        <div className="stat-tile"><strong>{rows.filter((p) => p.kind === 'hamta').length}</strong><span>hämtningar</span></div>
+        <div className="stat-tile"><strong>{together}</strong><span>tillsammans</span></div>
+      </div>
+      <div className="card mt">
+        <strong>Vem lämnar och hämtar</strong>
+        {list.length === 0 && <p className="muted small">Inget valt under perioden. Det räknas när ni väljer vem under Mer → Lämna och hämta.</p>}
+        <div className="bars mt">
+          {list.map((x) => (
+            <div key={x.k} className="bar-row">
+              <span className="bar-label row">{x.m ? <MemberTag member={x.m} size={22} /> : '👤'} {x.name}</span>
+              <span className="bar-track"><i style={{ width: `${(x.n / max) * 100}%`, background: x.m?.color || 'var(--accent)' }} /></span>
+              <span className="bar-n">{x.n}</span>
+            </div>
+          ))}
+        </div>
+        {list.length > 0 && <p className="muted small">{list.map((x) => `${x.name}: lämnat ${x.lamna}, hämtat ${x.hamta}`).join(' · ')}</p>}
+        {together > 0 && <p className="muted small">När ni gjort det tillsammans räknas det för er båda.</p>}
+      </div>
     </div>
   )
 }

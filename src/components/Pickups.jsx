@@ -26,8 +26,9 @@ function usePlan({ householdId, members, people, me, custody, events, count }) {
       slots: [['lamna', 'Lämna', s.startHM, s.start], ['hamta', 'Hämta', s.endHM, s.end]].map(([kind, label, time, at]) => {
         const p = who(kid, d, kind)
         const auto = !p ? freeParent(events, parents, at) : null
-        const person = p?.person_id ? byId[p.person_id] : auto
-        return { kind, label, time, at, p, auto, person, name: p?.person_name || person?.name || null }
+        const both = !!p?.both_parents
+        const person = both ? null : p?.person_id ? byId[p.person_id] : auto
+        return { kind, label, time, at, p, auto, both, person, name: both ? 'Båda' : p?.person_name || person?.name || null }
       })
     }))
     const warnings = dayWarnings({ events, kids, parents, pickups: pickups.rows, dayStr: d, here: hereOn(d), handover, nameOf: (id) => byId[id]?.name || 'Någon' })
@@ -37,7 +38,10 @@ function usePlan({ householdId, members, people, me, custody, events, count }) {
   const set = async (pick, person) => {
     const { kid, day, kind } = pick
     const existing = who(kid, day, kind)
-    const v = person === null ? { person_id: null, person_name: null } : typeof person === 'string' ? { person_id: null, person_name: person } : { person_id: person.id, person_name: person.name }
+    const v = person === 'both' ? { person_id: null, person_name: null, both_parents: true }
+      : person === null ? { person_id: null, person_name: null, both_parents: false }
+      : typeof person === 'string' ? { person_id: null, person_name: person, both_parents: false }
+      : { person_id: person.id, person_name: person.name, both_parents: false }
     if (existing) await pickups.update(existing.id, v)
     else await pickups.insert({ child_id: kid.id, day, kind, ...v })
   }
@@ -50,7 +54,7 @@ export default function Pickups(props) {
   const { t, days, parents, byId, set } = usePlan({ ...props, count: 7 })
   const [pick, setPick] = useState(null)
   const soon = days.slice(0, 2)
-  const mine = soon.flatMap(({ d, rows }) => rows.flatMap(({ kid, slots }) => slots.filter((s) => s.person?.id === me.id && !s.p?.person_name || s.p?.person_id === me.id).map((s) => ({ d, kid, s }))))
+  const mine = soon.flatMap(({ d, rows }) => rows.flatMap(({ kid, slots }) => slots.filter((s) => s.both || s.person?.id === me.id && !s.p?.person_name || s.p?.person_id === me.id).map((s) => ({ d, kid, s }))))
   const warnings = soon.flatMap(({ d, warnings }) => warnings.map((w) => ({ d, w })))
   const open = days.flatMap(({ d, rows }) => rows.flatMap(({ kid, slots }) => slots.filter((s) => !s.name && !s.p).map((s) => ({ d, kid, s }))))
   const openSoon = open.filter((x) => x.d <= addDays(t, 1))
@@ -60,7 +64,7 @@ export default function Pickups(props) {
       <button className="card-head" onClick={() => go('pickups')}><strong>🚸 Lämna och hämta</strong>{open.length > 0 && <span className="count">{open.length}</span>}</button>
       <div className="pk-day">
       {mine.map(({ d, kid, s }) => (
-        <div key={d + kid.id + s.kind} className="pk-mine"><MemberTag member={kid} size={22} /><span><strong>Du {s.kind === 'lamna' ? 'lämnar' : 'hämtar'} {kid.name}</strong> {dayName(d, t).toLowerCase()} kl {s.time}{s.auto ? <span className="muted small"> · enligt kalendern</span> : ''}</span></div>
+        <div key={d + kid.id + s.kind} className="pk-mine"><MemberTag member={kid} size={22} /><span><strong>{s.both ? 'Ni' : 'Du'} {s.kind === 'lamna' ? 'lämnar' : 'hämtar'} {kid.name}{s.both ? ' tillsammans' : ''}</strong> {dayName(d, t).toLowerCase()} kl {s.time}{s.auto ? <span className="muted small"> · enligt kalendern</span> : ''}</span></div>
       ))}
       {warnings.map(({ d, w }, i) => <p key={i} className="warn-line">⚠️ {dayName(d, t)}: {w.text}</p>)}
       {openSoon.map(({ d, kid, s }) => (
@@ -95,9 +99,9 @@ export function PickupsPage(props) {
             <div key={kid.id} className="pk-row">
               <MemberTag member={kid} size={24} />
               {slots.map((s) => (
-                <button key={s.kind} className={`pk-btn ${s.p?.person_name || s.p?.person_id ? 'set' : s.auto ? 'auto' : ''}`} onClick={() => setPick({ kid, day: d, kind: s.kind, label: s.label, time: s.time, at: s.at })}>
+                <button key={s.kind} className={`pk-btn ${s.both || s.p?.person_name || s.p?.person_id ? 'set' : s.auto ? 'auto' : ''}`} onClick={() => setPick({ kid, day: d, kind: s.kind, label: s.label, time: s.time, at: s.at })}>
                   <span className="muted small">{s.label} {s.time}{s.auto ? ' · ledig' : ''}</span>
-                  <span className="pk-who">{s.person ? <MemberTag member={s.person} size={20} /> : null}{s.name || 'Vem?'}</span>
+                  <span className="pk-who">{s.both ? parents.map((m) => <MemberTag key={m.id} member={m} size={20} />) : s.person ? <MemberTag member={s.person} size={20} /> : null}{s.name || 'Vem?'}</span>
                 </button>
               ))}
             </div>
@@ -118,6 +122,10 @@ function PickSheet({ pick, t, members, people, parents, events, onPick, onClose 
           <button key={m.id} className="row" onClick={() => onPick(m)}><MemberTag member={m} size={26} /> {m.name}{m.linked ? <span className="muted small"> · {m.household_name}</span> : ''}
             {parents.some((x) => x.id === m.id) && <span className={`small ${busyAt(events, m.id, pick.at) ? 'error' : 'ok'}`} style={{ marginLeft: 'auto' }}>{busyAt(events, m.id, pick.at) ? 'jobbar' : 'ledig'}</span>}</button>
         ))}
+        {parents.length >= 2 && (
+          <button className="row" onClick={() => onPick('both')}>{parents.map((m) => <MemberTag key={m.id} member={m} size={26} />)} Båda
+            {parents.some((x) => busyAt(events, x.id, pick.at)) && <span className="small error" style={{ marginLeft: 'auto' }}>någon jobbar</span>}</button>
+        )}
         <button onClick={() => { const n = prompt('Vem? (t.ex. Mormor, Kompisens pappa)'); if (n?.trim()) onPick(n.trim()) }}>Någon annan…</button>
         <button className="link" onClick={() => onPick(null)}>Ingen bestämd</button>
       </div>
