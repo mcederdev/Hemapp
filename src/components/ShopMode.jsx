@@ -15,6 +15,7 @@ export default function ShopMode({ list, items, lists = [], onClose, householdId
   const [sent, setSent] = useState(false)
   const [cost, setCost] = useState(null)
   const spend = useTable('grocery_spend', householdId, 'day')
+  const pantry = useTable('pantry_items', householdId, 'best_before')
   const rows = items.rows.filter((i) => i.list_id === list.id)
   const left = rows.filter((i) => !i.done)
   const taken = rows.filter((i) => i.done)
@@ -22,7 +23,7 @@ export default function ShopMode({ list, items, lists = [], onClose, householdId
   const sec = (i) => (SECTIONS.includes(i.section) ? i.section : 'Övrigt')
   const groups = SECTIONS.map((s) => [s, left.filter((i) => sec(i) === s)]).filter(([, v]) => v.length)
 
-  const toggle = (i) => { buzz(); if (i.done) items.update(i.id, { done: false }); else checkOff(items, i, lists) }
+  const toggle = (i) => { buzz(); if (i.done) items.update(i.id, { done: false }); else checkOff(items, i, lists, pantry) }
   const finish = async () => {
     if (!sent && taken.length > 0) {
       const { error } = await supabase.rpc('notify_household', { msg: `har handlat${list.is_default ? '' : ` (${list.name})`} 🛒`, link: '/?tab=shopping' })

@@ -14,6 +14,7 @@ export default function Shopping({ householdId, me, members }) {
   const lists = useTable('shopping_lists', householdId)
   const items = useTable('shopping_items', householdId)
   const catalog = useTable('item_catalog', householdId)
+  const pantry = useTable('pantry_items', householdId, 'best_before')
   const [listId, setListId] = useState(null)
   const [text, setText] = useState('')
   const [view, setView] = useState('list') // list | home | lists
@@ -28,7 +29,7 @@ export default function Shopping({ householdId, me, members }) {
   const refillList = lists.rows.find((l) => l.is_refill)
   // Komplettera-listan skapas en gång om den saknas
   useEffect(() => { if (!lists.loading && lists.rows.length && !refillList) lists.insert({ name: 'Komplettera', is_refill: true }) }, [lists.loading, lists.rows.length, refillList])
-  const tick = (i) => checkOff(items, i, lists.rows)
+  const tick = (i) => checkOff(items, i, lists.rows, pantry)
   const list = lists.rows.find((l) => l.id === listId) || defaultList
   useEffect(() => { if (!listId && defaultList) setListId(defaultList.id) }, [defaultList, listId])
 

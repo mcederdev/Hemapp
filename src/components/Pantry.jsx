@@ -36,7 +36,8 @@ export default function Pantry({ householdId, onOut }) {
         <button className={`chip ${place === 'alla' ? 'on' : ''}`} onClick={() => setPlace('alla')}>Allt</button>
         {PLACES.map(([v, l]) => <button key={v} className={`chip ${place === v ? 'on' : ''}`} onClick={() => setPlace(v)}>{l}</button>)}
       </div>
-      {pantry.rows.length === 0 && <p className="muted">Lägg in det ni har hemma med +, gärna med bäst före-datum. Då föreslår Mat-sidan middagar som använder det som snart går ut.</p>}
+      {pantry.rows.length === 0 && <p className="muted">Det ni bockar av på inköpslistan hamnar här av sig självt (mat som sparas, inte frukt, dryck eller hygien). Lägg till mer med +. Då föreslår Mat-sidan middagar som använder det som snart går ut.</p>}
+      {pantry.rows.length > 0 && <p className="muted small mt">Avbockade varor läggs till här. Bäst före är en gissning för färskvaror, tryck på varan för att ändra.</p>}
       <ul className="list mt">
         {rows.map((x) => {
           const n = x.best_before ? daysUntil(t, x.best_before) : null

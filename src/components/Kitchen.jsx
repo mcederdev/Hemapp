@@ -25,6 +25,7 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
   const dishes = useTable('dishes', householdId)
   const items = useTable('shopping_items', householdId)
   const lists = useTable('shopping_lists', householdId)
+  const pantry = useTable('pantry_items', householdId, 'best_before')
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
   useEffect(() => { document.documentElement.classList.add('kiosk'); return () => document.documentElement.classList.remove('kiosk') }, [])
 
@@ -125,7 +126,7 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
         <section className="k-card k-shop">
           <h3>Handla {toBuy.length > 0 && <span className="count">{toBuy.length}</span>}</h3>
           <div className="chips">
-            {toBuy.map((i) => <button key={i.id} className="chip big-chip" onClick={() => checkOff(items, i, lists.rows)}>{i.name}</button>)}
+            {toBuy.map((i) => <button key={i.id} className="chip big-chip" onClick={() => checkOff(items, i, lists.rows, pantry)}>{i.name}</button>)}
           </div>
           {toBuy.length === 0 && <p className="muted">Listan är tom.</p>}
         </section>

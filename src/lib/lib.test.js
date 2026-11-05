@@ -219,3 +219,13 @@ test('veckoförslag undviker det som ätits nyligen och använder det som går u
   assert.ok(!r.some((x) => x.dish === 'Tacos'))
   assert.equal(new Set(r.map((x) => x.dish)).size, r.length)
 })
+
+import { pantryPlace } from './refill.js'
+test('avbockade varor hamnar på rätt ställe hemma', () => {
+  assert.equal(pantryPlace({ name: 'Mjölk' }).place, 'kyl')
+  assert.equal(pantryPlace({ name: 'Pasta' }).place, 'skafferi')
+  assert.equal(pantryPlace({ name: 'Frysta ärtor' }).place, 'frys')
+  assert.equal(pantryPlace({ name: 'Bananer' }), null)
+  assert.equal(pantryPlace({ name: 'Tandkräm', section: 'Hygien' }), null)
+  assert.equal(pantryPlace({ name: 'Nötfärs', section: 'Kött & fisk' }).days, 2)
+})
