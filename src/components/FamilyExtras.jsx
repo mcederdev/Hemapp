@@ -135,7 +135,7 @@ export function Guests({ guests, guestsTable }) {
 
 // Exportera allt: en JSON-fil med hushållets data och kalendern som .ics
 const EXPORT_TABLES = ['households', 'members', 'events', 'shopping_lists', 'shopping_items', 'item_catalog', 'chores', 'chore_plans', 'chore_templates', 'routines', 'dishes', 'meal_plan',
-  'bills', 'settlements', 'vab_days', 'reminders', 'birthdays', 'notes', 'messages', 'custody', 'packing_items', 'medicines', 'pickups', 'moods', 'grocery_spend', 'pantry_items', 'subscriptions', 'cars', 'guests']
+  'bills', 'settlements', 'vab_days', 'reminders', 'birthdays', 'notes', 'messages', 'custody', 'packing_items', 'medicines', 'pickups', 'moods', 'grocery_spend', 'pantry_items', 'subscriptions', 'cars', 'guests', 'medicine_doses']
 export function ExportData({ householdId, household }) {
   const [busy, setBusy] = useState(false)
   const save = (name, text, type) => {
@@ -151,7 +151,7 @@ export function ExportData({ householdId, household }) {
     const out = { exported_at: new Date().toISOString() }
     for (const t of EXPORT_TABLES) {
       const q = supabase.from(t).select('*')
-      const { data } = t === 'households' ? await q.eq('id', householdId) : t === 'events' || t === 'members' || t === 'messages' ? await q : await q.eq('household_id', householdId)
+      const { data } = t === 'households' ? await q.eq('id', householdId) : t === 'events' || t === 'members' || t === 'messages' || t === 'medicine_doses' ? await q : await q.eq('household_id', householdId)
       out[t] = data || []
     }
     save(`hemappen-${stamp}.json`, JSON.stringify(out, null, 2), 'application/json')
