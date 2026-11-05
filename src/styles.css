@@ -33,7 +33,7 @@ button:disabled { opacity: .5; }
 .icon-btn { border: none; background: none; color: var(--muted); padding: .2rem .4rem; }
 .app main { max-width: 640px; margin: 0 auto;
   padding: calc(env(safe-area-inset-top) + 12px) 16px calc(90px + env(safe-area-inset-bottom)); }
-.center { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.center { min-height: 100vh; display: grid; place-items: center; grid-template-columns: minmax(0, 380px); justify-content: center; padding: 16px; }
 .center .card { width: 100%; max-width: 380px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
 .stack { display: flex; flex-direction: column; gap: 10px; }
@@ -477,3 +477,6 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 .balance.plus { border-left: 4px solid #2e9d5b; }
 .balance.minus { border-left: 4px solid #e0567a; }
 .reg { font-family: ui-monospace, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; margin-right: 4px; }
+.setup-opts { display: flex; flex-direction: column; gap: 8px; }
+.setup-opt { white-space: normal; width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); }
+.setup-opt.on { border-color: var(--accent); }

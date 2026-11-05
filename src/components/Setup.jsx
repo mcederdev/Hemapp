@@ -39,14 +39,18 @@ export default function Setup({ onDone }) {
     <div className="center">
       <form className="card stack" onSubmit={submit}>
         <h1>Välkommen!</h1>
-        <div className="seg">
-          <button type="button" className={mode === 'create' ? 'active' : ''} onClick={() => setMode('create')}>Nytt hushåll</button>
-          <button type="button" className={mode === 'join' ? 'active' : ''} onClick={() => setMode('join')}>Gå med med kod</button>
-          <button type="button" className={mode === 'link' ? 'active' : ''} onClick={() => setMode('link')}>Delad vårdnad</button>
+        <p className="muted">Hur vill du börja?</p>
+        <div className="setup-opts" role="radiogroup">
+          {[['create', '🏠 Ny familj', 'Ni är först i familjen att använda appen'],
+            ['join', '👋 Gå med i min familj', 'Någon i ditt hushåll har redan skapat familjen och gett dig en kod'],
+            ['link', '🔁 Delad vårdnad', 'Du har ett eget hem, och barnet bor växelvis hos dig och den andra föräldern']].map(([v, t, d]) => (
+            <button type="button" key={v} role="radio" aria-checked={mode === v} className={`setup-opt ${mode === v ? 'on' : ''}`} onClick={() => setMode(v)}>
+              <strong>{t}</strong><span className="muted small">{d}</span>
+            </button>
+          ))}
         </div>
-        {mode === 'link' && <p className="muted small">Du får ett eget hushåll, och barnet från den andra familjen syns hos dig med samma kalender, schema, bil och VAB.</p>}
         <input placeholder="Ditt namn (t.ex. Pappa eller Magnus)" value={name} onChange={(e) => setName(e.target.value)} required />
-        {mode !== 'join' && <input placeholder="Hushållets namn (t.ex. Familjen Cederberg)" value={household} onChange={(e) => setHousehold(e.target.value)} required />}
+        {mode !== 'join' && <input placeholder="Hushållets namn (t.ex. Familjen Ek)" value={household} onChange={(e) => setHousehold(e.target.value)} required />}
         {mode !== 'create' && <input placeholder={mode === 'link' ? 'Kod från andra vårdnadshavaren (D…)' : 'Inbjudningskod'} value={code} onChange={(e) => setCode(e.target.value)} required />}
         <button className="primary">Fortsätt</button>
         <button type="button" className="link" onClick={() => supabase.auth.signOut()}>Logga ut</button>
