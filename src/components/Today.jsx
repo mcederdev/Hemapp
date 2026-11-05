@@ -14,6 +14,7 @@ import Icon from './Icon'
 import ShopForDishes from './ShopForDishes'
 import Notes, { Soon, NoteButton } from './Notes'
 import { CustodyLine } from './Custody'
+import Pickups from './Pickups'
 
 // Bygger dagens flöde: händelser och middag i tidsordning, med nu-linjen på rätt plats
 export function buildFlow({ events, day, dinner, now, focus, withDinner = true }) {
@@ -33,7 +34,7 @@ export function buildFlow({ events, day, dinner, now, focus, withDinner = true }
   return { allDay, flow: timed, d0 }
 }
 
-export default function Today({ householdId, members, go, me, focus, setFocus, custody, linked }) {
+export default function Today({ householdId, members, people, go, me, focus, setFocus, custody, linked }) {
   const events = useTable('events', householdId, 'starts_at')
   const chores = useTable('chores', householdId)
   const meals = useTable('meal_plan', householdId, 'day')
@@ -88,6 +89,7 @@ export default function Today({ householdId, members, go, me, focus, setFocus, c
       <FamilyStrip members={members} focus={focus} setFocus={setFocus} counts={overdue} extra={<NoteButton onClick={() => setNoteOpen(true)} />} />
       <Notes householdId={householdId} members={members} me={me} open={noteOpen} setOpen={setNoteOpen} />
       <CustodyLine custody={(custody || []).filter((c) => forFocus(focus, c.child_id))} members={members} me={me} linked={linked} />
+      <Pickups householdId={householdId} members={members} people={people} me={me} custody={custody} events={events.rows} />
 
       <div className="hero">
         <div className="hero-label"><Icon name="food" size={16} /> Middag ikväll</div>

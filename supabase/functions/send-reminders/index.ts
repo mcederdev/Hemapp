@@ -6,6 +6,7 @@ import { occurrences } from './rrule.js'
 import { planDue } from './plans.js'
 import { nextBirthday, daysUntil } from './yearly.js'
 import { nextHandover, withAnchor } from './custody.js'
+import { medicineStatus } from './medicine.js'
 
 const TZ = 'Europe/Stockholm'
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
@@ -162,13 +163,27 @@ Deno.serve(async (req) => {
           await db.from('birthdays').update({ notified_year: +x.date.slice(0, 4) }).eq('id', b.id)
         }
       }
+      // Medicin som snart tar slut (egna och delade barns). notified_by = { hushåll: opened_on }
+      const { data: meds } = await db.from('medicines').select('*').or(`household_id.eq.${h.id}${kidIds.length ? `,member_id.in.(${inList(kidIds)})` : ''}`)
+      for (const m of meds ?? []) {
+        const st = medicineStatus(m, todayLocal)
+        const by = m.notified_by ?? {}
+        if (st.daysLeft > m.remind_days || by[h.id] === m.opened_on) continue
+        const who = nameOf(m.member_id) ?? ''
+        await send({ title: `💊 ${m.name}${who ? ` till ${who}` : ''} ${st.left <= 0 ? 'är slut' : `räcker ${st.daysLeft === 0 ? 'bara idag' : `${st.daysLeft} dagar till`}`}`, body: m.note || 'Dags att hämta ut en ny flaska', url: '/?tab=medicine' })
+        await db.from('medicines').update({ notified_for: m.opened_on, notified_by: { ...by, [h.id]: m.opened_on } }).eq('id', m.id)
+        log.push(`medicin ${m.name} ${h.name}`)
+      }
       await db.from('households').update({ last_yearly_push: todayLocal }).eq('id', h.id)
     }
 
     // Växelvis boende: notis kvällen före bytet till båda hushållen
     if (hour >= 18) {
       const { data: cust } = await db.from('custody').select('*').or(`household_id.eq.${h.id}${linkIds.length ? `,link_id.in.(${inList(linkIds)})` : ''}`)
+      const custIds = (cust ?? []).map((c) => c.id)
+      const { data: exc } = custIds.length ? await db.from('custody_exceptions').select('*').in('custody_id', custIds) : { data: [] }
       for (const c of cust ?? []) {
+        c.exceptions = (exc ?? []).filter((x) => x.custody_id === c.id)
         const next = nextHandover(c, todayLocal, hm)
         const by = c.notified_by ?? {}
         if (daysUntil(todayLocal, next.date) !== 1 || by[h.id] === next.date) continue
@@ -191,6 +206,30 @@ Deno.serve(async (req) => {
         await db.from('custody').update({ notified_by: { ...by, [h.id]: next.date }, notified_for: next.date }).eq('id', c.id)
         log.push(`byte ${kid} ${h.name}`)
       }
+    }
+
+    // Veckoöversikt söndag kväll kl 19: vad som händer nästa vecka
+    const wd = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short' }).format(now)
+    if (wd === 'Sun' && hour >= 19 && h.last_week_push !== todayLocal) {
+      const offsetH = Number(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: '2-digit', hour12: false }).format(new Date(`${todayLocal}T12:00:00Z`))) - 12
+      const start = new Date(`${todayLocal}T00:00:00Z`); start.setUTCDate(start.getUTCDate() + 1); start.setUTCHours(start.getUTCHours() - offsetH)
+      const end = new Date(start.getTime() + 7 * 86400000)
+      const dayName = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: TZ, weekday: 'short' })
+      const items: [number, string][] = []
+      for (const e of events ?? []) {
+        if (e.title?.trim().toLowerCase() === 'dag2') continue
+        for (const o of occurrences(new Date(e.starts_at), e.rrule, start, end, e.exdates)) items.push([o.getTime(), `${dayName(o)} ${e.all_day ? '' : time(o) + ' '}${e.title}`])
+      }
+      items.sort((a, b) => a[0] - b[0])
+      const lastDay = new Date(end.getTime() - 3600000).toISOString().slice(0, 10)
+      const { data: meals } = await db.from('meal_plan').select('day').eq('household_id', h.id).gte('day', start.toISOString().slice(0, 10)).lte('day', lastDay)
+      const lines = []
+      if (items.length) lines.push(`📅 ${items.length} händelser: ${items.slice(0, 5).map((x) => x[1]).join(', ')}${items.length > 5 ? '…' : ''}`)
+      else lines.push('📅 Inget inplanerat än')
+      lines.push(`🍝 ${meals?.length ?? 0} av 7 middagar planerade`)
+      await send({ title: 'Veckan som kommer', body: lines.join('\n'), url: '/?tab=calendar' })
+      await db.from('households').update({ last_week_push: todayLocal }).eq('id', h.id)
+      log.push(`vecka ${h.name}`)
     }
 
     // VAB: påminnelse söndag kväll om dagar som inte är anmälda till Försäkringskassan

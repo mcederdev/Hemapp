@@ -3,7 +3,9 @@ import { supabase } from './supabase'
 
 // Tabeller där delade barns rader från det andra hushållet också ska med.
 // Där sköter databasens behörighetsregler vad vi får se.
-const SHARED = new Set(['events', 'vab_days', 'members', 'custody', 'cars', 'messages'])
+const SHARED = new Set(['events', 'vab_days', 'members', 'custody', 'cars', 'messages', 'custody_exceptions', 'medicines', 'pickups', 'packing_items'])
+// Tabeller utan household_id-kolumn
+const NO_HOUSEHOLD = new Set(['custody_exceptions'])
 
 // Hämtar en tabell för hushållet och håller den uppdaterad live
 // när någon annan i familjen ändrar något.
@@ -35,7 +37,7 @@ export function useTable(table, householdId, order = 'created_at', where = null)
   }, [load, table, val, shared, col])
 
   const insert = async (values) => {
-    const base = where ? { [col]: val } : { household_id: householdId }
+    const base = where ? { [col]: val } : NO_HOUSEHOLD.has(table) ? {} : { household_id: householdId }
     const rows = (Array.isArray(values) ? values : [values]).map((v) => ({ ...base, ...v }))
     const { data, error } = await supabase.from(table).insert(rows).select()
     if (error) alert(error.message)

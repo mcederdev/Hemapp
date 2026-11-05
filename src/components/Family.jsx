@@ -8,7 +8,7 @@ import { getTheme, setTheme } from '../lib/theme'
 import { CustodyEditor } from './Custody'
 import { pushSupport, currentSubscription, enablePush, disablePush } from '../lib/push'
 
-export default function Family({ me, householdId, members, membersTable, household, households, linked, custody, custodyTable }) {
+export default function Family({ me, householdId, members, membersTable, household, households, linked, custody, custodyTable, custodyExc }) {
   const [childName, setChildName] = useState('')
   const [adding, setAdding] = useState(false)
   const templates = useTable('chore_templates', householdId)
@@ -36,7 +36,7 @@ export default function Family({ me, householdId, members, membersTable, househo
                 <span className="row"><span className="avatar" style={{ background: m.color, width: 26, height: 26 }}>{m.short}</span><span>{m.name}</span></span>
                 <span className="muted small">Delas med {linked?.households.find((h) => h.household_id === m.household_id)?.name || 'andra hushållet'}</span>
               </div>
-              <CustodyEditor child={m} custody={custody} table={custodyTable} me={me} linked={linked} />
+              <CustodyEditor child={m} custody={custody} table={custodyTable} me={me} linked={linked} excTable={custodyExc} />
             </li>
           ) : (
             <li key={m.id} className="col">
@@ -54,7 +54,7 @@ export default function Family({ me, householdId, members, membersTable, househo
                 <input type="tel" inputMode="tel" placeholder="Mobilnummer (för Swish)" defaultValue={m.phone || ''}
                   onBlur={(e) => e.target.value !== (m.phone || '') && membersTable.update(m.id, { phone: e.target.value || null })} />
               )}
-              {m.role === 'child' && <CustodyEditor child={m} custody={custody} table={custodyTable} me={me} linked={linked} />}
+              {m.role === 'child' && <CustodyEditor child={m} custody={custody} table={custodyTable} me={me} linked={linked} excTable={custodyExc} />}
             </li>
           ))}
         </ul>

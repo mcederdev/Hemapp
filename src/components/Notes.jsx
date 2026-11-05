@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTable } from '../useTable'
 import { today, prettyDay } from '../lib/dates'
 import { nextBirthday, daysUntil } from '../lib/yearly'
+import { medicineStatus } from '../lib/medicine'
 import { MemberTag } from './MemberPicker'
 import Sheet from './Sheet'
 
@@ -75,8 +76,10 @@ export default function Notes({ householdId, members, me, big = false, open = fa
 export function Soon({ householdId, go, bare = false }) {
   const reminders = useTable('reminders', householdId, 'due_date')
   const birthdays = useTable('birthdays', householdId)
+  const meds = useTable('medicines', householdId)
   const t = today()
   const items = [
+    ...meds.rows.map((m) => { const s = medicineStatus(m, t); return { id: m.id, emoji: '💊', text: `${m.name} ${s.left <= 0 ? 'är slut' : 'tar slut'}`, n: s.daysLeft, show: s.daysLeft <= m.remind_days } }),
     ...reminders.rows.map((r) => ({ id: r.id, emoji: r.emoji, text: r.title, n: daysUntil(t, r.due_date), show: daysUntil(t, r.due_date) <= Math.max(r.remind_days, 0) })),
     ...birthdays.rows.map((b) => { const x = nextBirthday(b.day, t); return { id: b.id, emoji: '🎂', text: `${b.name}${b.year_known ? ` fyller ${x.age}` : ' fyller år'}`, n: x.daysLeft, show: x.daysLeft <= Math.max(b.remind_days, 0) } })
   ].filter((x) => x.show).sort((a, b) => a.n - b.n)

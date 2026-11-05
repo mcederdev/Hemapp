@@ -538,3 +538,15 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
   .ld-feature { grid-template-columns: 1fr; gap: 18px; padding: 36px 0; text-align: center; }
   .ld-feature.flip .ld-text { order: 0; }
 }
+.med { gap: 6px; }
+.med-bar { width: 100%; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.med-bar i { display: block; height: 100%; border-radius: 4px; }
+.pickups .pk-day { padding: 6px 14px 8px; display: flex; flex-direction: column; gap: 6px; }
+.pk-row { display: flex; gap: 8px; align-items: center; }
+.pk-btn { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 10px; border-style: dashed; }
+.pk-btn.set { border-style: solid; }
+.pk-who { display: inline-flex; gap: 4px; align-items: center; font-weight: 600; }
+.warn-line { margin: 0; padding: 6px 10px; border-radius: 10px; background: #fff4d6; color: #6a4a00; font-size: .88rem; }
+:root[data-theme="dark"] .warn-line { background: #3a2f10; color: #ffd98a; }
+.holidays { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.card-inset { background: var(--bg); border-radius: 12px; padding: 10px; }

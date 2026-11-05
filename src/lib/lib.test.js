@@ -189,3 +189,19 @@ test('bil: delade kostnader och reglering', () => {
   assert.equal(carBalance(car, costs, [{ amount: 2800, from_household: 'B' }]), 0)
   assert.equal(carBalance({ ...car, owner_share: 70 }, [{ amount: 1000, shared: true, paid_by_household: null }]), -700)
 })
+
+test('växelvis boende: lov ändrar schemat', () => {
+  // Jullov: barnet är hos A från sön 20 dec 18:00 till sön 3 jan 18:00 trots att 27 dec vore B:s vecka
+  const c = { household_id: 'A', anchor: '2026-11-01', every_days: 7, handover_time: '18:00', exceptions: [{ from_date: '2026-12-20', to_date: '2027-01-03', with_anchor: true }] }
+  assert.equal(withAnchor(c, '2026-12-29'), true)
+  assert.equal(isHandover(c, '2026-12-27'), false)
+  assert.equal(nextHandover(c, '2026-12-21').date, '2027-01-03')
+  assert.equal(withAnchor(c, '2027-01-04'), false)
+})
+
+import { medicineStatus } from './medicine.js'
+test('medicin: räcker till', () => {
+  const m = { bottle_size: 100, full_size: 100, dose: 5, doses_per_day: 2, opened_on: '2026-11-01' }
+  assert.deepEqual(medicineStatus(m, '2026-11-05'), { left: 60, daysLeft: 6, runsOut: '2026-11-11', share: 0.6 })
+  assert.equal(medicineStatus(m, '2026-12-01').left, 0)
+})

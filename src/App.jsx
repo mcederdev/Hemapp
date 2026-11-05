@@ -4,6 +4,7 @@ import { useTable } from './useTable'
 import { useLinked } from './useLinked'
 import Car from './components/Car'
 import Messages, { lastSeen } from './components/Messages'
+import Medicines from './components/Medicines'
 import Landing from './components/Landing'
 import Setup from './components/Setup'
 import Shopping from './components/Shopping'
@@ -35,6 +36,7 @@ const MORE = [
   { id: 'kids', label: 'Barnens sida', icon: 'star' },
   { id: 'vab', label: 'VAB & Sjukdagar', icon: 'thermo' },
   { id: 'car', label: 'Bilen', icon: 'car' },
+  { id: 'medicine', label: 'Medicin', icon: 'pill' },
   { id: 'stats', label: 'Statistik', icon: 'chart' },
   { id: 'reminders', label: 'Påminnelser & födelsedagar', icon: 'bell' },
   { id: 'kitchen', label: 'Köksskärm (iPad)', icon: 'home' },
@@ -83,7 +85,9 @@ function Home({ me }) {
   const members = useTable('members', me.household_id)
   const households = useTable('households', me.household_id)
   const linked = useLinked(me.household_id)
-  const custody = useTable('custody', me.household_id)
+  const custodyRaw = useTable('custody', me.household_id)
+  const custodyExc = useTable('custody_exceptions', me.household_id, 'from_date')
+  const custody = { ...custodyRaw, rows: custodyRaw.rows.map((c) => ({ ...c, exceptions: custodyExc.rows.filter((e) => e.custody_id === c.id) })) }
   const messages = useTable('messages', me.household_id, 'created_at')
   // Familjeremsan: vald person filtrerar Idag, Kalender och Sysslor
   const [focus, setFocusState] = useState(() => localStorageGet('focus') || null)
@@ -93,7 +97,7 @@ function Home({ me }) {
   const all = withInitials(members.rows)
   // Alla personer vi kan behöva visa namn för, även föräldrar i det andra hushållet
   const people = withInitials([...members.rows, ...linked.people.filter((p) => !members.rows.some((m) => m.id === p.id)).map((p) => ({ ...p, role: 'parent', linked: true }))])
-  const props = { me, householdId: me.household_id, members: all, people, linked, custody: custody.rows, custodyTable: custody, membersTable: members, household, households, go: pick,
+  const props = { me, householdId: me.household_id, members: all, people, linked, custody: custody.rows, custodyTable: custodyRaw, custodyExc, membersTable: members, household, households, go: pick,
     focus: all.some((m) => m.id === focus) ? focus : null, setFocus }
   const active = MORE.some((m) => m.id === tab) ? 'more' : tab
   const seen = lastSeen()
@@ -126,6 +130,7 @@ function Home({ me }) {
         {tab === 'stats' && <Stats {...props} />}
         {tab === 'reminders' && <Reminders {...props} />}
         {tab === 'car' && <Car {...props} />}
+        {tab === 'medicine' && <Medicines {...props} />}
         {tab === 'messages' && <section><h2>Meddelanden</h2><Messages {...props} /></section>}
         {tab === 'family' && <Family {...props} />}
       </main>

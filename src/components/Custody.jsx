@@ -59,7 +59,7 @@ export function custodyForDay(custody, me, date) {
 }
 
 // Inställning per barn i Familj-sidan
-export function CustodyEditor({ child, custody, table, me, linked }) {
+export function CustodyEditor({ child, custody, table, me, linked, excTable }) {
   const c = custody.find((x) => x.child_id === child.id)
   const [open, setOpen] = useState(false)
   const t = today()
@@ -91,6 +91,7 @@ export function CustodyEditor({ child, custody, table, me, linked }) {
           <Icon name="repeat" size={14} /> {c ? `Växelvis: ${s.here ? 'hos oss' : `hos ${s.other}`}, byte ${prettyDay(s.next.date)} kl ${s.next.time}` : 'Ställ in växelvis boende'}
         </button>
       )}
+      {c && !open && excTable && <Holidays c={c} me={me} linked={linked} excTable={excTable} kid={child} />}
       {open && form && (
         <div className="stack">
           <label className="field"><span className="muted small">En dag {child.name} kommer till er</span>
@@ -134,7 +135,12 @@ export function PackingList({ child, custody, me, linked, items }) {
   const [text, setText] = useState('')
   const [editing, setEditing] = useState(false)
   const leave = nextLeave(custody, me, linked)
-  const list = items.rows.filter((i) => i.child_id === child.id).sort((a, b) => a.sort - b.sort || a.created_at.localeCompare(b.created_at))
+  const mine = (i) => i.household_id === me.household_id
+  const list = items.rows.filter((i) => i.child_id === child.id && mine(i)).sort((a, b) => a.sort - b.sort || a.created_at.localeCompare(b.created_at))
+  // Det som det andra hemmet packade med inför senaste bytet hit
+  const arrived = lastArrival(custody, me)
+  const fromOther = arrived ? items.rows.filter((i) => i.child_id === child.id && !mine(i) && i.packed_for === arrived) : []
+  const other = custodyStatus(custody, me, linked).other
   const packed = list.filter((i) => i.packed_for === leave).length
   const add = (title) => {
     const t = title.trim()
@@ -155,6 +161,22 @@ export function PackingList({ child, custody, me, linked, items }) {
         ))}
       </ul>
       {list.length === 0 && <p className="muted">Inga saker än. Välj bland förslagen eller skriv egna.</p>}
+      {fromOther.length > 0 && (
+        <>
+          <h4 className="day">Kom med från {other} {prettyDay(arrived)}</h4>
+          <p className="muted small">Bocka i det ni skickar tillbaka, så ser {other} det.</p>
+          <ul className="list">
+            {fromOther.map((i) => (
+              <li key={i.id} className={i.returned_for === leave ? 'is-done' : ''}>
+                <label className="check grow"><input type="checkbox" checked={i.returned_for === leave} onChange={() => items.update(i.id, { returned_for: i.returned_for === leave ? null : leave })} /> <span>{i.title}</span></label>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {list.some((i) => i.returned_for && i.packed_for && i.returned_for > i.packed_for) && (
+        <p className="small">↩︎ Kom tillbaka från {other}: {list.filter((i) => i.returned_for && i.packed_for && i.returned_for > i.packed_for).map((i) => i.title).join(', ')}</p>
+      )}
       <form className="row" onSubmit={(e) => { e.preventDefault(); add(text); setText('') }}>
         <input placeholder="Lägg till sak" value={text} onChange={(e) => setText(e.target.value)} />
         <button disabled={!text.trim()}>Lägg till</button>
@@ -167,7 +189,7 @@ export function PackingList({ child, custody, me, linked, items }) {
 
 function PackChip({ kid, c, me, linked, items, onClick }) {
   const leave = nextLeave(c, me, linked)
-  const list = items.rows.filter((i) => i.child_id === kid.id)
+  const list = items.rows.filter((i) => i.child_id === kid.id && i.household_id === me.household_id)
   const left = list.filter((i) => i.packed_for !== leave).length
   const soon = daysBetween(today(), leave) <= 2
   return (
@@ -177,3 +199,52 @@ function PackChip({ kid, c, me, linked, items, onClick }) {
   )
 }
 const daysBetween = (a, b) => Math.round((parseDay(b) - parseDay(a)) / 86400000)
+
+// Senaste dagen barnet kom till oss (för att visa vad som packades med därifrån)
+export function lastArrival(c, me) {
+  const t = today()
+  for (let i = 0; i < 60; i++) {
+    const d = addDays(t, -i)
+    if (isHandover(c, d) && withUs(c, me.household_id, d, '23:59')) return d
+  }
+  return null
+}
+
+// Lov och semester: perioder då schemat inte följer varannan vecka
+function Holidays({ c, me, linked, excTable, kid }) {
+  const [form, setForm] = useState(null)
+  const mine = c.household_id === me.household_id
+  const other = otherName(c, me, linked)
+  const list = (c.exceptions || []).filter((x) => x.to_date >= today()).sort((a, b) => a.from_date.localeCompare(b.from_date))
+  const save = async () => {
+    if (!form.from || !form.to || form.to < form.from) return alert('Välj ett slutdatum efter startdatumet')
+    await excTable.insert({ custody_id: c.id, from_date: form.from, to_date: form.to, with_anchor: mine ? form.here : !form.here, note: form.note || null })
+    setForm(null)
+  }
+  const hereIn = (x) => (mine ? x.with_anchor : !x.with_anchor)
+  return (
+    <div className="holidays">
+      {list.map((x) => (
+        <div key={x.id} className="row between small">
+          <span>🏖️ {prettyDay(x.from_date)}–{prettyDay(x.to_date)}: {hereIn(x) ? 'hos er' : `hos ${other}`}{x.note ? ` · ${x.note}` : ''}</span>
+          <button className="icon-btn" onClick={() => confirm('Ta bort perioden?') && excTable.remove(x.id)} aria-label="Ta bort perioden">✕</button>
+        </div>
+      ))}
+      {!form && <button className="link small" onClick={() => setForm({ from: '', to: '', here: true, note: '' })}>+ Lov eller semester som avviker</button>}
+      {form && (
+        <div className="stack card-inset">
+          <input placeholder="Vad (t.ex. Jullov, Sommar vecka 1)" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+          <div className="row">
+            <label className="field"><span className="muted small">Från (kl {String(c.handover_time).slice(0, 5)})</span><input type="date" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} /></label>
+            <label className="field"><span className="muted small">Till (kl {String(c.handover_time).slice(0, 5)})</span><input type="date" value={form.to} min={form.from} onChange={(e) => setForm({ ...form, to: e.target.value })} /></label>
+          </div>
+          <div className="seg">
+            <button type="button" className={form.here ? 'active' : ''} onClick={() => setForm({ ...form, here: true })}>{kid.name} hos er</button>
+            <button type="button" className={!form.here ? 'active' : ''} onClick={() => setForm({ ...form, here: false })}>Hos {other}</button>
+          </div>
+          <div className="row"><button className="primary" onClick={save}>Spara</button><button onClick={() => setForm(null)}>Avbryt</button></div>
+        </div>
+      )}
+    </div>
+  )
+}
