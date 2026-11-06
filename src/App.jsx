@@ -81,8 +81,10 @@ export default function App() {
 
 function Home({ me }) {
   const [tab, setTab] = useState(() => {
-    const fromUrl = new URLSearchParams(location.search).get('tab')
+    let fromUrl = new URLSearchParams(location.search).get('tab')
     if (fromUrl) history.replaceState(null, '', '/')
+    // Notisen om övertid öppnar Ekonomi → Övertid
+    if (fromUrl === 'overtime') { localStorageSet('financeView', 'overtime'); fromUrl = 'finance' }
     return fromUrl || localStorageGet('tab') || 'today'
   })
   const members = useTable('members', me.household_id)

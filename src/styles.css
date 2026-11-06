@@ -650,3 +650,4 @@ button.name-edit { padding: 0; color: inherit; text-align: left; white-space: no
 .shared-tag { color: var(--accent, #3b6fb6); }
 .car-facts { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: -6px; }
 .seg.seg-sm button { padding: 4px 10px; font-size: .85rem; }
+.ot-sum .big-num { font-size: 2rem; line-height: 1.1; }

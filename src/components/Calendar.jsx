@@ -12,6 +12,7 @@ import Sheet, { Fab } from './Sheet'
 import FamilyStrip, { forFocus } from './FamilyStrip'
 import DayColumns from './DayColumns'
 import VabForm from './VabForm'
+import { EventOvertime } from './Overtime'
 import { custodyForDay, custodyStatus } from './Custody'
 import { CATEGORIES, catById, guessCategory, rulePrefix } from '../lib/categories'
 
@@ -243,7 +244,7 @@ export default function Calendar({ householdId, members, people, me, go, househo
       )}
 
       {mode === 'day'
-        ? <DayColumns occ={selOcc} day={selDate} members={who ? members.filter((m) => m.id === who) : members} onRemove={removeEvent} onVab={startVab} onSick={startSick} me={me} badgeFor={badgeFor} />
+        ? <DayColumns occ={selOcc} day={selDate} members={who ? members.filter((m) => m.id === who) : members} onRemove={removeEvent} onVab={startVab} onSick={startSick} me={me} badgeFor={badgeFor} householdId={householdId} rules={rules} />
         : <EventList list={selOcc} day={selDate} byId={byId} onRemove={removeEvent} onOpen={setOpened} badgeFor={badgeFor} empty="Inget denna dag." />}
 
       {opened && (
@@ -251,6 +252,7 @@ export default function Calendar({ householdId, members, people, me, go, househo
           <ul className="list"><EventRow occ={opened} day={selDate} byId={byId} badge={badgeFor(opened, selDate)} /></ul>
           <CategoryEditor occ={opened} events={events} rules={rules} household={household} households={households} householdId={householdId}
             onChange={(c) => setOpened({ ...opened, category: c })} />
+          {opened.member_id === me.id && !opened.all_day && (opened.category || guessCategory(opened.title, rules)) === 'jobb' && <EventOvertime key={opened.key} occ={opened} householdId={householdId} me={me} />}
           <div className="stack">
             {byId[opened.member_id]?.role === 'child' && (
               <button className="primary" onClick={() => startVab(opened)}>

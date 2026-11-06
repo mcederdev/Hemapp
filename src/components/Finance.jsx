@@ -7,6 +7,7 @@ import MemberPicker from './MemberPicker'
 import SwipeRow from './Swipe'
 import Sheet, { Fab } from './Sheet'
 import Subscriptions from './Subscriptions'
+import Overtime from './Overtime'
 
 const kr = (n) => Math.round(n).toLocaleString('sv-SE') + ' kr'
 
@@ -18,8 +19,11 @@ export default function Finance(props) {
       <div className="seg mb fin-seg">
         <button className={view === 'bills' ? 'active' : ''} onClick={() => pick('bills')}>Räkningar</button>
         <button className={view === 'subs' ? 'active' : ''} onClick={() => pick('subs')}>Abonnemang</button>
+        {props.me?.role !== 'child' && <button className={view === 'overtime' ? 'active' : ''} onClick={() => pick('overtime')}>Övertid</button>}
       </div>
-      {view === 'bills' ? <Bills {...props} /> : <section><h2>Abonnemang</h2><Subscriptions householdId={props.householdId} members={props.members} /></section>}
+      {view === 'bills' && <Bills {...props} />}
+      {view === 'subs' && <section><h2>Abonnemang</h2><Subscriptions householdId={props.householdId} members={props.members} /></section>}
+      {view === 'overtime' && <Overtime householdId={props.householdId} me={props.me} />}
     </>
   )
 }

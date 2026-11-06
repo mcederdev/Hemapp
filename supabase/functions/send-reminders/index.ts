@@ -163,6 +163,23 @@ Deno.serve(async (req) => {
           await db.from('birthdays').update({ notified_year: +x.date.slice(0, 4) }).eq('id', b.id)
         }
       }
+      // Övertid: näst sista dagen i månaden påminns var och en (bara sig själv) om att lägga in övertiden hos arbetsgivaren
+      const [ty, tm] = todayLocal.split('-').map(Number)
+      const lastBut = new Date(Date.UTC(ty, tm, -1)).toISOString().slice(0, 10)
+      if (todayLocal === lastBut) {
+        const { data: ots } = await db.from('overtime_settings').select('*').eq('household_id', h.id)
+        for (const st of ots ?? []) {
+          if (st.last_reminder === todayLocal.slice(0, 7)) continue
+          const { data: rows } = await db.from('overtime').select('starts_at, ends_at').eq('member_id', st.member_id).is('reported_at', null)
+          if (rows?.length) {
+            const mins = rows.reduce((a, r) => a + (new Date(r.ends_at).getTime() - new Date(r.starts_at).getTime()) / 60000, 0)
+            const hh = Math.floor(mins / 60), mm = Math.round(mins % 60)
+            await send({ title: '⏱️ Dags att lägga in övertiden', body: `${rows.length} pass, ${hh} h${mm ? ` ${mm} min` : ''} att föra in i arbetsgivarens system`, url: '/?tab=overtime' }, st.member_id)
+            log.push(`övertid ${st.member_id}`)
+          }
+          await db.from('overtime_settings').update({ last_reminder: todayLocal.slice(0, 7) }).eq('member_id', st.member_id)
+        }
+      }
       // Medicin som snart tar slut (egna och delade barns). notified_by = { hushåll: opened_on }
       const { data: meds } = await db.from('medicines').select('*').or(`household_id.eq.${h.id}${kidIds.length ? `,member_id.in.(${inList(kidIds)})` : ''}`)
       for (const m of meds ?? []) {

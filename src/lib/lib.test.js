@@ -284,3 +284,19 @@ test('skatten blir kostnader och syns bland kommande', () => {
   const up = upcomingCosts(car, [{ kind: 'forsakring', day: '2026-02-10', amount: 4000, shared: true }, { kind: 'service', day: '2026-12-01', amount: 2500 }], '2026-11-06')
   assert.deepEqual(up.map((c) => `${c.kind} ${c.day}`), ['service 2026-12-01', 'skatt 2027-01-31', 'forsakring 2027-02-10'])
 })
+import { splitOvertime, overtimePay, isRed, reportDay } from './overtime.js'
+test('övertid enligt kollektivavtalet', () => {
+  const s = { salary: 43670 }
+  // tisdag 10 nov 2026 16:00–21:30: 4 h vardag + 1,5 h annan tid
+  const a = splitOvertime(new Date('2026-11-10T16:00'), new Date('2026-11-10T21:30'))
+  assert.deepEqual(a, { day: 240, other: 90, total: 330 })
+  assert.equal(Math.round(overtimePay(a, s)), Math.round(4 * 43670 / 94 + 1.5 * 43670 / 72))
+  assert.equal(splitOvertime(new Date('2026-11-10T16:00'), new Date('2026-11-10T16:10')).total, 0)
+  // lördag = annan tid, julafton = annan tid, arbetsfri vardag = annan tid
+  assert.equal(splitOvertime(new Date('2026-11-14T10:00'), new Date('2026-11-14T11:00')).other, 60)
+  assert.equal(splitOvertime(new Date('2026-12-24T10:00'), new Date('2026-12-24T11:00')).other, 60)
+  assert.equal(splitOvertime(new Date('2026-11-10T10:00'), new Date('2026-11-10T11:00'), { freeDay: true }).other, 60)
+  assert.ok(isRed('2026-04-03') && isRed('2026-06-19') && isRed('2026-05-14') && !isRed('2026-11-10'))
+  assert.equal(reportDay('2026-11-06'), '2026-11-29')
+  assert.equal(reportDay('2027-02-10'), '2027-02-27')
+})
