@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTable } from '../useTable'
 import { today, prettyDay, repeatLabel } from '../lib/dates'
 import { completeChore } from './Chores'
+import { INSPECT_RE } from '../lib/car'
 import { MemberTag } from './MemberPicker'
 import Sheet, { Fab } from './Sheet'
 import SwipeRow, { Check } from './Swipe'
@@ -18,11 +19,11 @@ const QUICK = [
   { title: 'Fylla spolarvätska', emoji: '💧' }
 ]
 const REPEATS = [['', 'Upprepa inte'], ['1-week', 'Varje vecka'], ['2-week', 'Varannan vecka (≈ 2 ggr/mån)'], ['1-month', 'Varje månad'], ['3-month', 'Var 3:e månad'], ['6-month', 'Varje halvår'], ['12-month', 'Varje år']]
-const emojiOf = (title) => QUICK.find((q) => q.title === title)?.emoji || '🚗'
+const emojiOf = (title) => QUICK.find((q) => q.title === title)?.emoji || (/^besikt/i.test(title) ? '✅' : /skatt/i.test(title) ? '🏛️' : '🚗')
 const hm = (iso) => new Date(iso).toTimeString().slice(0, 5)
 const localDT = (iso) => { if (!iso) return ''; const d = new Date(iso); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16) }
 
-export default function CarTodo({ car, householdId, me, people, otherName }) {
+export default function CarTodo({ car, householdId, me, people, otherName, onInspected }) {
   const chores = useTable('chores', householdId)
   const [form, setForm] = useState(null)
   const t = today()
@@ -46,7 +47,7 @@ export default function CarTodo({ car, householdId, me, people, otherName }) {
     else await chores.insert(v)
     setForm(null)
   }
-  const complete = (c) => completeChore(chores, { ...c, booked_at: null }, me.id)
+  const complete = (c) => { completeChore(chores, { ...c, booked_at: null }, me.id); if (INSPECT_RE.test(c.title) ) onInspected?.(c) }
 
   return (
     <>

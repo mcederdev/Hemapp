@@ -648,3 +648,4 @@ button.name-edit { padding: 0; color: inherit; text-align: left; white-space: no
 .menu-edit label { gap: 10px; }
 .tabs button span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .shared-tag { color: var(--accent, #3b6fb6); }
+.car-facts { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: -6px; }

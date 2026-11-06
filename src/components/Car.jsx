@@ -4,7 +4,7 @@ import { useTable } from '../useTable'
 import { today, prettyDay } from '../lib/dates'
 import { CAR_REMINDERS } from '../lib/yearly'
 import { swishUrl } from '../lib/swish'
-import { carBalance, CAR_KINDS, kindOf } from '../lib/car'
+import { carBalance, CAR_KINDS, kindOf, carPlan, taxMonths, inspectionDue } from '../lib/car'
 import { custodyStatus } from './Custody'
 import { YearlyList } from './Reminders'
 import Sheet, { Fab } from './Sheet'
@@ -16,6 +16,7 @@ const kr = (n) => `${Math.round(n).toLocaleString('sv-SE')} kr`
 // Bilen: kostnader, vem som betalat, delning mellan hushållen och bilens påminnelser
 export default function Car({ householdId, me, members, people, linked, custody }) {
   const cars = useTable('cars', householdId)
+  const chores = useTable('chores', householdId)
   const [carId, setCarId] = useState(null)
   const [settings, setSettings] = useState(null)
   const car = cars.rows.find((c) => c.id === carId) || cars.rows[0]
@@ -23,11 +24,15 @@ export default function Car({ householdId, me, members, people, linked, custody 
   const saveCar = async (e) => {
     e.preventDefault()
     const v = { name: settings.name || 'Bilen', reg_nr: settings.reg_nr || null, owner_share: Number(settings.owner_share) || 0,
-      other_label: settings.other_label || 'andra hushållet', follows_child: settings.follows_child || null }
-    if (settings.id) await cars.update(settings.id, v)
+      other_label: settings.other_label || 'andra hushållet', follows_child: settings.follows_child || null,
+      model: settings.model || null, model_year: Number(settings.model_year) || null, fuel: settings.fuel || null,
+      tax_per_year: Number(String(settings.tax_per_year || '').replace(/\s/g, '')) || null, in_traffic: settings.in_traffic || null, last_inspection: settings.last_inspection || null }
+    let saved = null
+    if (settings.id) { await cars.update(settings.id, v); saved = { ...settings, ...v } }
     else {
       const link = linked.households[0]?.link_id || null
       const [created] = (await cars.insert({ ...v, link_id: link })) || []
+      saved = created
       // Flytta bilpåminnelser som redan ligger bland årliga saker hit
       if (created) {
         const titles = CAR_REMINDERS.map((r) => r.title)
@@ -35,6 +40,8 @@ export default function Car({ householdId, me, members, people, linked, custody 
         setCarId(created.id)
       }
     }
+    // Planera automatiskt: lägg in besiktning, skatt och däckbyten som saknas under Att göra
+    if (saved) { const add = carPlan(saved, chores.rows, today()); if (add.length) await chores.insert(add) }
     setSettings(null)
   }
   const newCar = () => setSettings({ name: 'Bilen', reg_nr: '', owner_share: 50, other_label: 'andra hushållet', follows_child: members.find((m) => m.role === 'child')?.id || '' })
@@ -55,13 +62,30 @@ export default function Car({ householdId, me, members, people, linked, custody 
           <button className="primary" onClick={newCar}>Lägg till bilen</button>
         </div>
       )}
-      {car && <CarBody key={car.id} car={car} me={me} members={members} people={people} linked={linked} custody={custody} householdId={householdId} />}
+      {car && <CarBody key={car.id} cars={cars} car={car} me={me} members={members} people={people} linked={linked} custody={custody} householdId={householdId} />}
       {settings && (
         <Sheet title={settings.id ? 'Bilen' : 'Lägg till bil'} onClose={() => setSettings(null)}>
           <form className="stack" onSubmit={saveCar}>
             <div className="row">
               <input placeholder="Namn (t.ex. Volvon)" value={settings.name} onChange={(e) => setSettings({ ...settings, name: e.target.value })} />
               <input placeholder="Reg.nr" value={settings.reg_nr || ''} onChange={(e) => setSettings({ ...settings, reg_nr: e.target.value.toUpperCase() })} style={{ maxWidth: 110 }} />
+            </div>
+            {settings.reg_nr && <a className="button" href={`https://biluppgifter.se/fordon/${settings.reg_nr.replace(/\s/g, '')}`} target="_blank" rel="noreferrer">🔎 Slå upp {settings.reg_nr} på biluppgifter.se</a>}
+            <p className="muted small">Fyll i från biluppgifter (eller registreringsbeviset). Då planerar appen besiktning, skatt och däckbyten under Att göra.</p>
+            <div className="row">
+              <input placeholder="Modell (t.ex. Volvo V60)" value={settings.model || ''} onChange={(e) => setSettings({ ...settings, model: e.target.value })} />
+              <input placeholder="Årsmodell" inputMode="numeric" value={settings.model_year || ''} onChange={(e) => setSettings({ ...settings, model_year: e.target.value.replace(/\D/g, '').slice(0, 4) })} style={{ maxWidth: 100 }} />
+            </div>
+            <div className="row">
+              <select value={settings.fuel || ''} onChange={(e) => setSettings({ ...settings, fuel: e.target.value })}>
+                <option value="">Drivmedel</option>
+                {['Bensin', 'Diesel', 'El', 'Laddhybrid', 'Elhybrid', 'Etanol', 'Gas'].map((f) => <option key={f}>{f}</option>)}
+              </select>
+              <input placeholder="Skatt kr/år" inputMode="numeric" value={settings.tax_per_year || ''} onChange={(e) => setSettings({ ...settings, tax_per_year: e.target.value.replace(/[^\d]/g, '') })} style={{ maxWidth: 120 }} />
+            </div>
+            <div className="row">
+              <label className="field"><span className="muted small">I trafik första gången</span><input type="date" value={settings.in_traffic || ''} onChange={(e) => setSettings({ ...settings, in_traffic: e.target.value })} /></label>
+              <label className="field"><span className="muted small">Senast besiktigad</span><input type="date" value={settings.last_inspection || ''} onChange={(e) => setSettings({ ...settings, last_inspection: e.target.value })} /></label>
             </div>
             <label className="field"><span className="muted small">{settings.id && settings.household_id !== householdId ? 'Ägarhushållet' : 'Ni'} betalar {settings.owner_share} % av delade kostnader</span>
               <input type="range" min={0} max={100} step={5} value={settings.owner_share} onChange={(e) => setSettings({ ...settings, owner_share: e.target.value })} /></label>
@@ -80,7 +104,7 @@ export default function Car({ householdId, me, members, people, linked, custody 
   )
 }
 
-function CarBody({ car, me, members, people, linked, custody, householdId }) {
+function CarBody({ cars, car, me, members, people, linked, custody, householdId }) {
   const costs = useTable('car_costs', householdId, 'day', ['car_id', car.id])
   const settlements = useTable('car_settlements', householdId, 'day', ['car_id', car.id])
   const [form, setForm] = useState(null)
@@ -99,6 +123,16 @@ function CarBody({ car, me, members, people, linked, custody, householdId }) {
   const balance = carBalance(car, costs.rows, settlements.rows) * (isOwner ? 1 : -1)
 
   const kid = members.find((m) => m.id === car.follows_child)
+  const chores = useTable('chores', householdId)
+  const inspectDue = inspectionDue(car)
+  const taxM = taxMonths(car.reg_nr, car.tax_per_year)
+  // Besiktningen är gjord: spara datumet och lägg in nästa
+  const inspected = async (done) => {
+    const next = { ...car, last_inspection: t }
+    await cars.update(car.id, { last_inspection: t })
+    const add = carPlan(next, chores.rows.filter((c) => c.id !== done.id), t).filter((x) => /^besiktiga/i.test(x.title))
+    if (add.length) await chores.insert(add)
+  }
   const where = (() => {
     const c = kid && (custody || []).find((x) => x.child_id === kid.id)
     if (!c) return isOwner ? 'Står hos er' : `Står hos ${otherName}`
@@ -132,6 +166,13 @@ function CarBody({ car, me, members, people, linked, custody, householdId }) {
   return (
     <>
       <p className="muted">{car.reg_nr && <strong className="reg">{car.reg_nr}</strong>} {where}</p>
+      {(car.model || car.model_year || car.fuel || inspectDue || taxM.length > 0) && (
+        <p className="small car-facts">
+          {[car.model, car.model_year, car.fuel].filter(Boolean).join(' · ')}
+          {inspectDue && <span className={inspectDue < t ? 'error' : ''}>✅ Besiktning senast {prettyDay(inspectDue)} {inspectDue.slice(0, 4)}</span>}
+          {taxM.length > 0 && <span>🏛️ Skatt i {taxM.map((m) => new Date(2000, m - 1, 1).toLocaleDateString('sv-SE', { month: 'long' })).join(', ')}{car.tax_per_year ? ` · ${kr(car.tax_per_year)}/år` : ''}</span>}
+        </p>
+      )}
 
       <div className={`card stack balance ${Math.abs(balance) < 1 ? '' : balance > 0 ? 'plus' : 'minus'}`}>
         {Math.abs(balance) < 1
@@ -194,7 +235,7 @@ function CarBody({ car, me, members, people, linked, custody, householdId }) {
         </div>
       )}
 
-      {view === 'todo' && <CarTodo car={car} householdId={householdId} me={me} people={people} otherName={otherName} />}
+      {view === 'todo' && <CarTodo onInspected={inspected} car={car} householdId={householdId} me={me} people={people} otherName={otherName} />}
       {view === 'reminders' && <YearlyList householdId={householdId} carId={car.id} suggestionList={CAR_REMINDERS} placeholder="T.ex. Bilbesiktning" />}
 
       {(view === 'costs' || view === 'year') && <Fab onClick={() => startCost('bransle')} label="Ny kostnad" />}

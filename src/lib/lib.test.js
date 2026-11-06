@@ -248,3 +248,24 @@ t2('syssla med fast dag syns först den dagen, fri syns hela veckan', async () =
   assert.equal(showToday({ plan_id: 'p', fixed_day: false, due_date: '2026-11-15' }, '2026-11-09'), true)
   assert.equal(showToday({ due_date: '2026-11-12' }, '2026-11-09'), false)
 })
+
+import { taxMonths, inspectionDue, carPlan } from './car.js'
+test('fordonsskatt: slutsiffran styr månaden, över 3600 kr tre månader', () => {
+  assert.deepEqual(taxMonths('ABC121', 1500), [4])
+  assert.deepEqual(taxMonths('ABC12D', 1500), [5])
+  assert.deepEqual(taxMonths('ABC120', 5000), [3, 7, 11])
+  assert.deepEqual(taxMonths('XYZ998', 4000), [1, 5, 9])
+})
+test('besiktning 36-24-14 månader', () => {
+  assert.equal(inspectionDue({ in_traffic: '2024-05-10' }), '2027-05-31')
+  assert.equal(inspectionDue({ in_traffic: '2020-05-10', last_inspection: '2023-04-02' }), '2025-04-30')
+  assert.equal(inspectionDue({ in_traffic: '2015-05-10', last_inspection: '2026-03-20' }), '2027-05-31')
+  assert.equal(inspectionDue({}), null)
+})
+test('bilplanen lägger bara till det som saknas', () => {
+  const car = { id: 'c', reg_nr: 'ABC121', tax_per_year: 1000, in_traffic: '2015-01-01', last_inspection: '2026-03-01' }
+  const p = carPlan(car, [{ car_id: 'c', done: false, title: 'Byta till vinterdäck' }], '2026-11-06')
+  assert.deepEqual(p.map((x) => x.title.split(' ')[0]), ['Besiktiga', 'Fordonsskatt', 'Byta'])
+  assert.equal(p[1].due_date, '2027-04-30')
+  assert.equal(p[0].due_date, '2027-04-30')
+})
