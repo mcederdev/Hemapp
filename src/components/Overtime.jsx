@@ -98,6 +98,13 @@ export default function Overtime({ householdId, me }) {
               <label className="field"><span className="muted small">Från</span><input type="time" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} required /></label>
               <label className="field"><span className="muted small">Till</span><input type="time" value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} required /></label>
             </div>
+            <label className="field"><span className="muted small">…eller antal minuter efter Från</span>
+              <input inputMode="numeric" placeholder="t.ex. 53" value={form.mins || ''} onChange={(e) => {
+                const m = e.target.value.replace(/\D/g, '').slice(0, 4)
+                const next = { ...form, mins: m }
+                if (form.from && Number(m)) { const d = new Date(`${form.day}T${form.from}`); d.setMinutes(d.getMinutes() + Number(m)); next.to = d.toTimeString().slice(0, 5) }
+                setForm(next)
+              }} /></label>
             <label className="row small"><input type="checkbox" checked={form.free} onChange={(e) => setForm({ ...form, free: e.target.checked })} /> Det var en arbetsfri dag för mig (räknas som annan tid)</label>
             <input placeholder="Anteckning (valfritt)" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
             {preview && (
@@ -136,9 +143,11 @@ export function EventOvertime({ occ, householdId, me }) {
   const planned = occ.end || occ.start
   const dayStr = `${occ.start.getFullYear()}-${String(occ.start.getMonth() + 1).padStart(2, '0')}-${String(occ.start.getDate()).padStart(2, '0')}`
   const row = ot.rows.find((r) => r.event_id === occ.id && r.day === dayStr)
-  const [end, setEnd] = useState(row ? hm(row.ends_at) : '')
-  const range = end ? (() => { const e = new Date(planned); const [h, m] = end.split(':').map(Number); e.setHours(h, m, 0, 0); if (e < planned && (planned - e) > 12 * 3600000) e.setDate(e.getDate() + 1); return e })() : null
-  const sp = range && range > planned ? splitOvertime(planned, range, { minMinutes: minOf(s) }) : null
+  // Fyll i antal minuter (t.ex. tåget var 53 minuter sent), faktisk sluttid räknas ut
+  const [mins, setMins] = useState(row ? String(Math.round((new Date(row.ends_at) - new Date(row.starts_at)) / 60000)) : '')
+  const n = Number(mins) || 0
+  const range = n > 0 ? new Date(planned.getTime() + n * 60000) : null
+  const sp = range ? splitOvertime(planned, range, { minMinutes: minOf(s) }) : null
   const save = async () => {
     if (!sp || sp.short) { if (row) await ot.remove(row.id); return }
     const v = { member_id: me.id, day: dayStr, starts_at: planned.toISOString(), ends_at: range.toISOString(), event_id: occ.id }
@@ -148,11 +157,11 @@ export function EventOvertime({ occ, householdId, me }) {
     <div className="card stack ot-event">
       <strong>⏱️ Övertid</strong>
       <div className="row">
-        <span className="muted small grow">Planerat slut {hm(planned.toISOString())}. Faktiskt slut:</span>
-        <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={{ maxWidth: 120 }} />
+        <span className="muted small grow">Planerat slut {hm(planned.toISOString())}. Övertid i minuter:</span>
+        <input inputMode="numeric" placeholder="t.ex. 53" value={mins} onChange={(e) => setMins(e.target.value.replace(/\D/g, '').slice(0, 4))} style={{ maxWidth: 90 }} />
       </div>
-      {sp && <span className="small">{sp.short ? `Under ${minOf(s)} minuter ersätts inte.` : `${fmtH(sp.total)} övertid${s?.salary ? ` ≈ ${kr(overtimePay(sp, s))}` : ''}`}</span>}
-      {end && <button className="primary" onClick={save}>{row ? 'Uppdatera övertid' : 'Spara övertid'}</button>}
+      {sp && <span className="small">Faktiskt slut <strong>{hm(range.toISOString())}</strong> · {sp.short ? `under ${minOf(s)} minuter ersätts inte` : `${fmtH(sp.total)} övertid${s?.salary ? ` ≈ ${kr(overtimePay(sp, s))}` : ''}`}</span>}
+      {(mins || row) && <button className="primary" onClick={save}>{row ? 'Uppdatera övertid' : 'Spara övertid'}</button>}
       {row && <span className="muted small">✓ Sparad{row.reported_at ? ' och rapporterad' : ', samlas under Ekonomi → Övertid'}</span>}
     </div>
   )
