@@ -57,9 +57,11 @@ export default function Shopping({ householdId, me, members }) {
   const submit = (e) => { e.preventDefault(); add(text); setText('') }
   const clearDone = () => done.forEach((i) => items.remove(i.id))
 
+  // Prio-markerade varor ligger överst och syns på Idag
+  const prioFirst = (rows) => [...rows].sort((a, b) => Number(!!b.prio) - Number(!!a.prio))
   const groups = groupBySection
-    ? SECTIONS.map((s) => [s, todo.filter((i) => (SECTIONS.includes(i.section) ? i.section : 'Övrigt') === s)]).filter(([, v]) => v.length)
-    : [[null, todo]]
+    ? SECTIONS.map((s) => [s, prioFirst(todo.filter((i) => (SECTIONS.includes(i.section) ? i.section : 'Övrigt') === s))]).filter(([, v]) => v.length)
+    : [[null, prioFirst(todo)]]
 
   return (
     <section>
@@ -109,9 +111,11 @@ export default function Shopping({ householdId, me, members }) {
                   <SwipeRow key={i.id} onCheck={() => tick(i)} onDelete={() => items.remove(i.id)} checkLabel="I korgen">
                     <span className="check">
                       <Check checked={false} onChange={() => tick(i)} label={`Bocka av ${i.name}`} />
-                      <span>{i.name}</span>
+                      <span className={i.prio ? 'prio-name' : ''}>{i.name}</span>
                     </span>
                     <span className="meta">
+                      <button className={`icon-btn prio-btn ${i.prio ? 'on' : ''}`} onClick={() => items.update(i.id, { prio: !i.prio })}
+                        aria-pressed={!!i.prio} aria-label={i.prio ? `Ta bort prio på ${i.name}` : `Prio-markera ${i.name}`}>!</button>
                       <MemberTag member={byId[i.added_by]} size={22} />
                       <button className="icon-btn del" onClick={() => items.remove(i.id)} aria-label="Ta bort">✕</button>
                     </span>
@@ -121,6 +125,7 @@ export default function Shopping({ householdId, me, members }) {
             </div>
           ))}
           {!items.loading && todo.length === 0 && <p className="muted">Listan är tom.</p>}
+          {todo.length > 0 && <p className="muted small">Tryck på ! för att prio-markera en vara. Prio-varorna syns på Idag.</p>}
           <div className="row between">
             <button className="link" onClick={() => setGroupBySection(!groupBySection)}>{groupBySection ? 'Visa utan avdelningar' : 'Sortera efter avdelning'}</button>
           </div>

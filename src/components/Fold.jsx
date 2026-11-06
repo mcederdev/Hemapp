@@ -36,10 +36,10 @@ function Arrows({ id }) {
 }
 
 // Rutor som inte är en Fold (t.ex. middagen) men ska kunna flyttas
-export function Movable({ id, children }) {
+export function Movable({ id, className = '', children }) {
   const { order, arranging } = useContext(FoldCtx)
   return (
-    <div data-fold={id} className={`movable ${arranging ? 'arranging' : ''}`} style={{ order: order.indexOf(id) + 1 }}>
+    <div data-fold={id} className={`movable ${arranging ? 'arranging' : ''} ${className}`} style={{ order: order.indexOf(id) + 1 }}>
       {arranging && <Arrows id={id} />}
       {children}
     </div>

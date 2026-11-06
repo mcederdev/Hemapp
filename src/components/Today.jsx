@@ -74,6 +74,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
   const fold = useFoldOrder()
   const defaultList = lists.rows.find((l) => l.is_default)
   const toBuy = items.rows.filter((i) => !i.done && i.list_id === defaultList?.id)
+  const prio = toBuy.filter((i) => i.prio)
   const otherLists = lists.rows.filter((l) => !l.is_default && !l.archived && l.for_date && l.for_date >= t)
 
   const allDishes = dishList(dishes.rows, household?.hidden_dishes)
@@ -102,7 +103,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
       <MedicineToday householdId={householdId} members={members} people={people} me={me} custody={custody} focus={focus} />
       <Pickups householdId={householdId} members={members} people={[...(people || members), ...(guests || []).map((g) => ({ ...g, role: 'guest', short: g.name.slice(0, 1).toUpperCase() }))]} me={me} custody={custody} events={events.rows} go={go} />
 
-      <Movable id="dinner">
+      <Movable id="dinner" className="half">
       <div className="hero">
         <div className="hero-label"><Icon name="food" size={16} /> Middag ikväll</div>
         <div className="hero-dish">{dinner ? dinner.dish : 'Inte bestämt än'}</div>
@@ -172,11 +173,14 @@ export default function Today({ householdId, members, people, go, me, focus, set
 
       <Soon householdId={householdId} go={go} />
 
-      <Fold id="shop" onOpen={() => go('shopping')} title={<><Icon name="cart" size={18} /> <strong>Handla</strong></>} count={toBuy.length}
-        summary={toBuy.length === 0 ? <span className="ok">✓ Inget att handla</span> : `${toBuy.length} varor: ${toBuy.slice(0, 3).map((i) => i.name).join(', ')}${toBuy.length > 3 ? ' …' : ''}`}>
-        <p className="small pad">
-          {toBuy.length === 0 ? <span className="muted">Inget att handla just nu.</span> : toBuy.slice(0, 6).map((i) => i.name).join(', ') + (toBuy.length > 6 ? ' …' : '')}
-        </p>
+      <Fold id="shop" className="half" onOpen={() => go('shopping')} title={<><Icon name="cart" size={18} /> <strong>Handla</strong></>} count={toBuy.length}
+        summary={toBuy.length === 0 ? <span className="ok">✓ Inget att handla</span> : prio.length ? `Prio: ${prio.map((i) => i.name).join(', ')}` : `${toBuy.length} varor på listan`}>
+        {toBuy.length === 0 ? <p className="small pad muted">Inget att handla just nu.</p> : prio.length > 0 ? (
+          <ul className="prio-list">
+            {prio.slice(0, 6).map((i) => <li key={i.id}>{i.name}</li>)}
+          </ul>
+        ) : <p className="small pad muted">Inga prio-varor. Markera med ! i Handla.</p>}
+        {toBuy.length > prio.slice(0, 6).length && <p className="muted small pad">{prio.length ? `+ ${toBuy.length - Math.min(prio.length, 6)} till` : `${toBuy.length} varor på listan`}</p>}
         {otherLists.map((l) => <p key={l.id} className="muted small pad">{l.name} · {parseDay(l.for_date).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })}</p>)}
       </Fold>
 

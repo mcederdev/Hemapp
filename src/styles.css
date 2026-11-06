@@ -624,7 +624,22 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 .fold-open { margin-right: 6px; color: var(--muted); }
 .fold-sum { margin: -2px .85rem .7rem; color: var(--muted); }
 .fold-sum .error { color: var(--danger); }
-.today-cards { display: flex; flex-direction: column; }
+.today-cards { display: grid; grid-template-columns: 1fr 1fr; grid-auto-flow: row dense; column-gap: 10px; }
+.today-cards > * { grid-column: 1 / -1; min-width: 0; }
+/* Middag och Handla delar på en rad */
+.today-cards > .half { grid-column: span 1; }
+.today-cards > .movable.half { display: flex; margin-bottom: 10px; }
+.movable.half .hero { flex: 1; margin-bottom: 0; display: flex; flex-direction: column; padding: 12px; }
+.movable.half .hero-dish { font-size: 1.15rem; }
+.movable.half .hero .row { flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.movable.half .hero-btn { padding: 6px 10px; font-size: .85rem; }
+.fold.half .card-head { padding-right: 6px; }
+.prio-list { list-style: none; margin: 0; padding: 0 .85rem .3rem; font-size: .92rem; }
+.prio-list li { padding: 3px 0; font-weight: 600; }
+.prio-list li::before { content: '! '; color: var(--danger); font-weight: 800; }
+.prio-btn { font-weight: 800; color: var(--muted); padding: 2px 9px; border-radius: 999px; }
+.prio-btn.on { background: var(--danger); color: #fff; }
+.prio-name { font-weight: 600; }
 .fold-arrows { display: flex; gap: 2px; margin-right: 6px; }
 .fold-arrows .icon-btn { font-size: 1.1rem; padding: 4px 8px; }
 .movable { position: relative; }
