@@ -26,7 +26,7 @@ export function redDays(y) {
 export const isRed = (dayStr) => redDays(Number(dayStr.slice(0, 4))).has(dayStr)
 
 // Delar upp ett pass i minuter "vardag 06–20" och "annan tid"
-export function splitOvertime(start, end, { freeDay = false } = {}) {
+export function splitOvertime(start, end, { freeDay = false, minMinutes = 15 } = {}) {
   let day = 0, other = 0
   for (let t = new Date(start); t < end;) {
     const next = new Date(t); next.setSeconds(0, 0)
@@ -40,7 +40,7 @@ export function splitOvertime(start, end, { freeDay = false } = {}) {
     if (weekday && h >= 6 && h < 20) day += mins; else other += mins
     t = stop
   }
-  if (day + other < 15) return { day: 0, other: 0, total: 0, short: true }
+  if (day + other < minMinutes || day + other <= 0) return { day: 0, other: 0, total: 0, short: true }
   return { day, other, total: day + other }
 }
 

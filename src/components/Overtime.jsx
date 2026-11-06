@@ -8,7 +8,8 @@ import Sheet from './Sheet'
 const kr = (n) => Math.round(n).toLocaleString('sv-SE') + ' kr'
 const krx = (n) => n.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kr'
 const hm = (iso) => new Date(iso).toTimeString().slice(0, 5)
-const split = (r) => splitOvertime(new Date(r.starts_at), new Date(r.ends_at), { freeDay: r.free_day })
+const minOf = (s) => (s?.min_minutes ?? 15)
+const split = (r, s) => splitOvertime(new Date(r.starts_at), new Date(r.ends_at), { freeDay: r.free_day, minMinutes: minOf(s) })
 // Från- och tilltid samma dag, tilltid före fråntid = över midnatt
 export function toRange(day, from, to) {
   const s = new Date(`${day}T${from}`), e = new Date(`${day}T${to}`)
@@ -34,7 +35,7 @@ export default function Overtime({ householdId, me }) {
   const mine = ot.rows.filter((r) => r.member_id === me.id)
   const open = mine.filter((r) => !r.reported_at).sort((a, b) => a.starts_at.localeCompare(b.starts_at))
   const done = mine.filter((r) => r.reported_at).sort((a, b) => b.starts_at.localeCompare(a.starts_at))
-  const sum = (list) => list.reduce((a, r) => { const x = split(r); return { day: a.day + x.day, other: a.other + x.other, pay: a.pay + overtimePay(x, s) } }, { day: 0, other: 0, pay: 0 })
+  const sum = (list) => list.reduce((a, r) => { const x = split(r, s); return { day: a.day + x.day, other: a.other + x.other, pay: a.pay + overtimePay(x, s) } }, { day: 0, other: 0, pay: 0 })
   const tot = sum(open)
   const r = rates(s)
   const report = async () => {
@@ -49,7 +50,7 @@ export default function Overtime({ householdId, me }) {
     if (form.id) await ot.update(form.id, v); else await ot.insert(v)
     setForm(null)
   }
-  const preview = form?.from && form?.to ? (() => { const [st, en] = toRange(form.day, form.from, form.to); return splitOvertime(st, en, { freeDay: form.free }) })() : null
+  const preview = form?.from && form?.to ? (() => { const [st, en] = toRange(form.day, form.from, form.to); return splitOvertime(st, en, { freeDay: form.free, minMinutes: minOf(s) }) })() : null
   const rd = reportDay(t)
 
   if (!s?.salary || editSalary) {
@@ -83,7 +84,8 @@ export default function Overtime({ householdId, me }) {
       <div className="card small mt">
         <div className="row between"><span>Vardag 06–20</span><strong>{krx(r.day)}/h</strong></div>
         <div className="row between"><span>Annan tid, helg, ledig dag, aftnar</span><strong>{krx(r.other)}/h</strong></div>
-        <p className="muted small">Lön {kr(s.salary)} / {s.div_day || 94} och / {s.div_other || 72}. Semestertillägg ingår. Under 15 minuter i följd ersätts inte. <button className="link small" onClick={() => setEditSalary(true)}>Ändra lön</button></p>
+        <p className="muted small">Lön {kr(s.salary)} / {s.div_day || 94} och / {s.div_other || 72}. Semestertillägg ingår. {minOf(s) ? 'Under 15 minuter i följd ersätts inte.' : 'Även korta stunder under 15 minuter räknas (undantag).'} <button className="link small" onClick={() => setEditSalary(true)}>Ändra lön</button></p>
+        <label className="row small"><input type="checkbox" checked={minOf(s) === 0} onChange={(e) => save({ min_minutes: e.target.checked ? 0 : 15 })} /> Undantag: ersätt även under 15 minuter</label>
       </div>
 
       {done.length > 0 && <button className="link small mt" onClick={() => setShowOld(!showOld)}>{showOld ? 'Dölj rapporterad' : `Visa rapporterad övertid (${done.length})`}</button>}
@@ -101,7 +103,7 @@ export default function Overtime({ householdId, me }) {
             <input placeholder="Anteckning (valfritt)" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
             {preview && (
               <div className="card small">
-                {preview.short ? <span className="muted">Under 15 minuter ersätts inte.</span> : <>
+                {preview.short ? <span className="muted">Under {minOf(s)} minuter ersätts inte.</span> : <>
                   {preview.day > 0 && <div className="row between"><span>Vardag 06–20: {fmtH(preview.day)}</span><span>{kr(preview.day / 60 * r.day)}</span></div>}
                   {preview.other > 0 && <div className="row between"><span>Annan tid: {fmtH(preview.other)}</span><span>{kr(preview.other / 60 * r.other)}</span></div>}
                   <div className="row between"><strong>Totalt {fmtH(preview.total)}</strong><strong>{kr(overtimePay(preview, s))}</strong></div>
@@ -118,7 +120,7 @@ export default function Overtime({ householdId, me }) {
 }
 
 function Row({ x, s, onOpen }) {
-  const sp = split(x)
+  const sp = split(x, s)
   return (
     <li className="tap" onClick={onOpen}>
       <span>{prettyDay(x.day)} · {hm(x.starts_at)}–{hm(x.ends_at)}
@@ -137,7 +139,7 @@ export function EventOvertime({ occ, householdId, me }) {
   const row = ot.rows.find((r) => r.event_id === occ.id && r.day === dayStr)
   const [end, setEnd] = useState(row ? hm(row.ends_at) : '')
   const range = end ? (() => { const e = new Date(planned); const [h, m] = end.split(':').map(Number); e.setHours(h, m, 0, 0); if (e < planned && (planned - e) > 12 * 3600000) e.setDate(e.getDate() + 1); return e })() : null
-  const sp = range && range > planned ? splitOvertime(planned, range) : null
+  const sp = range && range > planned ? splitOvertime(planned, range, { minMinutes: minOf(s) }) : null
   const save = async () => {
     if (!sp || sp.short) { if (row) await ot.remove(row.id); return }
     const v = { member_id: me.id, day: dayStr, starts_at: planned.toISOString(), ends_at: range.toISOString(), event_id: occ.id }
@@ -150,7 +152,7 @@ export function EventOvertime({ occ, householdId, me }) {
         <span className="muted small grow">Planerat slut {hm(planned.toISOString())}. Faktiskt slut:</span>
         <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={{ maxWidth: 120 }} />
       </div>
-      {sp && <span className="small">{sp.short ? 'Under 15 minuter ersätts inte.' : `${fmtH(sp.total)} övertid${s?.salary ? ` ≈ ${kr(overtimePay(sp, s))}` : ''}`}</span>}
+      {sp && <span className="small">{sp.short ? `Under ${minOf(s)} minuter ersätts inte.` : `${fmtH(sp.total)} övertid${s?.salary ? ` ≈ ${kr(overtimePay(sp, s))}` : ''}`}</span>}
       {end && <button className="primary" onClick={save}>{row ? 'Uppdatera övertid' : 'Spara övertid'}</button>}
       {row && <span className="muted small">✓ Sparad{row.reported_at ? ' och rapporterad' : ', samlas under Ekonomi → Övertid'}</span>}
     </div>

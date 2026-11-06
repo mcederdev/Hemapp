@@ -300,3 +300,6 @@ test('övertid enligt kollektivavtalet', () => {
   assert.equal(reportDay('2026-11-06'), '2026-11-29')
   assert.equal(reportDay('2027-02-10'), '2027-02-27')
 })
+test('övertid under 15 min med undantag', () => {
+  assert.equal(splitOvertime(new Date('2026-11-10T16:00'), new Date('2026-11-10T16:10'), { minMinutes: 0 }).total, 10)
+})
