@@ -4,7 +4,7 @@ import { useTable } from '../useTable'
 import { today, prettyDay } from '../lib/dates'
 import { CAR_REMINDERS } from '../lib/yearly'
 import { swishUrl } from '../lib/swish'
-import { carBalance, CAR_KINDS, kindOf, carPlan, taxMonths, inspectionDue, remindersToChores } from '../lib/car'
+import { carBalance, CAR_KINDS, kindOf, carPlan, taxMonths, inspectionDue, remindersToChores, taxPayments, upcomingCosts } from '../lib/car'
 import { custodyStatus } from './Custody'
 import Sheet, { Fab } from './Sheet'
 import Icon from './Icon'
@@ -26,6 +26,7 @@ export default function Car({ householdId, me, members, people, linked, custody 
       other_label: settings.other_label || 'andra hushållet', follows_child: settings.follows_child || null,
       model: settings.model || null, model_year: Number(settings.model_year) || null, fuel: settings.fuel || null,
       tax_per_year: Number(String(settings.tax_per_year || '').replace(/\s/g, '')) || null, in_traffic: settings.in_traffic || null, last_inspection: settings.last_inspection || null }
+    if (v.tax_per_year && !settings.tax_booked_through) v.tax_booked_through = today()
     let saved = null
     // Kopplades hushållen ihop efter att bilen lades in: dela bilen nu
     if (settings.id && !settings.link_id && linked.households[0]) v.link_id = linked.households[0].link_id
@@ -111,6 +112,7 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
   const [form, setForm] = useState(null)
   const [view, setView] = useState('costs')
   const [showAll, setShowAll] = useState(false)
+  const [future, setFuture] = useState(false)
   const t = today()
   const year = t.slice(0, 4)
 
@@ -136,6 +138,15 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
       for (const r of oldRems.rows) await oldRems.remove(r.id)
     })()
   }, [oldRems.loading, chores.loading, oldRems.rows.length])
+  // Skatten bokförs som kostnad när betalningsmånaden är slut (ägarhushållet betalar). Görs bara av ägaren, en gång per betalning.
+  useEffect(() => {
+    if (costs.loading || !isOwner || !car.tax_booked_through || car.tax_booked_through >= t) return
+    const due = taxPayments(car, car.tax_booked_through, t).filter((p) => !costs.rows.some((c) => c.kind === 'skatt' && c.day.slice(0, 7) === p.day.slice(0, 7)))
+    ;(async () => {
+      if (due.length) await costs.insert(due.map((p) => ({ ...p, kind: 'skatt', shared: true, note: 'Fordonsskatt', paid_by_household: car.household_id })))
+      await cars.update(car.id, { tax_booked_through: t })
+    })()
+  }, [costs.loading, car.tax_booked_through])
   const taxM = taxMonths(car.reg_nr, car.tax_per_year)
   // Besiktningen är gjord: spara datumet och lägg in nästa
   const inspected = async (done) => {
@@ -167,7 +178,7 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
     await settlements.insert({ day: t, amount: Math.abs(balance), from_household: balance > 0 ? otherId : householdId, note: 'Reglerat' })
   }
 
-  const list = [...costs.rows].sort((a, b) => b.day.localeCompare(a.day) || b.created_at.localeCompare(a.created_at))
+  const list = costs.rows.filter((c) => c.day <= t).sort((a, b) => b.day.localeCompare(a.day) || b.created_at.localeCompare(a.created_at))
   const shown = showAll ? list : list.slice(0, 15)
   const thisYear = costs.rows.filter((c) => c.day.startsWith(year))
   const byKind = CAR_KINDS.map((k) => ({ k, sum: thisYear.filter((c) => c.kind === k.id).reduce((s, c) => s + Number(c.amount), 0) })).filter((x) => x.sum > 0)
@@ -209,6 +220,38 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
       </div>
 
       {view === 'costs' && (
+        <div className="seg seg-sm mb">
+          <button className={!future ? 'active' : ''} onClick={() => setFuture(false)}>Hittills</button>
+          <button className={future ? 'active' : ''} onClick={() => setFuture(true)}>Kommande</button>
+        </div>
+      )}
+      {view === 'costs' && future && (() => {
+        const up = upcomingCosts(car, costs.rows, t)
+        const sum = up.reduce((s, c) => s + Number(c.amount), 0)
+        const ours = up.reduce((s, c) => s + Number(c.amount) * (c.shared ? mineShare / 100 : 1), 0)
+        return (
+          <>
+            <p className="muted small">{up.length ? `Kommande 12 månader: ${kr(sum)}, er del ungefär ${kr(ours)}.` : 'Inga kommande kostnader. Lägg in skatten under ⚙︎ eller en kostnad med datum framåt.'}</p>
+            <ul className="list">
+              {up.map((c, i) => {
+                const k = kindOf(c.kind)
+                return (
+                  <li key={c.id || `${c.kind}${c.day}${i}`} className="tap" onClick={() => setForm(c.id ? { ...c, amount: String(c.amount), paid: paidByUs(c) ? 'us' : 'them', note: c.note || '', odometer: c.odometer || '' } : { day: c.day, amount: String(c.amount), kind: c.kind, shared: c.shared, paid: isOwner ? 'us' : 'them', note: c.note || '', odometer: '' })}>
+                    <span className="row grow">
+                      <span className="big-emoji">{k.emoji}</span>
+                      <span>{k.label}{c.note && <span className="muted"> · {c.note}</span>}
+                        <div className="muted small">{prettyDay(c.day)} {c.day.slice(0, 4)}{c.auto ? ' · beräknad' : ' · inlagd'}{c.shared ? ' · delas' : ''}</div></span>
+                    </span>
+                    <strong className={c.auto ? 'muted' : ''}>{kr(c.amount)}</strong>
+                  </li>
+                )
+              })}
+            </ul>
+            <p className="muted small">Skatten läggs in som kostnad av sig själv när betalningsmånaden är slut. Tryck på en beräknad rad för att lägga in den nu.</p>
+          </>
+        )
+      })()}
+      {view === 'costs' && !future && (
         <>
           {list.length === 0 && <p className="muted">Inga kostnader än. Tryck på + eller en knapp ovan.</p>}
           <ul className="list">

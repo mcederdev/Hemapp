@@ -277,3 +277,10 @@ test('bilpåminnelser blir sysslor utan dubbletter', () => {
   assert.deepEqual(out.map((x) => x.title), ['Bilförsäkringen förnyas'])
   assert.equal(out[0].repeat_unit, 'month')
 })
+import { taxPayments, upcomingCosts } from './car.js'
+test('skatten blir kostnader och syns bland kommande', () => {
+  const car = { reg_nr: 'FTJ48A', tax_per_year: 360 }
+  assert.deepEqual(taxPayments(car, '2026-11-06', '2027-11-06'), [{ day: '2027-01-31', amount: 360 }])
+  const up = upcomingCosts(car, [{ kind: 'forsakring', day: '2026-02-10', amount: 4000, shared: true }, { kind: 'service', day: '2026-12-01', amount: 2500 }], '2026-11-06')
+  assert.deepEqual(up.map((c) => `${c.kind} ${c.day}`), ['service 2026-12-01', 'skatt 2027-01-31', 'forsakring 2027-02-10'])
+})

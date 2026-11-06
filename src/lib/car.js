@@ -90,3 +90,28 @@ export function remindersToChores(car, reminders, chores) {
     fixed_day: !!r.repeat_months, repeat_every: r.repeat_months || null, repeat_unit: r.repeat_months ? 'month' : null
   }))
 }
+
+// Skattebetalningar (sista dagen i betalningsmånaden) mellan from (exkl.) och to (inkl.)
+export function taxPayments(car, from, to) {
+  const months = taxMonths(car.reg_nr, car.tax_per_year)
+  if (!months.length || !Number(car.tax_per_year)) return []
+  const amount = Math.round(Number(car.tax_per_year) / months.length)
+  const out = []
+  for (let y = Number(from.slice(0, 4)); y <= Number(to.slice(0, 4)); y++) {
+    for (const m of months) { const d = monthEnd(y, m); if (d > from && d <= to) out.push({ day: d, amount }) }
+  }
+  return out.sort((a, b) => a.day.localeCompare(b.day))
+}
+
+// Kommande kostnader ett år framåt: inlagda med framtida datum, skatten och försäkringen som förra året
+export function upcomingCosts(car, costs, t) {
+  const [y, m] = addMonthsYM(t, 12); const end = monthEnd(y, m).slice(0, 8) + t.slice(8)
+  const planned = costs.filter((c) => c.day > t).map((c) => ({ ...c, planned: true }))
+  const tax = taxPayments(car, t, end).filter((p) => !costs.some((c) => c.kind === 'skatt' && c.day.slice(0, 7) === p.day.slice(0, 7)))
+    .map((p) => ({ ...p, kind: 'skatt', shared: true, note: 'Fordonsskatt', auto: true }))
+  const [py, pm] = addMonthsYM(t, -12); const yearAgo = `${py}-${pad(pm)}-${t.slice(8)}`
+  const ins = costs.filter((c) => c.kind === 'forsakring' && c.day > yearAgo && c.day <= t).map((c) => {
+    const [ny, nm] = addMonthsYM(c.day, 12); return { day: `${ny}-${pad(nm)}-${c.day.slice(8)}`, amount: Number(c.amount), kind: 'forsakring', shared: c.shared, note: 'Som förra året', auto: true }
+  }).filter((c) => !planned.some((p) => p.kind === 'forsakring' && p.day.slice(0, 7) === c.day.slice(0, 7)))
+  return [...planned, ...tax, ...ins].sort((a, b) => a.day.localeCompare(b.day))
+}
