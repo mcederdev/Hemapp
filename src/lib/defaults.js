@@ -61,3 +61,10 @@ export const DEFAULT_DISH_ITEMS = {
   'Quesadillas': ['Tortillabröd', 'Riven ost', 'Kycklingfilé', 'Salsa'],
   'Gratäng med skinka': ['Skinka', 'Potatis', 'Grädde', 'Riven ost', 'Purjolök']
 }
+
+// Våra egna rätter plus de föreslagna, utom de föreslagna som familjen dolt eller gjort om till en egen
+export function dishList(own, hidden = []) {
+  const mine = own.map((d) => ({ ...d, own: true }))
+  const hide = new Set([...hidden, ...mine.map((o) => o.name)].map((n) => n.toLowerCase()))
+  return [...mine, ...COMMON_DISHES.filter((c) => !hide.has(c.name.toLowerCase()))]
+}

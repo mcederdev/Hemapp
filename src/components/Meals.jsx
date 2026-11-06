@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTable } from '../useTable'
 import { suggestWeek, expiringSoon, usesItems } from '../lib/suggest'
-import { COMMON_DISHES } from '../lib/defaults'
+import { COMMON_DISHES, dishList } from '../lib/defaults'
 import { addDays, startOfWeek, today, weekdayName, parseDay } from '../lib/dates'
 import Icon from './Icon'
 import SwipeRow, { buzz } from './Swipe'
@@ -89,7 +89,7 @@ function WeekCards({ days, t, planFor, all, plan, onPick }) {
   )
 }
 
-export default function Meals({ householdId, me }) {
+export default function Meals({ householdId, me, household, households }) {
   const dishes = useTable('dishes', householdId)
   const plan = useTable('meal_plan', householdId, 'day')
   const pantry = useTable('pantry_items', householdId, 'best_before')
@@ -99,8 +99,7 @@ export default function Meals({ householdId, me }) {
   const [view, setView] = useState('week')
   const [shopFor, setShopFor] = useState(null)
 
-  const own = dishes.rows.map((d) => ({ ...d, own: true }))
-  const all = [...own, ...COMMON_DISHES.filter((c) => !own.some((o) => o.name.toLowerCase() === c.name.toLowerCase()))]
+  const all = dishList(dishes.rows, household?.hidden_dishes)
   const days = Array.from({ length: 7 }, (_, i) => addDays(week, i))
   const planFor = (d) => plan.rows.find((p) => p.day === d)
   const t = today()
@@ -158,7 +157,7 @@ export default function Meals({ householdId, me }) {
         </>
       )}
 
-      {view === 'dishes' && <Dishes dishes={dishes} all={all} />}
+      {view === 'dishes' && <Dishes dishes={dishes} all={all} household={household} households={households} />}
       {shopFor && <ShopForDishes householdId={householdId} me={me} dishes={shopFor} title="Handla till veckan" onClose={() => setShopFor(null)} />}
       {picking && <Picker day={picking} all={all} onPick={(dish) => setDish(picking, dish)} onClose={() => setPicking(null)} />}
     </section>
@@ -192,16 +191,37 @@ export function Picker({ day, all, onPick, onClose }) {
   )
 }
 
-function Dishes({ dishes, all }) {
+// Alla rätter går att ändra. En föreslagen rätt som ändras blir en egen, och originalet döljs.
+function Dishes({ dishes, all, household, households }) {
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [adding, setAdding] = useState(false)
-  const categories = [...new Set(all.map((d) => d.category).filter(Boolean))]
+  const [editing, setEditing] = useState(null)
+  const [showHidden, setShowHidden] = useState(false)
+  const categories = [...new Set([...all, ...COMMON_DISHES].map((d) => d.category).filter(Boolean))]
+  const hidden = household?.hidden_dishes || []
+  const setHidden = (list) => household && households.update(household.id, { hidden_dishes: [...new Set(list)] })
+  const hide = (n) => setHidden([...hidden, n])
+  const unhide = (n) => setHidden(hidden.filter((x) => x.toLowerCase() !== n.toLowerCase()))
+  const hiddenCommon = COMMON_DISHES.filter((c) => hidden.some((h) => h.toLowerCase() === c.name.toLowerCase()))
   const add = (e) => {
     e.preventDefault()
     if (!name.trim()) return
     dishes.insert({ name: name.trim(), category: category.trim() || null })
     setName(''); setCategory(''); setAdding(false)
+  }
+  const open = (d) => { setEditing(d); setName(d.name); setCategory(d.category || '') }
+  const save = (e) => {
+    e.preventDefault()
+    const n = name.trim(), c = category.trim() || null
+    if (!n) return
+    if (editing.own) dishes.update(editing.id, { name: n, category: c })
+    else { dishes.insert({ name: n, category: c }); if (n.toLowerCase() !== editing.name.toLowerCase()) hide(editing.name) }
+    setEditing(null); setName(''); setCategory('')
+  }
+  const drop = (d) => {
+    if (d.own) { if (confirm(`Ta bort ${d.name}?`)) dishes.remove(d.id) } else hide(d.name)
+    setEditing(null)
   }
   return (
     <>
@@ -216,17 +236,40 @@ function Dishes({ dishes, all }) {
           </form>
         </Sheet>
       )}
+      {editing && (
+        <Sheet title={editing.own ? 'Ändra rätt' : 'Ändra föreslagen rätt'} onClose={() => setEditing(null)}>
+          <form className="stack" onSubmit={save}>
+            <input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            <input list="cats" placeholder="Kategori (valfritt)" value={category} onChange={(e) => setCategory(e.target.value)} />
+            <datalist id="cats">{categories.map((c) => <option key={c} value={c} />)}</datalist>
+            <button className="primary">Spara</button>
+            <button type="button" className="danger" onClick={() => drop(editing)}>{editing.own ? 'Ta bort rätten' : 'Dölj från listan'}</button>
+            {!editing.own && <p className="muted small">Ändrar du en föreslagen rätt sparas den som er egen.</p>}
+          </form>
+        </Sheet>
+      )}
+      <p className="muted small">Tryck på en rätt för att ändra namn eller kategori, eller dölja den.</p>
       <ul className="list">
         {all.map((d) => (
-          <SwipeRow key={d.id || d.name} onDelete={d.own ? () => dishes.remove(d.id) : undefined}>
+          <SwipeRow key={d.id || d.name} onDelete={() => drop(d)} onClick={() => open(d)} className="tap">
             <span>{d.name} {d.own && <span className="tag own">Egen</span>}</span>
             <span className="meta">
               {d.category && <span className="muted small">{d.category}</span>}
-              {d.own && <button className="icon-btn del" onClick={() => dishes.remove(d.id)} aria-label="Ta bort">✕</button>}
             </span>
           </SwipeRow>
         ))}
       </ul>
+      {hiddenCommon.length > 0 && (
+        <>
+          <button className="link small mt" onClick={() => setShowHidden(!showHidden)}>{showHidden ? 'Dölj' : `Visa dolda förslag (${hiddenCommon.length})`}</button>
+          {showHidden && (
+            <ul className="list">
+              {hiddenCommon.map((d) => <li key={d.name} className="row between"><span className="muted">{d.name}</span><button className="chip" onClick={() => unhide(d.name)}>Visa igen</button></li>)}
+            </ul>
+          )}
+        </>
+      )}
+      <div style={{ height: 72 }} />
     </>
   )
 }

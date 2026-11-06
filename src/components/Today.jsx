@@ -2,7 +2,7 @@ import { seasonEmoji } from '../lib/accent'
 import { useState } from 'react'
 import { useNow } from '../lib/useNow'
 import { useTable } from '../useTable'
-import { COMMON_DISHES } from '../lib/defaults'
+import { dishList } from '../lib/defaults'
 import { expandEvents, dayList, shortLine, timeOf } from '../lib/events'
 import { today, parseDay, addDays, startOfWeek } from '../lib/dates'
 import { completeChore, showToday } from './Chores'
@@ -75,8 +75,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
   const toBuy = items.rows.filter((i) => !i.done && i.list_id === defaultList?.id)
   const otherLists = lists.rows.filter((l) => !l.is_default && !l.archived && l.for_date && l.for_date >= t)
 
-  const own = dishes.rows.map((d) => ({ ...d, own: true }))
-  const allDishes = [...own, ...COMMON_DISHES.filter((c) => !own.some((o) => o.name.toLowerCase() === c.name.toLowerCase()))]
+  const allDishes = dishList(dishes.rows, household?.hidden_dishes)
   const setDinner = async (dish) => {
     if (dinner) await meals.update(dinner.id, { dish })
     else await meals.insert({ day: t, dish })
