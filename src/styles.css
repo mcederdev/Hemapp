@@ -670,3 +670,7 @@ button.name-edit { padding: 0; color: inherit; text-align: left; white-space: no
 .ot-sum .big-num { font-size: 2rem; line-height: 1.1; }
 .prio-chip { border-color: var(--danger); color: var(--danger); font-weight: 700; }
 .service-row { gap: 6px; } .service-row input { flex: 1; min-width: 0; } .service-row .svc-amount { flex: 0 0 70px; } .service-row select { flex: 0 0 auto; width: auto; }
+.list li.menu-subs { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding-top: 2px; padding-bottom: 6px; padding-left: 52px; border-top: 0; }
+.menu-sub { justify-content: flex-start; gap: 10px; padding: 5px 0; font-size: .95rem; }
+.menu-sub input { flex: 0 0 auto; }
+.menu-sub > span { flex: 1; min-width: 0; }

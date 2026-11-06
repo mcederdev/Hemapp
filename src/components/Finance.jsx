@@ -8,18 +8,21 @@ import SwipeRow from './Swipe'
 import Sheet, { Fab } from './Sheet'
 import Subscriptions from './Subscriptions'
 import Overtime from './Overtime'
+import { pickSub, shows } from '../lib/menu'
 
 const kr = (n) => Math.round(n).toLocaleString('sv-SE') + ' kr'
 
 export default function Finance(props) {
-  const [view, setView] = useState(() => { try { return localStorage.getItem('financeView') || 'bills' } catch { return 'bills' } })
+  const [saved, setView] = useState(() => { try { return localStorage.getItem('financeView') || 'bills' } catch { return 'bills' } })
+  const view = pickSub('finance', saved)
+  const on = (k) => shows(`finance.${k}`)
   const pick = (v) => { setView(v); try { localStorage.setItem('financeView', v) } catch { /* */ } }
   return (
     <>
       <div className="seg mb fin-seg">
-        <button className={view === 'bills' ? 'active' : ''} onClick={() => pick('bills')}>Räkningar</button>
-        <button className={view === 'subs' ? 'active' : ''} onClick={() => pick('subs')}>Abonnemang</button>
-        {props.me?.role !== 'child' && <button className={view === 'overtime' ? 'active' : ''} onClick={() => pick('overtime')}>Övertid</button>}
+        {on('bills') && <button className={view === 'bills' ? 'active' : ''} onClick={() => pick('bills')}>Räkningar</button>}
+        {on('subs') && <button className={view === 'subs' ? 'active' : ''} onClick={() => pick('subs')}>Abonnemang</button>}
+        {props.me?.role !== 'child' && on('overtime') && <button className={view === 'overtime' ? 'active' : ''} onClick={() => pick('overtime')}>Övertid</button>}
       </div>
       {view === 'bills' && <Bills {...props} />}
       {view === 'subs' && <section><h2>Abonnemang</h2><Subscriptions householdId={props.householdId} members={props.members} household={props.household} households={props.households} /></section>}

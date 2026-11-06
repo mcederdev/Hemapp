@@ -6,6 +6,7 @@ import { MemberTag } from './MemberPicker'
 import { Check } from './Swipe'
 import VabForm from './VabForm'
 import { Fab } from './Sheet'
+import { pickSub, shows } from '../lib/menu'
 
 const FK_URL = 'https://www.forsakringskassan.se/'
 
@@ -14,7 +15,8 @@ export default function Vab({ householdId, members, people, me }) {
   const events = useTable('events', householdId, 'starts_at')
   const [form, setForm] = useState(null)
   const [showAll, setShowAll] = useState(false)
-  const [view, setView] = useState('vab')
+  const [rawView, setView] = useState('vab')
+  const view = pickSub('vab', rawView, [])
   const byId = Object.fromEntries((people || members).map((m) => [m.id, m]))
   const t = today()
   const year = t.slice(0, 4)
@@ -59,8 +61,8 @@ export default function Vab({ householdId, members, people, me }) {
     <section>
       <h2>VAB & Sjukdagar</h2>
       <div className="seg mb">
-        <button className={view === 'vab' ? 'active' : ''} onClick={() => setView('vab')}>VAB{open.length > 0 ? ` (${open.length})` : ''}</button>
-        <button className={view === 'sick' ? 'active' : ''} onClick={() => setView('sick')}>Sjuk själv</button>
+        {shows('vab.vab') && <button className={view === 'vab' ? 'active' : ''} onClick={() => setView('vab')}>VAB{open.length > 0 ? ` (${open.length})` : ''}</button>}
+        {shows('vab.sick') && <button className={view === 'sick' ? 'active' : ''} onClick={() => setView('sick')}>Sjuk själv</button>}
       </div>
 
 

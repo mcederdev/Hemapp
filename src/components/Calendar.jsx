@@ -15,6 +15,7 @@ import VabForm from './VabForm'
 import { EventOvertime } from './Overtime'
 import { custodyForDay, custodyStatus } from './Custody'
 import { CATEGORIES, catById, guessCategory, rulePrefix } from '../lib/categories'
+import { shows } from '../lib/menu'
 
 const REPEATS = [
   { v: '', label: 'Upprepa inte' }, { v: 'daily', label: 'Varje dag' }, { v: 'weekdays', label: 'Vardagar (mån–fre)' }, { v: 'weekdays2', label: 'Vardagar varannan vecka' }, { v: 'weekly', label: 'Varje vecka' },
@@ -252,7 +253,7 @@ export default function Calendar({ householdId, members, people, me, go, househo
           <ul className="list"><EventRow occ={opened} day={selDate} byId={byId} badge={badgeFor(opened, selDate)} /></ul>
           <CategoryEditor occ={opened} events={events} rules={rules} household={household} households={households} householdId={householdId}
             onChange={(c) => setOpened({ ...opened, category: c })} />
-          {opened.member_id === me.id && !opened.all_day && (opened.category || guessCategory(opened.title, rules)) === 'jobb' && <EventOvertime key={opened.key} occ={opened} householdId={householdId} me={me} />}
+          {shows('finance.overtime') && opened.member_id === me.id && !opened.all_day && (opened.category || guessCategory(opened.title, rules)) === 'jobb' && <EventOvertime key={opened.key} occ={opened} householdId={householdId} me={me} />}
           <div className="stack">
             {byId[opened.member_id]?.role === 'child' && (
               <button className="primary" onClick={() => startVab(opened)}>

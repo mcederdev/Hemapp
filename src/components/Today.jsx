@@ -18,6 +18,7 @@ import { CustodyLine } from './Custody'
 import Pickups from './Pickups'
 import Fold, { Movable, FoldProvider, useFoldOrder } from './Fold'
 import MedicineToday from './MedicineToday'
+import { shows } from '../lib/menu'
 
 // Bygger dagens flöde: händelser och middag i tidsordning, med nu-linjen på rätt plats
 export function buildFlow({ events, day, dinner, now, focus, withDinner = true }) {
@@ -58,7 +59,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
   const tomorrows = dayList(expandEvents(events.rows.filter((e) => forFocus(focus, e.member_id)), d1, d2), d1).filter((o) => o.all_day || o.start >= d1)
 
   // Bilens sysslor syns här bara när de har ett datum som är idag eller passerat (t.ex. bokad service)
-  const mine = chores.rows.filter((c) => !c.car_id || c.done || (c.due_date && c.due_date <= t)).filter((c) => forFocus(focus, c.done ? c.done_by || c.assigned_to : c.assigned_to))
+  const mine = chores.rows.filter((c) => !c.car_id || (shows('car.todo') && (c.done || (c.due_date && c.due_date <= t)))).filter((c) => forFocus(focus, c.done ? c.done_by || c.assigned_to : c.assigned_to))
   // Idag: det som ska göras idag eller är sent, plus veckans/månadens återkommande
   const todo = mine.filter((c) => showToday(c, t))
     .sort((a, b) => (a.due_date || '9').localeCompare(b.due_date || '9'))
@@ -100,10 +101,10 @@ export default function Today({ householdId, members, people, go, me, focus, set
       <CustodyLine custody={(custody || []).filter((c) => forFocus(focus, c.child_id))} members={members} me={me} linked={linked} />
       <FoldProvider value={fold}>
       <div className="today-cards">
-      <MedicineToday householdId={householdId} members={members} people={people} me={me} custody={custody} focus={focus} />
-      <Pickups householdId={householdId} members={members} people={[...(people || members), ...(guests || []).map((g) => ({ ...g, role: 'guest', short: g.name.slice(0, 1).toUpperCase() }))]} me={me} custody={custody} events={events.rows} go={go} />
+      {shows('medicine') && <MedicineToday householdId={householdId} members={members} people={people} me={me} custody={custody} focus={focus} />}
+      {shows('pickups') && <Pickups householdId={householdId} members={members} people={[...(people || members), ...(guests || []).map((g) => ({ ...g, role: 'guest', short: g.name.slice(0, 1).toUpperCase() }))]} me={me} custody={custody} events={events.rows} go={go} />}
 
-      <Movable id="dinner" className="half">
+      {shows('meals') && <Movable id="dinner" className={shows('shopping') ? 'half' : ''}>
       <div className="hero">
         <div className="hero-label"><Icon name="food" size={16} /> Middag ikväll</div>
         <div className="hero-dish">{dinner ? dinner.dish : 'Inte bestämt än'}</div>
@@ -113,7 +114,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
           <button className="hero-btn ghost" onClick={() => go('meals')}>Veckomeny</button>
         </div>
       </div>
-      </Movable>
+      </Movable>}
 
       <Fold id="day" onOpen={() => go('calendar')} title={<><Icon name="calendar" size={18} /> <strong>{focusName ? `${focusName}s dag` : 'Dagen'}</strong></>}
         summary={daySummary}>
@@ -142,7 +143,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
         {tomorrows.length > 0 && <p className="muted small pad">Imorgon: {tomorrows.map(shortLine).join(', ')}</p>}
       </Fold>
 
-      <Fold id="chores" onOpen={() => go('chores')} title={<><Icon name="checks" size={18} /> <strong>Under dagen</strong></>} count={todo.length}
+      {shows('chores') && <Fold id="chores" onOpen={() => go('chores')} title={<><Icon name="checks" size={18} /> <strong>Under dagen</strong></>} count={todo.length}
         summary={todo.length === 0 ? <span className="ok">✓ Inget kvar att göra{doneToday.length ? ` · ${doneToday.length} gjorda idag` : ''}</span>
           : <>{todo.length} att göra{late ? <span className="error"> · {late} sena</span> : ''}{doneToday.length ? ` · ${doneToday.length} gjorda` : ''}</>}>
         <ul className="list flush">
@@ -169,11 +170,11 @@ export default function Today({ householdId, members, people, go, me, focus, set
           ))}
           {todo.length === 0 && doneToday.length === 0 && <li className="muted small">Inga sysslor idag.</li>}
         </ul>
-      </Fold>
+      </Fold>}
 
       <Soon householdId={householdId} go={go} />
 
-      <Fold id="shop" className="half" onOpen={() => go('shopping')} title={<><Icon name="cart" size={18} /> <strong>Handla</strong></>} count={toBuy.length}
+      {shows('shopping') && <Fold id="shop" className={shows('meals') ? 'half' : ''} onOpen={() => go('shopping')} title={<><Icon name="cart" size={18} /> <strong>Handla</strong></>} count={toBuy.length}
         summary={toBuy.length === 0 ? <span className="ok">✓ Inget att handla</span> : prio.length ? `Prio: ${prio.map((i) => i.name).join(', ')}` : `${toBuy.length} varor på listan`}>
         {toBuy.length === 0 ? <p className="small pad muted">Inget att handla just nu.</p> : prio.length > 0 ? (
           <ul className="prio-list">
@@ -182,7 +183,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
         ) : <p className="small pad muted">Inga prio-varor. Markera med ! i Handla.</p>}
         {toBuy.length > prio.slice(0, 6).length && <p className="muted small pad">{prio.length ? `+ ${toBuy.length - Math.min(prio.length, 6)} till` : `${toBuy.length} varor på listan`}</p>}
         {otherLists.map((l) => <p key={l.id} className="muted small pad">{l.name} · {parseDay(l.for_date).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })}</p>)}
-      </Fold>
+      </Fold>}
 
       </div>
       </FoldProvider>

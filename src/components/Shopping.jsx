@@ -9,6 +9,7 @@ import ShopMode from './ShopMode'
 import Pantry from './Pantry'
 import Icon from './Icon'
 import { checkOff } from '../lib/refill'
+import { pickSub, shows } from '../lib/menu'
 
 export default function Shopping({ householdId, me, members }) {
   const lists = useTable('shopping_lists', householdId)
@@ -17,7 +18,8 @@ export default function Shopping({ householdId, me, members }) {
   const pantry = useTable('pantry_items', householdId, 'best_before')
   const [listId, setListId] = useState(null)
   const [text, setText] = useState('')
-  const [view, setView] = useState('list') // list | home | lists
+  const [rawView, setView] = useState('list')
+  const view = pickSub('shopping', rawView, ['list'], 'list') // list | home | lists
   const [groupBySection, setGroupBySection] = useState(true)
   const [adding, setAdding] = useState(false)
   const [shopping, setShopping] = useState(false)
@@ -74,9 +76,9 @@ export default function Shopping({ householdId, me, members }) {
 
       <div className="seg">
         <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}>Lista</button>
-        <button className={view === 'home' ? 'active' : ''} onClick={() => setView('home')}>Slut hemma</button>
-        <button className={view === 'pantry' ? 'active' : ''} onClick={() => setView('pantry')}>Skafferi</button>
-        <button className={view === 'lists' ? 'active' : ''} onClick={() => setView('lists')}>Listor</button>
+        {shows('shopping.home') && <button className={view === 'home' ? 'active' : ''} onClick={() => setView('home')}>Slut hemma</button>}
+        {shows('shopping.pantry') && <button className={view === 'pantry' ? 'active' : ''} onClick={() => setView('pantry')}>Skafferi</button>}
+        {shows('shopping.lists') && <button className={view === 'lists' ? 'active' : ''} onClick={() => setView('lists')}>Listor</button>}
       </div>
 
       {view === 'list' && list && (

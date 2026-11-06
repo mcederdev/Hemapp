@@ -303,3 +303,15 @@ test('övertid enligt kollektivavtalet', () => {
 test('övertid under 15 min med undantag', () => {
   assert.equal(splitOvertime(new Date('2026-11-10T16:00'), new Date('2026-11-10T16:10'), { minMinutes: 0 }).total, 10)
 })
+
+test('dolda undersidor', async () => {
+  const { setMenuState, shows, pickSub, isHidden } = await import('./menu.js')
+  setMenuState({ hidden: ['finance.overtime', 'car'] })
+  assert.equal(shows('finance'), true)
+  assert.equal(shows('finance.overtime'), false)
+  assert.equal(shows('car.todo'), false)
+  assert.equal(pickSub('finance', 'overtime'), 'bills')
+  assert.equal(pickSub('shopping', 'list', ['list'], 'list'), 'list')
+  assert.equal(isHidden('stats.food', []), false)
+  setMenuState(null)
+})

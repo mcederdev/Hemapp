@@ -52,10 +52,24 @@ Deno.serve(async (req) => {
 
     const { data: subs } = await db.from('push_subscriptions').select('*').eq('household_id', h.id)
     if (!subs?.length) continue
+    // Den som dolt en sida eller undersida i menyn (members.menu.hidden) får inte notiser om den.
+    // Ämnet tas från payload.topic, annars från sidan i url:en (?tab=...).
+    const { data: menus } = await db.from('members').select('id, menu').eq('household_id', h.id)
+    const hiddenFor = Object.fromEntries((menus ?? []).map((m) => [m.id, (m.menu?.hidden ?? []) as string[]]))
+    const TAB_TOPIC: Record<string, string> = { overtime: 'finance.overtime' }
+    const muted = (memberId: string, topic?: string) => {
+      if (!topic) return false
+      const hidden = hiddenFor[memberId] ?? []
+      return hidden.includes(topic.split('.')[0]) || hidden.includes(topic)
+    }
     const send = async (payload: Record<string, string>, onlyMember?: string, exceptMember?: string) => {
+      const tab = (payload.url ?? '').match(/tab=(\w+)/)?.[1]
+      const topic = payload.topic ?? (tab ? TAB_TOPIC[tab] ?? tab : undefined)
+      delete payload.topic
       for (const sub of subs) {
         if (onlyMember && sub.member_id !== onlyMember) continue
         if (exceptMember && sub.member_id === exceptMember) continue
+        if (muted(sub.member_id, topic)) continue
         try {
           await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, JSON.stringify(payload))
         } catch (e) {
@@ -149,7 +163,7 @@ Deno.serve(async (req) => {
         // notified_by = { hushålls-id: datum } så att båda hushållen får bilens påminnelser
         const by = r.notified_by ?? {}
         if (n > r.remind_days || by[h.id] === r.due_date || (r.notified_for === r.due_date && !Object.keys(by).length)) continue
-        await send({ title: `${r.emoji} ${r.title} ${n < 0 ? 'har passerat' : when(n)}`, body: r.note || 'Tryck för att se påminnelsen', url: r.car_id ? '/?tab=car' : '/?tab=reminders' })
+        await send({ title: `${r.emoji} ${r.title} ${n < 0 ? 'har passerat' : when(n)}`, body: r.note || 'Tryck för att se påminnelsen', url: r.car_id ? '/?tab=car' : '/?tab=reminders', topic: r.car_id ? 'car' : 'reminders.reminders' })
         await db.from('reminders').update({ notified_for: r.due_date, notified_by: { ...by, [h.id]: r.due_date } }).eq('id', r.id)
       }
       const { data: bdays } = await db.from('birthdays').select('*').eq('household_id', h.id)
@@ -157,9 +171,9 @@ Deno.serve(async (req) => {
         const x = nextBirthday(b.day, todayLocal)
         const age = b.year_known ? ` ${x.age} år` : ' år'
         if (x.daysLeft === 0) {
-          await send({ title: `🎉 Idag fyller ${b.name}${age}!`, body: b.gift_ideas ? `🎁 ${b.gift_ideas}` : 'Glöm inte att gratulera', url: '/?tab=reminders' })
+          await send({ title: `🎉 Idag fyller ${b.name}${age}!`, body: b.gift_ideas ? `🎁 ${b.gift_ideas}` : 'Glöm inte att gratulera', url: '/?tab=reminders', topic: 'reminders.birthdays' })
         } else if (x.daysLeft <= b.remind_days && b.notified_year !== +x.date.slice(0, 4)) {
-          await send({ title: `🎂 ${b.name} fyller${age} ${when(x.daysLeft)}`, body: b.gift_ideas ? `🎁 Idéer: ${b.gift_ideas}` : 'Dags att fixa present?', url: '/?tab=reminders' })
+          await send({ title: `🎂 ${b.name} fyller${age} ${when(x.daysLeft)}`, body: b.gift_ideas ? `🎁 Idéer: ${b.gift_ideas}` : 'Dags att fixa present?', url: '/?tab=reminders', topic: 'reminders.birthdays' })
           await db.from('birthdays').update({ notified_year: +x.date.slice(0, 4) }).eq('id', b.id)
         }
       }
@@ -258,7 +272,7 @@ Deno.serve(async (req) => {
       for (const r of vab ?? []) { if (!r.parent_id || !ownMembers?.some((m) => m.id === r.parent_id)) continue; byParent.set(r.parent_id, [...(byParent.get(r.parent_id) ?? []), r]) }
       for (const [pid, list] of byParent) {
         const days = list.map((r) => new Date(r.day + 'T12:00:00Z').toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' }))
-        await send({ title: `Anmäl ${list.length} VAB-dag${list.length === 1 ? '' : 'ar'} till Försäkringskassan`, body: days.join(', '), url: '/?tab=vab' }, pid)
+        await send({ title: `Anmäl ${list.length} VAB-dag${list.length === 1 ? '' : 'ar'} till Försäkringskassan`, body: days.join(', '), url: '/?tab=vab', topic: 'vab.vab' }, pid)
       }
       await db.from('households').update({ last_vab_push: todayLocal }).eq('id', h.id)
       if (byParent.size) log.push(`vab-påminnelse ${h.name}`)

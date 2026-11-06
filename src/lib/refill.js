@@ -1,10 +1,11 @@
+import { shows } from './menu.js'
 import { guessSection } from './sections.js'
 
 // Bocka av en vara. Ligger samma vara i Komplettera (det som tagit slut hemma) försvinner den därifrån också.
 // Är det en skafferivara (mat som sparas hemma) läggs den i skafferiet, kylen eller frysen.
 export function checkOff(items, item, lists, pantry = null) {
   items.update(item.id, { done: true })
-  if (pantry) toPantry(pantry, item)
+  if (pantry && shows('shopping.pantry')) toPantry(pantry, item)
   const refill = lists.find((l) => l.is_refill)
   if (!refill || item.list_id === refill.id) return
   const n = item.name.trim().toLowerCase()

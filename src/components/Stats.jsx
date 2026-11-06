@@ -4,20 +4,22 @@ import { today, startOfWeek, addDays } from '../lib/dates'
 import { MemberTag } from './MemberPicker'
 import VabStats from './VabStats'
 import { counts } from '../lib/testmode'
+import { pickSub, shows } from '../lib/menu'
 
 // Statistiksidan: sysslor, sjukdagar och VAB, mat och handling
 export default function Stats({ householdId, members, people, household }) {
   const from = household?.stats_from
-  const [view, setView] = useState('chores')
+  const [rawView, setView] = useState('chores')
+  const view = pickSub('stats', rawView, [])
   const vab = useTable('vab_days', householdId, 'day')
   return (
     <section>
       <h2>Statistik</h2>
       <div className="seg mb">
-        <button className={view === 'chores' ? 'active' : ''} onClick={() => setView('chores')}>Sysslor</button>
-        <button className={view === 'sick' ? 'active' : ''} onClick={() => setView('sick')}>Sjuk & VAB</button>
-        <button className={view === 'food' ? 'active' : ''} onClick={() => setView('food')}>Mat</button>
-        <button className={view === 'pickups' ? 'active' : ''} onClick={() => setView('pickups')}>Hämta</button>
+        {shows('stats.chores') && <button className={view === 'chores' ? 'active' : ''} onClick={() => setView('chores')}>Sysslor</button>}
+        {shows('stats.sick') && <button className={view === 'sick' ? 'active' : ''} onClick={() => setView('sick')}>Sjuk & VAB</button>}
+        {shows('stats.food') && <button className={view === 'food' ? 'active' : ''} onClick={() => setView('food')}>Mat</button>}
+        {shows('stats.pickups') && <button className={view === 'pickups' ? 'active' : ''} onClick={() => setView('pickups')}>Hämta</button>}
       </div>
       {view === 'chores' && <ChoreStats householdId={householdId} members={members} since={from} />}
       {view === 'sick' && <VabStats rows={vab.rows.filter((r) => counts(r, 'day', from))} members={people || members} />}

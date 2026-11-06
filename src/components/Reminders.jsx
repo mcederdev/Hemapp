@@ -3,17 +3,19 @@ import { useTable } from '../useTable'
 import { today, prettyDay } from '../lib/dates'
 import { nextBirthday, advance, daysUntil, REMINDER_SUGGESTIONS } from '../lib/yearly'
 import Sheet, { Fab } from './Sheet'
+import { pickSub, shows } from '../lib/menu'
 
 const when = (n) => (n === 0 ? 'idag' : n === 1 ? 'imorgon' : n < 0 ? `${-n} dagar sen` : `om ${n} dagar`)
 
 export default function Reminders({ householdId }) {
-  const [view, setView] = useState('reminders')
+  const [rawView, setView] = useState('reminders')
+  const view = pickSub('reminders', rawView, [])
   return (
     <section>
       <h2>Påminnelser</h2>
       <div className="seg mb">
-        <button className={view === 'reminders' ? 'active' : ''} onClick={() => setView('reminders')}>Årliga saker</button>
-        <button className={view === 'birthdays' ? 'active' : ''} onClick={() => setView('birthdays')}>Födelsedagar</button>
+        {shows('reminders.reminders') && <button className={view === 'reminders' ? 'active' : ''} onClick={() => setView('reminders')}>Årliga saker</button>}
+        {shows('reminders.birthdays') && <button className={view === 'birthdays' ? 'active' : ''} onClick={() => setView('birthdays')}>Födelsedagar</button>}
       </div>
       {view === 'reminders' ? <YearlyList householdId={householdId} /> : <Birthdays householdId={householdId} />}
     </section>

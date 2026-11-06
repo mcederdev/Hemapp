@@ -23,6 +23,26 @@ export const SHORT = { messages: 'Chatt', finance: 'Ekonomi', kids: 'Barnen', va
 export const LOCKED = ['today', 'family'] // går inte att dölja
 export const BAR_SIZE = 5
 
+// Undersidor som går att dölja var för sig. Döljs en undersida (eller hela sidan) försvinner också
+// det som hör till den på andra ställen, t.ex. övertid i kalendern och notiser. Sparas som 'sida.under' i menu.hidden.
+export const SUBS = {
+  shopping: [['home', 'Slut hemma'], ['pantry', 'Skafferi', 'och bäst-före i Snart'], ['lists', 'Listor']],
+  finance: [['bills', 'Räkningar'], ['subs', 'Abonnemang', 'och uppsägningar i Snart'], ['overtime', 'Övertid', 'och övertid på jobbpass i kalendern']],
+  vab: [['vab', 'VAB'], ['sick', 'Sjuk själv']],
+  car: [['costs', 'Kostnader'], ['todo', 'Att göra', 'och bilens sysslor på Idag']],
+  stats: [['chores', 'Sysslor'], ['sick', 'Sjuk & VAB'], ['food', 'Mat'], ['pickups', 'Hämta']],
+  reminders: [['reminders', 'Årliga saker'], ['birthdays', 'Födelsedagar', 'och födelsedagar i Snart']]
+}
+
+// Vad som syns för den inloggade. App.jsx sätter den varje gång menyn ändras.
+let current = { hidden: [] }
+export const setMenuState = (menu) => { current = resolveMenu(menu) }
+export const isHidden = (key, hidden = current.hidden) => { const page = key.split('.')[0]; return hidden.includes(page) || hidden.includes(key) }
+export const shows = (key) => !isHidden(key)
+// Synliga undersidor för en sida, och vilken som ska visas om den valda är dold
+export const visibleSubs = (page) => (SUBS[page] || []).map(([id]) => id).filter((id) => shows(`${page}.${id}`))
+export const pickSub = (page, view, always = [], fallback) => (always.includes(view) || visibleSubs(page).includes(view) ? view : fallback || visibleSubs(page)[0] || always[0])
+
 export function resolveMenu(menu) {
   const o = menu?.order || []
   const order = [...o.filter((id) => PAGES.some((p) => p.id === id)), ...PAGES.map((p) => p.id).filter((id) => !o.includes(id))]

@@ -9,6 +9,7 @@ import { custodyStatus } from './Custody'
 import Sheet, { Fab } from './Sheet'
 import Icon from './Icon'
 import CarTodo from './CarTodo'
+import { pickSub, shows } from '../lib/menu'
 
 const kr = (n) => `${Math.round(n).toLocaleString('sv-SE')} kr`
 
@@ -110,7 +111,8 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
   const costs = useTable('car_costs', householdId, 'day', ['car_id', car.id])
   const settlements = useTable('car_settlements', householdId, 'day', ['car_id', car.id])
   const [form, setForm] = useState(null)
-  const [view, setView] = useState('costs')
+  const [rawView, setView] = useState('costs')
+  const view = pickSub('car', rawView, ['year'])
   const [showAll, setShowAll] = useState(false)
   const [future, setFuture] = useState(false)
   const t = today()
@@ -217,8 +219,8 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
       </div>}
 
       <div className="seg mb">
-        <button className={view === 'costs' ? 'active' : ''} onClick={() => setView('costs')}>Kostnader</button>
-        <button className={view === 'todo' ? 'active' : ''} onClick={() => setView('todo')}>Att göra</button>
+        {shows('car.costs') && <button className={view === 'costs' ? 'active' : ''} onClick={() => setView('costs')}>Kostnader</button>}
+        {shows('car.todo') && <button className={view === 'todo' ? 'active' : ''} onClick={() => setView('todo')}>Att göra</button>}
         <button className={view === 'year' ? 'active' : ''} onClick={() => setView('year')}>I år</button>
       </div>
 

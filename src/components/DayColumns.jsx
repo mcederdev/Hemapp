@@ -6,6 +6,7 @@ import Sheet from './Sheet'
 import { EventOvertime } from './Overtime'
 import { guessCategory } from '../lib/categories'
 import { useNow } from '../lib/useNow'
+import { shows } from '../lib/menu'
 
 const PX = 46 // pixlar per timme
 
@@ -91,7 +92,7 @@ export default function DayColumns({ occ, day, members, onRemove, onVab, onSick,
       {open && (
         <Sheet title={open.title} onClose={() => setOpen(null)}>
           <ul className="list"><EventRow occ={open} day={day} byId={byId} badge={badgeFor?.(open, day)} /></ul>
-          {householdId && open.member_id === me?.id && !open.all_day && (open.category || guessCategory(open.title, rules || [])) === 'jobb' && <EventOvertime key={open.key} occ={open} householdId={householdId} me={me} />}
+          {householdId && shows('finance.overtime') && open.member_id === me?.id && !open.all_day && (open.category || guessCategory(open.title, rules || [])) === 'jobb' && <EventOvertime key={open.key} occ={open} householdId={householdId} me={me} />}
           <div className="stack">
             {onVab && byId[open.member_id]?.role === 'child' && <button className="primary" onClick={() => { const o = open; setOpen(null); onVab(o) }}>🤒 {byId[open.member_id].name} är sjuk – VAB</button>}
             {onSick && byId[open.member_id] && byId[open.member_id].role !== 'child' && !open.all_day && <button onClick={() => { const o = open; setOpen(null); onSick(o) }}>🤒 {open.member_id === me?.id ? 'Jag är sjuk' : `${byId[open.member_id].name} är sjuk`}</button>}

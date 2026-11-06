@@ -9,7 +9,7 @@ import Today from './components/Today'
 import Icon from './components/Icon'
 import { withInitials } from './components/MemberPicker'
 import { applyAccent } from './lib/accent'
-import { resolveMenu, SHORT } from './lib/menu'
+import { resolveMenu, SHORT, setMenuState } from './lib/menu'
 import { isTest, setTest, testSince, removeTestData } from './lib/testmode'
 
 // Flikarna laddas först när de öppnas, så att appen startar snabbare
@@ -117,6 +117,7 @@ function Home({ me }) {
   // Menyn enligt egna val (Mer → Anpassa menyn)
   const myMenu = members.rows.find((m) => m.id === me.id)?.menu
   const menu = resolveMenu(myMenu)
+  setMenuState(myMenu)
   const TABS = [...menu.bar, { id: 'more', label: 'Mer', icon: 'menu' }]
   const MORE = menu.more
   const active = TABS.some((t) => t.id === tab) ? tab : 'more'
