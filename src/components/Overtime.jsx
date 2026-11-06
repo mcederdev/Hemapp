@@ -84,8 +84,7 @@ export default function Overtime({ householdId, me }) {
       <div className="card small mt">
         <div className="row between"><span>Vardag 06–20</span><strong>{krx(r.day)}/h</strong></div>
         <div className="row between"><span>Annan tid, helg, ledig dag, aftnar</span><strong>{krx(r.other)}/h</strong></div>
-        <p className="muted small">Lön {kr(s.salary)} / {s.div_day || 94} och / {s.div_other || 72}. Semestertillägg ingår. {minOf(s) ? 'Under 15 minuter i följd ersätts inte.' : 'Även korta stunder under 15 minuter räknas (undantag).'} <button className="link small" onClick={() => setEditSalary(true)}>Ändra lön</button></p>
-        <label className="row small"><input type="checkbox" checked={minOf(s) === 0} onChange={(e) => save({ min_minutes: e.target.checked ? 0 : 15 })} /> Undantag: ersätt även under 15 minuter</label>
+        <p className="muted small">Lön {kr(s.salary)} / {s.div_day || 94} och / {s.div_other || 72}. Semestertillägg ingår. {minOf(s) ? 'Under 15 minuter i följd ersätts inte. ' : ''}<button className="link small" onClick={() => setEditSalary(true)}>Ändra lön</button></p>
       </div>
 
       {done.length > 0 && <button className="link small mt" onClick={() => setShowOld(!showOld)}>{showOld ? 'Dölj rapporterad' : `Visa rapporterad övertid (${done.length})`}</button>}
