@@ -28,6 +28,8 @@ export default function Car({ householdId, me, members, people, linked, custody 
       model: settings.model || null, model_year: Number(settings.model_year) || null, fuel: settings.fuel || null,
       tax_per_year: Number(String(settings.tax_per_year || '').replace(/\s/g, '')) || null, in_traffic: settings.in_traffic || null, last_inspection: settings.last_inspection || null }
     let saved = null
+    // Kopplades hushållen ihop efter att bilen lades in: dela bilen nu
+    if (settings.id && !settings.link_id && linked.households[0]) v.link_id = linked.households[0].link_id
     if (settings.id) { await cars.update(settings.id, v); saved = { ...settings, ...v } }
     else {
       const link = linked.households[0]?.link_id || null
