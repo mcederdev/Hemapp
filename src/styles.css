@@ -641,3 +641,9 @@ button.name-edit { padding: 0; color: inherit; text-align: left; white-space: no
 .testmode { box-shadow: inset 0 0 0 4px #ffb800; min-height: 100vh; }
 .testmode .tabs { border-top: 3px solid #ffb800; }
 .count.test-on { background: #ffb800; color: #3a2a00; }
+
+/* Anpassa menyn */
+.menu-edit li.menu-div { background: none; border: 0; padding: 10px 4px 2px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+.menu-edit li.menu-off { opacity: .5; }
+.menu-edit label { gap: 10px; }
+.tabs button span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }

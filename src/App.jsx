@@ -9,6 +9,7 @@ import Today from './components/Today'
 import Icon from './components/Icon'
 import { withInitials } from './components/MemberPicker'
 import { applyAccent } from './lib/accent'
+import { resolveMenu, SHORT } from './lib/menu'
 import { isTest, setTest, testSince, removeTestData } from './lib/testmode'
 
 // Flikarna laddas först när de öppnas, så att appen startar snabbare
@@ -28,27 +29,7 @@ const Stats = lazy(() => import('./components/Stats'))
 const Reminders = lazy(() => import('./components/Reminders'))
 const PickupsPage = lazy(() => import('./components/Pickups').then((m) => ({ default: m.PickupsPage })))
 
-const TABS = [
-  { id: 'today', label: 'Idag', icon: 'home' },
-  { id: 'shopping', label: 'Handla', icon: 'cart' },
-  { id: 'chores', label: 'Sysslor', icon: 'checks' },
-  { id: 'calendar', label: 'Kalender', icon: 'calendar' },
-  { id: 'meals', label: 'Mat', icon: 'food' },
-  { id: 'more', label: 'Mer', icon: 'menu' }
-]
-const MORE = [
-  { id: 'messages', label: 'Meddelanden', icon: 'chat' },
-  { id: 'finance', label: 'Ekonomi', icon: 'wallet' },
-  { id: 'kids', label: 'Barnens sida', icon: 'star' },
-  { id: 'vab', label: 'VAB & Sjukdagar', icon: 'thermo' },
-  { id: 'pickups', label: 'Lämna och hämta', icon: 'calendar' },
-  { id: 'car', label: 'Bilen', icon: 'car' },
-  { id: 'medicine', label: 'Medicin', icon: 'pill' },
-  { id: 'stats', label: 'Statistik', icon: 'chart' },
-  { id: 'reminders', label: 'Påminnelser & födelsedagar', icon: 'bell' },
-  { id: 'kitchen', label: 'Köksskärm (iPad)', icon: 'home' },
-  { id: 'family', label: 'Familj & inställningar', icon: 'users' }
-]
+const MenuEdit = lazy(() => import('./components/MenuEdit'))
 
 export default function App() {
   const [session, setSession] = useState(undefined)
@@ -130,7 +111,12 @@ function Home({ me }) {
   const props = { me, householdId: me.household_id, members: all, people, linked, custody: custody.rows, custodyTable: custodyRaw, custodyExc, membersTable: members, household, households, go: pick, guests: guestsT.rows, guestsTable: guestsT,
     focus: all.some((m) => m.id === focus) ? focus : null, setFocus }
   useEffect(() => { applyAccent(household?.theme?.accent) }, [household?.theme?.accent])
-  const active = MORE.some((m) => m.id === tab) ? 'more' : tab
+  // Menyn enligt egna val (Mer → Anpassa menyn)
+  const myMenu = members.rows.find((m) => m.id === me.id)?.menu
+  const menu = resolveMenu(myMenu)
+  const TABS = [...menu.bar, { id: 'more', label: 'Mer', icon: 'menu' }]
+  const MORE = menu.more
+  const active = TABS.some((t) => t.id === tab) ? tab : 'more'
   const seen = lastSeen()
   const unread = tab === 'messages' ? 0 : messages.rows.filter((m) => m.author !== me.id && m.created_at > seen).length
   const badge = { messages: unread }
@@ -179,6 +165,7 @@ function Home({ me }) {
               {MORE.map((m) => (
                 <li key={m.id} className="tap" onClick={() => pick(m.id)}><span className="row"><Icon name={m.icon} /> {m.label}{badge[m.id] > 0 && <span className="count">{badge[m.id]}</span>}</span><Icon name="chevron" size={18} className="muted" /></li>
               ))}
+              <li className="tap" onClick={() => pick('menu')}><span className="row"><Icon name="menu" /> Anpassa menyn</span><Icon name="chevron" size={18} className="muted" /></li>
               <li className="tap" onClick={toggleTest}><span className="row">🧪 Testläge{test && <span className="count test-on">PÅ</span>}</span><span className="muted small">{test ? 'Avsluta' : 'Starta'}</span></li>
             </ul>
             <p className="muted small">I testläget räknas inget du gör i statistiken eller i barnens stjärnor. Gäller bara den här telefonen.</p>
@@ -198,13 +185,14 @@ function Home({ me }) {
         {tab === 'pickups' && <PickupsPage {...props} people={[...people, ...guestsT.rows.map((g) => ({ ...g, role: 'guest', short: g.name.slice(0, 1).toUpperCase() }))]} />}
         {tab === 'messages' && <section><h2>Meddelanden</h2><Messages {...props} /></section>}
         {tab === 'family' && <Family {...props} />}
+        {tab === 'menu' && <MenuEdit menu={myMenu} onChange={(m) => members.update(me.id, { menu: m })} />}
         </Suspense>
       </main>
       <nav className="tabs">
         {TABS.map((t) => (
           <button key={t.id} className={active === t.id ? 'active' : ''} onClick={() => pick(t.id)}>
-            <span className="tab-ico"><Icon name={t.icon} size={24} strokeWidth={active === t.id ? 2.4 : 1.8} />{t.id === 'more' && unread > 0 && <span className="tab-badge">{unread}</span>}</span>
-            <span>{t.label}</span>
+            <span className="tab-ico"><Icon name={t.icon} size={24} strokeWidth={active === t.id ? 2.4 : 1.8} />{(t.id === 'more' ? MORE.some((m) => m.id === 'messages') : t.id === 'messages') && unread > 0 && <span className="tab-badge">{unread}</span>}</span>
+            <span>{t.id === 'more' ? t.label : SHORT[t.id] || t.label}</span>
           </button>
         ))}
       </nav>
