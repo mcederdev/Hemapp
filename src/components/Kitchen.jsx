@@ -28,6 +28,27 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
   const pantry = useTable('pantry_items', householdId, 'best_before')
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
   useEffect(() => { document.documentElement.classList.add('kiosk'); return () => document.documentElement.classList.remove('kiosk') }, [])
+  // Helskärm (döljer webbläsarens adressrad) och håll skärmen vaken
+  const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement
+  const canFs = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)
+  const [isFs, setIsFs] = useState(!!fsEl())
+  useEffect(() => {
+    const on = () => setIsFs(!!fsEl())
+    document.addEventListener('fullscreenchange', on); document.addEventListener('webkitfullscreenchange', on)
+    let lock = null
+    const wake = () => { if (document.visibilityState === 'visible' && navigator.wakeLock) navigator.wakeLock.request('screen').then((l) => { lock = l }).catch(() => {}) }
+    wake(); document.addEventListener('visibilitychange', wake)
+    return () => {
+      document.removeEventListener('fullscreenchange', on); document.removeEventListener('webkitfullscreenchange', on)
+      document.removeEventListener('visibilitychange', wake); lock?.release().catch(() => {})
+      if (fsEl()) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)?.catch?.(() => {})
+    }
+  }, [])
+  const toggleFs = () => {
+    const el = document.documentElement
+    if (fsEl()) (document.exitFullscreen || document.webkitExitFullscreen).call(document)
+    else (el.requestFullscreen || el.webkitRequestFullscreen).call(el)?.catch?.(() => {})
+  }
 
   const t = today()
   const d0 = parseDay(t), d1 = parseDay(addDays(t, 1)), d2 = parseDay(addDays(t, 2))
@@ -36,7 +57,7 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
   const tomorrow = dayList(expandEvents(events.rows, d1, d2), d1).filter((o) => o.all_day || o.start >= d1)
   const todo = chores.rows.filter((c) => showToday(c, t) && (!c.car_id || (c.due_date && c.due_date <= t)))
   const defaultList = lists.rows.find((l) => l.is_default)
-  const toBuy = items.rows.filter((i) => !i.done && i.list_id === defaultList?.id)
+  const toBuy = items.rows.filter((i) => !i.done && i.list_id === defaultList?.id).sort((a, b) => Number(!!b.prio) - Number(!!a.prio))
   const week = Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(t), i))
   // Nattläge 21–06: bara klockan, dämpat. Tryck för att visa allt en stund.
   const [awakeUntil, setAwakeUntil] = useState(0)
@@ -66,6 +87,7 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
           <div className="muted">Middag: <strong>{dinner?.dish || 'inte bestämd'}</strong></div>
         </div>
         <Weather household={household} />
+        {canFs && <button className="k-exit k-fs" onClick={toggleFs} aria-label={isFs ? 'Lämna helskärm' : 'Helskärm'}>{isFs ? '⤡' : '⛶'}</button>}
         <button className="k-exit" onClick={onExit} aria-label="Stäng köksskärmen">✕</button>
       </header>
 
@@ -126,7 +148,7 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
         <section className="k-card k-shop">
           <h3>Handla {toBuy.length > 0 && <span className="count">{toBuy.length}</span>}</h3>
           <div className="chips">
-            {toBuy.map((i) => <button key={i.id} className="chip big-chip" onClick={() => checkOff(items, i, lists.rows, pantry)}>{i.name}</button>)}
+            {toBuy.map((i) => <button key={i.id} className={`chip big-chip ${i.prio ? 'prio-chip' : ''}`} onClick={() => checkOff(items, i, lists.rows, pantry)}>{i.prio ? '! ' : ''}{i.name}</button>)}
           </div>
           {toBuy.length === 0 && <p className="muted">Listan är tom.</p>}
         </section>

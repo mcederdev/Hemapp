@@ -560,6 +560,8 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 .weather .w-icon { font-size: 2.4rem; line-height: 1; }
 .weather .w-temp { font-size: 1.5rem; font-weight: 700; }
 .weather + .k-exit { margin-left: 8px; }
+.k-fs + .k-exit { margin-left: 8px; }
+.k-fs { font-size: 1.2rem; }
 
 /* Köksskärmens nattläge */
 .kitchen.night { background: #000; color: #9a9a9a; align-items: center; justify-content: center; text-align: center; gap: 10px; cursor: pointer; }
@@ -666,3 +668,4 @@ button.name-edit { padding: 0; color: inherit; text-align: left; white-space: no
 .car-facts { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: -6px; }
 .seg.seg-sm button { padding: 4px 10px; font-size: .85rem; }
 .ot-sum .big-num { font-size: 2rem; line-height: 1.1; }
+.prio-chip { border-color: var(--danger); color: var(--danger); font-weight: 700; }
