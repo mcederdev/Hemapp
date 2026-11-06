@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { useTable } from '../useTable'
 import { today, prettyDay } from '../lib/dates'
@@ -8,6 +8,7 @@ import Sheet from './Sheet'
 const kr = (n) => Math.round(n).toLocaleString('sv-SE') + ' kr'
 const krx = (n) => n.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kr'
 const hm = (iso) => new Date(iso).toTimeString().slice(0, 5)
+const localDay = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 const minOf = (s) => (s?.min_minutes ?? 15)
 const split = (r, s) => splitOvertime(new Date(r.starts_at), new Date(r.ends_at), { freeDay: r.free_day, minMinutes: minOf(s) })
 // Från- och tilltid samma dag, tilltid före fråntid = över midnatt
@@ -20,13 +21,13 @@ export function useOvertimeSettings(householdId, me) {
   const t = useTable('overtime_settings', householdId)
   const s = t.rows.find((r) => r.member_id === me.id)
   const save = async (v) => { const { error } = await supabase.from('overtime_settings').upsert({ member_id: me.id, household_id: householdId, ...v }); if (error) alert(error.message); t.reload() }
-  return { s, save }
+  return { s, save, loading: t.loading }
 }
 
 // Ekonomi → Övertid: allt som ska rapporteras, kalkylator och lön. Syns bara för den inloggade.
 export default function Overtime({ householdId, me }) {
   const ot = useTable('overtime', householdId, 'starts_at')
-  const { s, save } = useOvertimeSettings(householdId, me)
+  const { s, save, loading } = useOvertimeSettings(householdId, me)
   const [salary, setSalary] = useState('')
   const [editSalary, setEditSalary] = useState(false)
   const [form, setForm] = useState(null)
@@ -53,6 +54,7 @@ export default function Overtime({ householdId, me }) {
   const preview = form?.from && form?.to ? (() => { const [st, en] = toRange(form.day, form.from, form.to); return splitOvertime(st, en, { freeDay: form.free, minMinutes: minOf(s) }) })() : null
   const rd = reportDay(t)
 
+  if (loading && !s) return <section><h2>Övertid</h2><p className="muted">Laddar…</p></section>
   if (!s?.salary || editSalary) {
     return (
       <section>
@@ -76,7 +78,7 @@ export default function Overtime({ householdId, me }) {
         {open.length > 0 && <button className="primary" onClick={report}>✓ Inlagt i arbetsgivarens system</button>}
       </div>
       <ul className="list">
-        {open.map((x) => <Row key={x.id} x={x} s={s} onOpen={() => setForm({ id: x.id, day: x.day, from: hm(x.starts_at), to: hm(x.ends_at), free: x.free_day, note: x.note || '' })} />)}
+        {open.map((x) => <Row key={x.id} x={x} s={s} onOpen={() => setForm({ id: x.id, day: localDay(x.starts_at), from: hm(x.starts_at), to: hm(x.ends_at), free: x.free_day, note: x.note || '' })} />)}
       </ul>
       {open.length === 0 && <p className="muted">Ingen övertid att rapportera. Tryck på ett jobbpass i kalendern och fyll i när du faktiskt slutade, eller lägg till här nedan.</p>}
       <button className="wide" onClick={() => setForm({ day: t, from: '', to: '', free: false, note: '' })}>➕ Lägg till / räkna ut övertid</button>
@@ -129,7 +131,7 @@ function Row({ x, s, onOpen }) {
   const sp = split(x, s)
   return (
     <li className="tap" onClick={onOpen}>
-      <span>{prettyDay(x.day)} · {hm(x.starts_at)}–{hm(x.ends_at)}
+      <span>{prettyDay(localDay(x.starts_at))} · {hm(x.starts_at)}–{hm(x.ends_at)}
         <div className="muted small">{fmtH(sp.total)}{sp.other && sp.day ? ` (${fmtH(sp.other)} annan tid)` : sp.other ? ' · annan tid' : ''}{x.note ? ` · ${x.note}` : ''}{x.reported_at ? ' · ✓ rapporterad' : ''}</div></span>
       <strong>{kr(overtimePay(sp, s))}</strong>
     </li>
@@ -145,6 +147,8 @@ export function EventOvertime({ occ, householdId, me }) {
   const row = ot.rows.find((r) => r.event_id === occ.id && r.day === dayStr)
   // Fyll i antal minuter (t.ex. tåget var 53 minuter sent), faktisk sluttid räknas ut
   const [mins, setMins] = useState(row ? String(Math.round((new Date(row.ends_at) - new Date(row.starts_at)) / 60000)) : '')
+  // Raden kan komma efter att rutan öppnats (laddas först nu)
+  useEffect(() => { if (row && !mins) setMins(String(Math.round((new Date(row.ends_at) - new Date(row.starts_at)) / 60000))) }, [row?.id])
   const n = Number(mins) || 0
   const range = n > 0 ? new Date(planned.getTime() + n * 60000) : null
   const sp = range ? splitOvertime(planned, range, { minMinutes: minOf(s) }) : null

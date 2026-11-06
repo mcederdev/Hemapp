@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../supabase'
 import { useTable } from '../useTable'
 import { today, prettyDay } from '../lib/dates'
@@ -129,9 +129,11 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
   const chores = useTable('chores', householdId)
   const inspectDue = inspectionDue(car)
   // Fliken Datum är borta: flytta bilens gamla påminnelser till Att göra en gång
+  const moved = useRef(false), taxed = useRef(false)
   const oldRems = useTable('reminders', householdId, 'due_date', ['car_id', car.id])
   useEffect(() => {
-    if (oldRems.loading || chores.loading || !oldRems.rows.length) return
+    if (oldRems.loading || chores.loading || !oldRems.rows.length || moved.current) return
+    moved.current = true
     const add = remindersToChores(car, oldRems.rows, chores.rows)
     ;(async () => {
       if (add.length) await chores.insert(add)
@@ -140,7 +142,8 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
   }, [oldRems.loading, chores.loading, oldRems.rows.length])
   // Skatten bokförs som kostnad när betalningsmånaden är slut (ägarhushållet betalar). Görs bara av ägaren, en gång per betalning.
   useEffect(() => {
-    if (costs.loading || !isOwner || !car.tax_booked_through || car.tax_booked_through >= t) return
+    if (costs.loading || !isOwner || !car.tax_booked_through || car.tax_booked_through >= t || taxed.current) return
+    taxed.current = true
     const due = taxPayments(car, car.tax_booked_through, t).filter((p) => !costs.rows.some((c) => c.kind === 'skatt' && c.day.slice(0, 7) === p.day.slice(0, 7)))
     ;(async () => {
       if (due.length) await costs.insert(due.map((p) => ({ ...p, kind: 'skatt', shared: true, note: 'Fordonsskatt', paid_by_household: car.household_id })))
