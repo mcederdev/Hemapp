@@ -22,7 +22,7 @@ export default function Finance(props) {
         {props.me?.role !== 'child' && <button className={view === 'overtime' ? 'active' : ''} onClick={() => pick('overtime')}>Övertid</button>}
       </div>
       {view === 'bills' && <Bills {...props} />}
-      {view === 'subs' && <section><h2>Abonnemang</h2><Subscriptions householdId={props.householdId} members={props.members} /></section>}
+      {view === 'subs' && <section><h2>Abonnemang</h2><Subscriptions householdId={props.householdId} members={props.members} household={props.household} households={props.households} /></section>}
       {view === 'overtime' && <Overtime householdId={props.householdId} me={props.me} />}
     </>
   )

@@ -669,3 +669,4 @@ button.name-edit { padding: 0; color: inherit; text-align: left; white-space: no
 .seg.seg-sm button { padding: 4px 10px; font-size: .85rem; }
 .ot-sum .big-num { font-size: 2rem; line-height: 1.1; }
 .prio-chip { border-color: var(--danger); color: var(--danger); font-weight: 700; }
+.service-row { gap: 6px; } .service-row input { flex: 1; min-width: 0; } .service-row .svc-amount { flex: 0 0 70px; } .service-row select { flex: 0 0 auto; width: auto; }

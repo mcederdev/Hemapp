@@ -10,9 +10,15 @@ const blank = (paidBy) => ({ name: '', amount: '', period: 'month', renews_on: '
 export const SUB_SUGGESTIONS = ['Netflix', 'Spotify', 'Disney+', 'HBO Max', 'Viaplay', 'YouTube Premium', 'iCloud', 'Storytel', 'Gym', 'Mobil', 'Bredband', 'Tidning']
 
 // Abonnemang: vad familjen betalar för varje månad, och när något ska sägas upp
-export default function Subscriptions({ householdId, members }) {
+// Tjänsterna som föreslås när man lägger till ett abonnemang. Familjen kan ändra listan (households.sub_services).
+export const serviceList = (household) => (Array.isArray(household?.sub_services) ? household.sub_services : SUB_SUGGESTIONS.map((name) => ({ name })))
+
+export default function Subscriptions({ householdId, members, household, households }) {
   const subs = useTable('subscriptions', householdId, 'name')
   const [edit, setEdit] = useState(null)
+  const [editServices, setEditServices] = useState(false)
+  const services = serviceList(household)
+  const has = new Set(subs.rows.map((x) => x.name.toLowerCase()))
   const parents = members.filter((m) => m.role === 'parent' && m.household_id === householdId)
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
   const t = today()
@@ -52,12 +58,26 @@ export default function Subscriptions({ householdId, members }) {
           )
         })}
       </ul>
+      <button className="link small mt" onClick={() => setEditServices(true)}>✎ Ändra listan med tjänster</button>
       <Fab onClick={() => setEdit(blank(parents[0]?.id))} label="Nytt abonnemang" />
+      {editServices && <Services services={services} custom={Array.isArray(household?.sub_services)}
+        save={(list) => household && households.update(household.id, { sub_services: list })} onClose={() => setEditServices(false)} />}
       {edit && (
         <Sheet title={edit.id ? edit.name : 'Nytt abonnemang'} onClose={() => setEdit(null)}>
           <form className="stack" onSubmit={save}>
             <input placeholder="Namn" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus={!edit.id} list="sub-sugg" />
-            <datalist id="sub-sugg">{SUB_SUGGESTIONS.map((x) => <option key={x} value={x} />)}</datalist>
+            <datalist id="sub-sugg">{services.map((x) => <option key={x.name} value={x.name} />)}</datalist>
+            {!edit.id && (
+              <div className="chips">
+                {services.filter((x) => !has.has(x.name.toLowerCase())).map((x) => (
+                  <button type="button" key={x.name} className={`chip ${edit.name === x.name ? 'active' : ''}`}
+                    onClick={() => setEdit({ ...edit, name: x.name, amount: x.amount ? String(x.amount) : edit.amount, period: x.period || edit.period })}>
+                    {x.name}{x.amount ? ` · ${kr(x.amount)}` : ''}
+                  </button>
+                ))}
+                <button type="button" className="chip" onClick={() => setEditServices(true)}>✎ Ändra tjänster</button>
+              </div>
+            )}
             <div className="row">
               <label className="field"><span className="muted small">Kostar</span><input inputMode="decimal" placeholder="kr" value={edit.amount} onChange={(e) => setEdit({ ...edit, amount: e.target.value })} /></label>
               <label className="field"><span className="muted small">Per</span>
@@ -80,5 +100,36 @@ export default function Subscriptions({ householdId, members }) {
         </Sheet>
       )}
     </div>
+  )
+}
+
+// Ändra, ta bort och lägg till tjänster i förslagslistan. Pris och period är valfria och fylls i när man väljer tjänsten.
+function Services({ services, custom, save, onClose }) {
+  const [rows, setRows] = useState(() => services.map((x) => ({ name: x.name, amount: x.amount ? String(x.amount) : '', period: x.period || 'month' })))
+  const set = (i, v) => setRows(rows.map((r, j) => (j === i ? { ...r, ...v } : r)))
+  const done = () => {
+    const seen = new Set()
+    const list = rows.map((r) => ({ name: r.name.trim(), amount: Number(String(r.amount).replace(',', '.')) || null, period: r.period }))
+      .filter((r) => r.name && !seen.has(r.name.toLowerCase()) && seen.add(r.name.toLowerCase()))
+      .map((r) => (r.amount ? r : { name: r.name, period: r.period }))
+    save(list); onClose()
+  }
+  return (
+    <Sheet title="Tjänster" onClose={onClose}>
+      <p className="muted small">Det här är förslagen när ni lägger till ett abonnemang. Pris är valfritt.</p>
+      <ul className="list flush">
+        {rows.map((r, i) => (
+          <li key={i} className="row service-row">
+            <input value={r.name} placeholder="Tjänst" onChange={(e) => set(i, { name: e.target.value })} aria-label="Namn" />
+            <input className="svc-amount" inputMode="decimal" placeholder="kr" value={r.amount} onChange={(e) => set(i, { amount: e.target.value })} aria-label="Pris" />
+            <select value={r.period} onChange={(e) => set(i, { period: e.target.value })} aria-label="Per"><option value="month">/mån</option><option value="year">/år</option></select>
+            <button type="button" className="icon-btn del" onClick={() => setRows(rows.filter((_, j) => j !== i))} aria-label={`Ta bort ${r.name}`}>✕</button>
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="link" onClick={() => setRows([...rows, { name: '', amount: '', period: 'month' }])}>+ Lägg till tjänst</button>
+      <button className="primary wide mt" onClick={done}>Spara</button>
+      {custom && <button type="button" className="link small mt" onClick={() => { if (confirm('Återställ till standardlistan?')) { save(null); onClose() } }}>Återställ standardlistan</button>}
+    </Sheet>
   )
 }
