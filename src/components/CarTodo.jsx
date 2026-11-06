@@ -16,7 +16,8 @@ const QUICK = [
   { title: 'Boka besiktning', emoji: '🔍', book: true },
   { title: 'Byta till vinterdäck', emoji: '❄️', book: true },
   { title: 'Byta till sommardäck', emoji: '☀️', book: true },
-  { title: 'Fylla spolarvätska', emoji: '💧' }
+  { title: 'Fylla spolarvätska', emoji: '💧' },
+  { title: 'Bilförsäkringen förnyas', emoji: '🛡️', repeat: '12-month' }
 ]
 const REPEATS = [['', 'Upprepa inte'], ['1-week', 'Varje vecka'], ['2-week', 'Varannan vecka (≈ 2 ggr/mån)'], ['1-month', 'Varje månad'], ['3-month', 'Var 3:e månad'], ['6-month', 'Varje halvår'], ['12-month', 'Varje år']]
 const emojiOf = (title) => QUICK.find((q) => q.title === title)?.emoji || (/^besikt/i.test(title) ? '✅' : /skatt/i.test(title) ? '🏛️' : '🚗')

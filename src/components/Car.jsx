@@ -1,12 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { useTable } from '../useTable'
 import { today, prettyDay } from '../lib/dates'
 import { CAR_REMINDERS } from '../lib/yearly'
 import { swishUrl } from '../lib/swish'
-import { carBalance, CAR_KINDS, kindOf, carPlan, taxMonths, inspectionDue } from '../lib/car'
+import { carBalance, CAR_KINDS, kindOf, carPlan, taxMonths, inspectionDue, remindersToChores } from '../lib/car'
 import { custodyStatus } from './Custody'
-import { YearlyList } from './Reminders'
 import Sheet, { Fab } from './Sheet'
 import Icon from './Icon'
 import CarTodo from './CarTodo'
@@ -127,6 +126,16 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
   const kid = members.find((m) => m.id === car.follows_child)
   const chores = useTable('chores', householdId)
   const inspectDue = inspectionDue(car)
+  // Fliken Datum är borta: flytta bilens gamla påminnelser till Att göra en gång
+  const oldRems = useTable('reminders', householdId, 'due_date', ['car_id', car.id])
+  useEffect(() => {
+    if (oldRems.loading || chores.loading || !oldRems.rows.length) return
+    const add = remindersToChores(car, oldRems.rows, chores.rows)
+    ;(async () => {
+      if (add.length) await chores.insert(add)
+      for (const r of oldRems.rows) await oldRems.remove(r.id)
+    })()
+  }, [oldRems.loading, chores.loading, oldRems.rows.length])
   const taxM = taxMonths(car.reg_nr, car.tax_per_year)
   // Besiktningen är gjord: spara datumet och lägg in nästa
   const inspected = async (done) => {
@@ -197,7 +206,6 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
         <button className={view === 'costs' ? 'active' : ''} onClick={() => setView('costs')}>Kostnader</button>
         <button className={view === 'todo' ? 'active' : ''} onClick={() => setView('todo')}>Att göra</button>
         <button className={view === 'year' ? 'active' : ''} onClick={() => setView('year')}>I år</button>
-        <button className={view === 'reminders' ? 'active' : ''} onClick={() => setView('reminders')}>Datum</button>
       </div>
 
       {view === 'costs' && (
@@ -238,7 +246,6 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
       )}
 
       {view === 'todo' && <CarTodo onInspected={inspected} car={car} householdId={householdId} me={me} people={people} otherName={otherName} />}
-      {view === 'reminders' && <YearlyList householdId={householdId} carId={car.id} suggestionList={CAR_REMINDERS} placeholder="T.ex. Bilbesiktning" />}
 
       {(view === 'costs' || view === 'year') && <Fab onClick={() => startCost('bransle')} label="Ny kostnad" />}
       {form && (

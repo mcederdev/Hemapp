@@ -269,3 +269,11 @@ test('bilplanen lägger bara till det som saknas', () => {
   assert.equal(p[1].due_date, '2027-04-30')
   assert.equal(p[0].due_date, '2027-04-30')
 })
+import { remindersToChores } from './car.js'
+test('bilpåminnelser blir sysslor utan dubbletter', () => {
+  const car = { id: 'c' }
+  const out = remindersToChores(car, [{ car_id: 'c', title: 'Bilbesiktning', due_date: '2027-01-30', repeat_months: 12 }, { car_id: 'c', title: 'Bilförsäkringen förnyas', due_date: '2027-03-01', repeat_months: 12 }],
+    [{ car_id: 'c', done: false, title: 'Besiktiga (senast 31 jan. 2027)' }])
+  assert.deepEqual(out.map((x) => x.title), ['Bilförsäkringen förnyas'])
+  assert.equal(out[0].repeat_unit, 'month')
+})

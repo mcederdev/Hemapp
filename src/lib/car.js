@@ -79,3 +79,14 @@ export function carPlan(car, chores, t) {
   if (!has(/sommardäck/i)) out.push({ ...base, title: 'Byta till sommardäck', due_date: nextYearly(t, 4, 1), fixed_day: true, repeat_every: 12, repeat_unit: 'month' })
   return out
 }
+
+// Gamla bilpåminnelser (fliken Datum) blir sysslor under Att göra. Hoppar över sådant som redan finns.
+export function remindersToChores(car, reminders, chores) {
+  const open = chores.filter((c) => c.car_id === car.id && !c.done).map((c) => c.title.toLowerCase())
+  const key = (t) => (/besikt/i.test(t) ? 'besikt' : /vinterdäck/i.test(t) ? 'vinterdäck' : /sommardäck/i.test(t) ? 'sommardäck' : /skatt/i.test(t) ? 'skatt' : t.toLowerCase())
+  const have = new Set(open.map(key))
+  return reminders.filter((r) => r.car_id === car.id && !have.has(key(r.title))).map((r) => ({
+    car_id: car.id, shared: true, title: r.title, due_date: r.due_date || null,
+    fixed_day: !!r.repeat_months, repeat_every: r.repeat_months || null, repeat_unit: r.repeat_months ? 'month' : null
+  }))
+}
