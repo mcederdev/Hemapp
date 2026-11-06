@@ -647,3 +647,4 @@ button.name-edit { padding: 0; color: inherit; text-align: left; white-space: no
 .menu-edit li.menu-off { opacity: .5; }
 .menu-edit label { gap: 10px; }
 .tabs button span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.shared-tag { color: var(--accent, #3b6fb6); }

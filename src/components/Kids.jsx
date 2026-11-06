@@ -40,7 +40,7 @@ export default function Kids({ householdId, members, household, households, memb
   const theirs = chores.rows.filter((c) => c.assigned_to === kid.id)
   const todo = theirs.filter((c) => showToday(c, t) || (!c.done && c.due_date === addDays(t, 1)))
     .sort((a, b) => (a.due_date || '9').localeCompare(b.due_date || '9'))
-  const doneBy = chores.rows.filter((c) => (c.done_by || c.assigned_to) === kid.id && !c.is_test)
+  const doneBy = chores.rows.filter((c) => (c.done_by || c.assigned_to) === kid.id && !c.is_test && c.household_id === householdId)
   const doneIn = (from, to) => doneBy.filter((c) => c.done && c.done_at && c.done_at.slice(0, 10) >= from && c.done_at.slice(0, 10) < to)
   const thisWeek = doneIn(week, addDays(week, 7))
   const lastWeek = doneIn(addDays(week, -7), week)

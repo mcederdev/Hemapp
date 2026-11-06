@@ -9,11 +9,12 @@ import { custodyStatus } from './Custody'
 import { YearlyList } from './Reminders'
 import Sheet, { Fab } from './Sheet'
 import Icon from './Icon'
+import CarTodo from './CarTodo'
 
 const kr = (n) => `${Math.round(n).toLocaleString('sv-SE')} kr`
 
 // Bilen: kostnader, vem som betalat, delning mellan hushållen och bilens påminnelser
-export default function Car({ householdId, me, members, linked, custody }) {
+export default function Car({ householdId, me, members, people, linked, custody }) {
   const cars = useTable('cars', householdId)
   const [carId, setCarId] = useState(null)
   const [settings, setSettings] = useState(null)
@@ -54,7 +55,7 @@ export default function Car({ householdId, me, members, linked, custody }) {
           <button className="primary" onClick={newCar}>Lägg till bilen</button>
         </div>
       )}
-      {car && <CarBody key={car.id} car={car} me={me} members={members} linked={linked} custody={custody} householdId={householdId} />}
+      {car && <CarBody key={car.id} car={car} me={me} members={members} people={people} linked={linked} custody={custody} householdId={householdId} />}
       {settings && (
         <Sheet title={settings.id ? 'Bilen' : 'Lägg till bil'} onClose={() => setSettings(null)}>
           <form className="stack" onSubmit={saveCar}>
@@ -79,7 +80,7 @@ export default function Car({ householdId, me, members, linked, custody }) {
   )
 }
 
-function CarBody({ car, me, members, linked, custody, householdId }) {
+function CarBody({ car, me, members, people, linked, custody, householdId }) {
   const costs = useTable('car_costs', householdId, 'day', ['car_id', car.id])
   const settlements = useTable('car_settlements', householdId, 'day', ['car_id', car.id])
   const [form, setForm] = useState(null)
@@ -145,14 +146,15 @@ function CarBody({ car, me, members, linked, custody, householdId }) {
         )}
       </div>
 
-      <div className="chips mb">
+      {(view === 'costs' || view === 'year') && <div className="chips mb">
         {CAR_KINDS.filter((k) => k.quick).map((k) => <button key={k.id} className="chip" onClick={() => startCost(k.id)}>{k.emoji} {k.label}</button>)}
-      </div>
+      </div>}
 
       <div className="seg mb">
         <button className={view === 'costs' ? 'active' : ''} onClick={() => setView('costs')}>Kostnader</button>
+        <button className={view === 'todo' ? 'active' : ''} onClick={() => setView('todo')}>Att göra</button>
         <button className={view === 'year' ? 'active' : ''} onClick={() => setView('year')}>I år</button>
-        <button className={view === 'reminders' ? 'active' : ''} onClick={() => setView('reminders')}>Påminnelser</button>
+        <button className={view === 'reminders' ? 'active' : ''} onClick={() => setView('reminders')}>Datum</button>
       </div>
 
       {view === 'costs' && (
@@ -192,9 +194,10 @@ function CarBody({ car, me, members, linked, custody, householdId }) {
         </div>
       )}
 
+      {view === 'todo' && <CarTodo car={car} householdId={householdId} me={me} people={people} otherName={otherName} />}
       {view === 'reminders' && <YearlyList householdId={householdId} carId={car.id} suggestionList={CAR_REMINDERS} placeholder="T.ex. Bilbesiktning" />}
 
-      {view !== 'reminders' && <Fab onClick={() => startCost('bransle')} label="Ny kostnad" />}
+      {(view === 'costs' || view === 'year') && <Fab onClick={() => startCost('bransle')} label="Ny kostnad" />}
       {form && (
         <Sheet title={form.id ? 'Ändra kostnad' : 'Ny kostnad'} onClose={() => setForm(null)}>
           <form className="stack" onSubmit={saveCost}>

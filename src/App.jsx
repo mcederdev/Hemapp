@@ -4,7 +4,7 @@ import { useTable, pendingCount } from './useTable'
 import { useLinked } from './useLinked'
 import Messages, { lastSeen } from './components/Messages'
 import Shopping from './components/Shopping'
-import Chores from './components/Chores'
+import Chores, { setSharedLink } from './components/Chores'
 import Today from './components/Today'
 import Icon from './components/Icon'
 import { withInitials } from './components/MemberPicker'
@@ -88,6 +88,7 @@ function Home({ me }) {
   const members = useTable('members', me.household_id)
   const households = useTable('households', me.household_id)
   const linked = useLinked(me.household_id)
+  setSharedLink(linked.households[0]?.link_id || null)
   const custodyRaw = useTable('custody', me.household_id)
   const custodyExc = useTable('custody_exceptions', me.household_id, 'from_date')
   const custody = { ...custodyRaw, rows: custodyRaw.rows.map((c) => ({ ...c, exceptions: custodyExc.rows.filter((e) => e.custody_id === c.id) })) }

@@ -31,7 +31,7 @@ const PERIODS = [['week', 'Vecka'], ['month', 'Månad'], ['year', 'År']]
 
 function ChoreStats({ householdId, members, since }) {
   const choresT = useTable('chores', householdId)
-  const chores = { rows: choresT.rows.filter((c) => !c.done || counts(c, 'done_at', since)) }
+  const chores = { rows: choresT.rows.filter((c) => (c.household_id === householdId || members.some((m) => m.id === (c.done_by || c.assigned_to))) && (!c.done || counts(c, 'done_at', since))) }
   const [period, setPeriod] = useState('month')
   const t = today()
   const from = period === 'week' ? startOfWeek(t) : period === 'month' ? t.slice(0, 7) + '-01' : t.slice(0, 4) + '-01-01'

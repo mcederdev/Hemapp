@@ -57,7 +57,8 @@ export default function Today({ householdId, members, people, go, me, focus, set
   const { allDay, flow } = buildFlow({ events: events.rows, day: d0, dinner, now, focus, withDinner: false })
   const tomorrows = dayList(expandEvents(events.rows.filter((e) => forFocus(focus, e.member_id)), d1, d2), d1).filter((o) => o.all_day || o.start >= d1)
 
-  const mine = chores.rows.filter((c) => forFocus(focus, c.done ? c.done_by || c.assigned_to : c.assigned_to))
+  // Bilens sysslor syns här bara när de har ett datum som är idag eller passerat (t.ex. bokad service)
+  const mine = chores.rows.filter((c) => !c.car_id || c.done || (c.due_date && c.due_date <= t)).filter((c) => forFocus(focus, c.done ? c.done_by || c.assigned_to : c.assigned_to))
   // Idag: det som ska göras idag eller är sent, plus veckans/månadens återkommande
   const todo = mine.filter((c) => showToday(c, t))
     .sort((a, b) => (a.due_date || '9').localeCompare(b.due_date || '9'))
@@ -148,7 +149,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
             <SwipeRow key={c.id} onCheck={() => completeChore(chores, c, me.id)}>
               <span className="check">
                 <Check checked={false} onChange={() => completeChore(chores, c, me.id)} label={`Bocka av ${c.title}`} />
-                <span>{c.title}{c.due_date && c.due_date < t && <span className="error small"> · sen</span>}</span>
+                <span>{c.car_id ? '🚗 ' : ''}{c.title}{c.booked_at ? <span className="muted small"> · kl {new Date(c.booked_at).toTimeString().slice(0, 5)}</span> : ''}{c.due_date && c.due_date < t && <span className="error small"> · sen</span>}</span>
               </span>
               <span className="meta">
                 {c.stars > 0 && <span className="stars-sm"><Icon name="star" size={14} />{c.stars}</span>}

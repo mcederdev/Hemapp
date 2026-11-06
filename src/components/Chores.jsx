@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { supabase } from '../supabase'
 import { useTable } from '../useTable'
 import { COMMON_CHORES } from '../lib/defaults'
 import { nextDue, repeatLabel, prettyDay, today, addDays, startOfWeek } from '../lib/dates'
@@ -20,15 +21,21 @@ const REPEATS = [
 ]
 
 // Bocka av: är sysslan tilldelad räknas den som gjord av den personen, annars av den som bockade
+// Delade sysslor (barnets och bilens) syns i båda hushållen. Länken sätts från App.
+let sharedLink = null
+export const setSharedLink = (id) => { sharedLink = id }
+export const isSharedChore = (c) => !!(c.shared || c.car_id)
+
 export function completeChore(chores, c, doerId) {
   chores.update(c.id, { done: true, done_at: new Date().toISOString(), done_by: c.assigned_to || doerId || null })
+  if (isSharedChore(c) && sharedLink) supabase.rpc('notify_linked', { link: sharedLink, msg: `har gjort: ${c.title}${c.car_id ? ' 🚗' : ''} ✓`, url: c.car_id ? '/?tab=car' : '/?tab=chores' })
   // Sysslor med valt datum (och äldre med egen upprepning): nästa gång läggs till direkt, samma veckodag nästa period
   if (c.repeat_unit && (!c.plan_id || c.fixed_day)) {
     const t = today()
     let next = nextDue(c.due_date || t, c.repeat_every, c.repeat_unit)
     while (next && next <= t) next = nextDue(next, c.repeat_every, c.repeat_unit)
     chores.insert({
-      title: c.title, assigned_to: c.assigned_to, stars: c.stars, plan_id: c.plan_id || null, fixed_day: !!c.fixed_day,
+      title: c.title, assigned_to: c.assigned_to, stars: c.stars, plan_id: c.plan_id || null, fixed_day: !!c.fixed_day, shared: !!c.shared, car_id: c.car_id || null,
       repeat_every: c.repeat_every, repeat_unit: c.repeat_unit, due_date: next
     })
   }
@@ -44,11 +51,12 @@ export async function createPlan(plans, chores, { title, every, unit, assigned_t
   if (plan) await chores.insert({ title, assigned_to, stars, plan_id: plan.id, due_date: due || planDue({ unit, every }, t), fixed_day: !!due && unit !== 'day', repeat_every: every, repeat_unit: unit })
 }
 
-export default function Chores({ householdId, members, me, focus: filter, setFocus: setFilter }) {
+export default function Chores({ householdId, members, people, linked, me, focus: filter, setFocus: setFilter }) {
   const chores = useTable('chores', householdId)
   const templates = useTable('chore_templates', householdId)
   const plans = useTable('chore_plans', householdId)
-  const empty = { title: '', who: null, due: '', repeat: '', stars: 0 }
+  const empty = { title: '', who: null, due: '', repeat: '', stars: 0, share: false }
+  const otherHome = linked?.households?.[0]
   const [form, setForm] = useState(empty)
   const [showCommon, setShowCommon] = useState(false)
   const [showDone, setShowDone] = useState(false)
@@ -56,11 +64,12 @@ export default function Chores({ householdId, members, me, focus: filter, setFoc
   const [editing, setEditing] = useState(null)
   const [showPlans, setShowPlans] = useState(false)
 
-  const byId = Object.fromEntries(members.map((m) => [m.id, m]))
+  const byId = Object.fromEntries((people || members).map((m) => [m.id, m]))
   const planById = Object.fromEntries(plans.rows.map((p) => [p.id, p]))
   const t = today()
   const weekEnd = addDays(startOfWeek(t), 6)
-  const mine = chores.rows.filter((c) => forFocus(filter, c.done ? c.done_by || c.assigned_to : c.assigned_to))
+  // Bilens sysslor ligger under Bilen
+  const mine = chores.rows.filter((c) => !c.car_id).filter((c) => forFocus(filter, c.done ? c.done_by || c.assigned_to : c.assigned_to))
   const open = mine.filter((c) => !c.done).sort((a, b) => (a.due_date || '9').localeCompare(b.due_date || '9'))
   const done = mine.filter((c) => c.done).sort((a, b) => (b.done_at || '').localeCompare(a.done_at || '')).slice(0, 30)
   const common = [...COMMON_CHORES, ...templates.rows.map((x) => x.title)]
@@ -80,7 +89,9 @@ export default function Chores({ householdId, members, me, focus: filter, setFoc
     const title = (text0 ?? form.title).trim()
     if (!title) return
     const [every, unit] = form.repeat ? form.repeat.split('-') : [null, null]
-    if (unit) await createPlan(plans, chores, { title, every: Number(every), unit, assigned_to: form.who, stars: Number(form.stars) || 0, due: form.due || null })
+    // Delad syssla: egen upprepning på sysslan (inte hushållets plan), så att båda hushållen ser nästa gång
+    if (form.share && otherHome) await chores.insert({ title, assigned_to: form.who, due_date: form.due || (unit ? t : null), stars: Number(form.stars) || 0, shared: true, fixed_day: !!unit, repeat_every: unit ? Number(every) : null, repeat_unit: unit })
+    else if (unit) await createPlan(plans, chores, { title, every: Number(every), unit, assigned_to: form.who, stars: Number(form.stars) || 0, due: form.due || null })
     else await chores.insert({ title, assigned_to: form.who, due_date: form.due || null, stars: Number(form.stars) || 0 })
     setForm({ ...form, title: '' })
     setAdding(false)
@@ -104,6 +115,7 @@ export default function Chores({ householdId, members, me, focus: filter, setFoc
               {plan && <span><Icon name="repeat" size={13} /> {planLabel(plan)}</span>}
               {!plan && c.repeat_unit && <span><Icon name="repeat" size={13} /> {repeatLabel(c.repeat_every, c.repeat_unit)}</span>}
               {!c.assigned_to && <span>Hushållet</span>}
+              {c.shared && <span className="shared-tag">🔗 Delad</span>}
             </div>
           </span>
         </span>
@@ -126,7 +138,7 @@ export default function Chores({ householdId, members, me, focus: filter, setFoc
           <form className="stack" onSubmit={(e) => { e.preventDefault(); add() }}>
             <input placeholder="Vad ska göras?" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} autoFocus />
             <div className="row">
-              <label className="field"><span className="muted small">Vem</span><MemberPicker members={members} value={form.who} onChange={(v) => setForm({ ...form, who: v })} emptyLabel="Hushållet" /></label>
+              <label className="field"><span className="muted small">Vem</span><MemberPicker members={form.share ? (people || members).filter((m) => m.role !== 'guest') : members} value={form.who} onChange={(v) => setForm({ ...form, who: v })} emptyLabel="Hushållet" /></label>
               <label className="field"><span className="muted small">{form.repeat && !form.repeat.endsWith('day') ? 'Fast dag' : 'När'}</span><input type="date" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} /></label>
             </div>
             <label className="field"><span className="muted small">Upprepning</span>
@@ -134,7 +146,8 @@ export default function Chores({ householdId, members, me, focus: filter, setFoc
                 {REPEATS.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
               </select>
             </label>
-            {form.repeat && !form.repeat.endsWith('day') && <RepeatHint unit={form.repeat.split('-')[1]} fixed={!!form.due} />}
+            {otherHome && <label className="row small"><input type="checkbox" checked={form.share} onChange={(e) => setForm({ ...form, share: e.target.checked })} /> Dela med {otherHome.name} (syns och kan bockas av där också)</label>}
+            {form.repeat && !form.repeat.endsWith('day') && !form.share && <RepeatHint unit={form.repeat.split('-')[1]} fixed={!!form.due} />}
             {(isChild || form.stars > 0) && (
               <select value={form.stars} onChange={(e) => setForm({ ...form, stars: e.target.value })}>
                 {[0, 1, 2, 3, 5].map((n) => <option key={n} value={n}>{n === 0 ? 'Inga stjärnor' : `${n} stjärn${n === 1 ? 'a' : 'or'}`}</option>)}

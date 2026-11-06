@@ -34,7 +34,7 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
   const dinner = meals.rows.find((m) => m.day === t)
   const { allDay, flow } = buildFlow({ events: events.rows, day: d0, dinner, now, focus: null })
   const tomorrow = dayList(expandEvents(events.rows, d1, d2), d1).filter((o) => o.all_day || o.start >= d1)
-  const todo = chores.rows.filter((c) => showToday(c, t))
+  const todo = chores.rows.filter((c) => showToday(c, t) && (!c.car_id || (c.due_date && c.due_date <= t)))
   const defaultList = lists.rows.find((l) => l.is_default)
   const toBuy = items.rows.filter((i) => !i.done && i.list_id === defaultList?.id)
   const week = Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(t), i))

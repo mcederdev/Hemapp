@@ -4,7 +4,7 @@ import { isTest, TEST_TABLES } from './lib/testmode'
 
 // Tabeller där delade barns rader från det andra hushållet också ska med.
 // Där sköter databasens behörighetsregler vad vi får se.
-const SHARED = new Set(['events', 'vab_days', 'members', 'custody', 'cars', 'messages', 'custody_exceptions', 'medicines', 'pickups', 'packing_items', 'medicine_takes'])
+const SHARED = new Set(['events', 'vab_days', 'members', 'custody', 'cars', 'messages', 'custody_exceptions', 'medicines', 'pickups', 'packing_items', 'medicine_takes', 'chores'])
 // Tabeller utan household_id-kolumn
 const NO_HOUSEHOLD = new Set(['custody_exceptions'])
 
