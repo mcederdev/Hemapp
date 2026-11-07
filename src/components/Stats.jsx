@@ -22,7 +22,7 @@ export default function Stats({ householdId, members, people, household }) {
         {shows('stats.pickups') && <button className={view === 'pickups' ? 'active' : ''} onClick={() => setView('pickups')}>Hämta</button>}
       </div>
       {view === 'chores' && <ChoreStats householdId={householdId} members={members} since={from} />}
-      {view === 'sick' && <VabStats rows={vab.rows.filter((r) => counts(r, 'day', from))} members={people || members} />}
+      {view === 'sick' && <VabStats rows={vab.rows.filter((r) => !r.is_test)} members={people || members} />}
       {view === 'food' && <FoodStats householdId={householdId} since={from} />}
       {view === 'pickups' && <PickupStats householdId={householdId} people={people || members} since={from} />}
     </section>
