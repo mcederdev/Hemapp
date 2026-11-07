@@ -675,3 +675,26 @@ button.name-edit { padding: 0; color: inherit; text-align: left; white-space: no
 .menu-sub input { flex: 0 0 auto; }
 .menu-sub > span { flex: 1; min-width: 0; }
 .link-inline { background: none; border: 0; padding: 0; font: inherit; text-align: left; cursor: pointer; }
+
+/* Startsidan: delad vårdnad */
+.ld-coparent { padding: 48px 0; border-top: 1px solid var(--line); scroll-margin-top: 60px; }
+.ld-co-head { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; margin-bottom: 28px; }
+.ld-kicker { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; font-size: .8rem; margin: 0 0 6px; }
+.ld-co-grid { list-style: none; padding: 0; margin: 0 0 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.ld-co-grid li { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.ld-co-grid strong { display: block; margin: 4px 0; }
+.ld-co-grid p { margin: 0; color: var(--muted); font-size: .95rem; line-height: 1.45; }
+.ld-co-icon { font-size: 1.4rem; }
+.ld-co-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.ld-co-box { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.ld-co-box h3 { margin: 0 0 6px; }
+.ld-co-box p { margin: 0; color: var(--muted); line-height: 1.5; }
+.ld-co-how ol { line-height: 1.7; padding-left: 1.2em; }
+.ld-co-link { flex-basis: 100%; order: 3; }
+@media (max-width: 700px) {
+  .ld-co-head, .ld-co-split { grid-template-columns: 1fr; }
+  .ld-co-head { text-align: center; }
+}
+.ld-co-grid li { display: grid; grid-template-columns: 30px 1fr; column-gap: 8px; align-items: start; }
+.ld-co-grid .ld-co-icon { grid-row: span 2; line-height: 1.2; }
+.ld-co-grid strong { margin: 0 0 2px; }
