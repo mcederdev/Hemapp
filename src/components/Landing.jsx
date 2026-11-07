@@ -20,6 +20,7 @@ const COPARENT = [
   ['🌡️', 'VAB och sjukdagar', 'Se vem som vabbar och när. Ni får en påminnelse om att anmäla dagarna till Försäkringskassan.'],
   ['💊', 'Medicin', 'Barnets mediciner och doser med klockslag, så båda vet vad som har getts och när flaskan tar slut.'],
   ['💬', 'Meddelanden mellan hemmen', 'En egen kanal mellan hushållen, skild från familjens interna chatt.'],
+  ['🚗', 'Gemensam bil', 'Delar ni bil ser båda kostnader, skatt, besiktning och bokade tider. Appen räknar ut vem som ska swisha vem.'],
   ['🧹', 'Delade sysslor', 'Sysslor som gäller båda hemmen, t.ex. att boka tandläkare eller tvätta den gemensamma bilen.']
 ]
 const MORE = ['🍝 Veckomeny och middagstips, och era egna rätter', '⭐ Prio-varor på inköpslistan', '🥛 Skafferi med bäst-före', '💰 Räkningar som delas efter inkomst', '📺 Abonnemang med påminnelse om uppsägning', '⏱️ Övertidsräknare enligt kollektivavtal', '🎂 Födelsedagar och årliga påminnelser', '🔔 Notiser på mobilen varje morgon', '🧭 Välj själv vilka sidor du vill se', '📊 Statistik över sysslor och sjukdagar']
