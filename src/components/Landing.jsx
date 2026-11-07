@@ -16,14 +16,13 @@ const COPARENT = [
   ['🏖️', 'Lov och semester', 'Lägg in perioder som avviker från schemat, t.ex. jullov eller sommarveckor.'],
   ['🎒', 'Packlista', 'En gemensam lista över vad som ska med vid bytet. Kvällen före får båda en påminnelse om vad som är kvar att packa.'],
   ['📅', 'Barnets kalender', 'Barnets aktiviteter, skola och tider syns i båda hemmen, oavsett vem som lagt in dem.'],
-  ['🚸', 'Lämna och hämta', 'Vem lämnar och hämtar vilken dag, med varning om det krockar med någons jobbpass.'],
   ['🌡️', 'VAB och sjukdagar', 'Se vem som vabbar och när. Ni får en påminnelse om att anmäla dagarna till Försäkringskassan.'],
   ['💊', 'Medicin', 'Barnets mediciner och doser med klockslag, så båda vet vad som har getts och när flaskan tar slut.'],
   ['💬', 'Meddelanden mellan hemmen', 'En egen kanal mellan hushållen, skild från familjens interna chatt.'],
   ['🚗', 'Gemensam bil', 'Delar ni bil ser båda kostnader, skatt, besiktning och bokade tider. Appen räknar ut vem som ska swisha vem.'],
   ['🧹', 'Delade sysslor', 'Sysslor som gäller båda hemmen, t.ex. att boka tandläkare eller tvätta den gemensamma bilen.']
 ]
-const MORE = ['🍝 Veckomeny och middagstips, och era egna rätter', '⭐ Prio-varor på inköpslistan', '🥛 Skafferi med bäst-före', '💰 Räkningar som delas efter inkomst', '📺 Abonnemang med påminnelse om uppsägning', '⏱️ Övertidsräknare enligt kollektivavtal', '🎂 Födelsedagar och årliga påminnelser', '🔔 Notiser på mobilen varje morgon', '🧭 Välj själv vilka sidor du vill se', '📊 Statistik över sysslor och sjukdagar']
+const MORE = ['🚸 Vem lämnar och hämtar på skolan, med varning om det krockar med jobbet', '🍝 Veckomeny och middagstips, och era egna rätter', '⭐ Prio-varor på inköpslistan', '🥛 Skafferi med bäst-före', '💰 Räkningar som delas efter inkomst', '📺 Abonnemang med påminnelse om uppsägning', '⏱️ Övertidsräknare enligt kollektivavtal', '🎂 Födelsedagar och årliga påminnelser', '🔔 Notiser på mobilen varje morgon', '🧭 Välj själv vilka sidor du vill se', '📊 Statistik över sysslor och sjukdagar']
 
 // Startsida för den som inte är inloggad: vad appen är, med bilder
 export default function Landing() {
@@ -68,11 +67,11 @@ export default function Landing() {
         <div className="ld-co-split">
           <div className="ld-co-box">
             <h3>Det här delas mellan hemmen</h3>
-            <p>Barnets kalender, växelvisa schemat, byten och lov, packlistan, lämna och hämta, VAB, barnets medicin, delade sysslor, den gemensamma bilen och meddelanden mellan hemmen.</p>
+            <p>Barnets kalender, växelvisa schemat, byten och lov, packlistan, VAB, barnets medicin, delade sysslor, den gemensamma bilen och meddelanden mellan hemmen.</p>
           </div>
           <div className="ld-co-box">
             <h3>Det här stannar hemma</h3>
-            <p>Er egen kalender, inköpslistor, middagar, ekonomi, egna sysslor, lappar och familjens interna chatt. Det andra hemmet ser inget av det.</p>
+            <p>Er egen kalender, inköpslistor, middagar, ekonomi, vem som lämnar och hämtar, egna sysslor, lappar och familjens interna chatt. Det andra hemmet ser inget av det.</p>
           </div>
         </div>
         <div className="ld-co-box ld-co-how">
