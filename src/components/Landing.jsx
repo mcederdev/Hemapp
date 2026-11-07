@@ -77,9 +77,9 @@ export default function Landing() {
         <div className="ld-co-box ld-co-how">
           <h3>Så kopplar ni ihop hushållen</h3>
           <ol>
-            <li>Båda föräldrarna skapar varsitt konto och varsin familj i appen.</li>
-            <li>Den ena går till Familj → Delad vårdnad och tar fram en kod som börjar på D.</li>
-            <li>Den andra skriver in koden och väljer vilket barn ni delar. Klart, nu syns barnets saker hos båda.</li>
+            <li>Den ena föräldern går till Familj → Delad vårdnad, väljer barnet och trycker på Skapa kod. Koden börjar på D och gäller i 30 dagar.</li>
+            <li>Den andra skapar ett konto, väljer Delad vårdnad och skriver in koden. Har hen redan en familj i appen skrivs koden under Familj → Delad vårdnad.</li>
+            <li>Klart. Barnets saker syns nu i båda hemmen, medan resten stannar hos var och en.</li>
           </ol>
           <button className="primary big" onClick={() => setAuth('signup')}>Skapa konto och koppla ihop</button>
         </div>
