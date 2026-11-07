@@ -9,7 +9,7 @@ import Today from './components/Today'
 import Icon from './components/Icon'
 import { withInitials } from './components/MemberPicker'
 import { applyAccent } from './lib/accent'
-import { resolveMenu, SHORT, setMenuState } from './lib/menu'
+import { resolveMenu, SHORT, setMenuState, groupMore } from './lib/menu'
 import { isTest, setTest, testSince, removeTestData } from './lib/testmode'
 
 // Flikarna laddas först när de öppnas, så att appen startar snabbare
@@ -165,13 +165,18 @@ function Home({ me }) {
         {tab === 'more' && (
           <section>
             <h2>Mer</h2>
-            <ul className="list">
-              {MORE.map((m) => (
-                <li key={m.id} className="tap" onClick={() => pick(m.id)}><span className="row"><Icon name={m.icon} /> {m.label}{badge[m.id] > 0 && <span className="count">{badge[m.id]}</span>}</span><Icon name="chevron" size={18} className="muted" /></li>
-              ))}
-              <li className="tap" onClick={() => pick('menu')}><span className="row"><Icon name="menu" /> Anpassa menyn</span><Icon name="chevron" size={18} className="muted" /></li>
-              <li className="tap" onClick={toggleTest}><span className="row">🧪 Testläge{test && <span className="count test-on">PÅ</span>}</span><span className="muted small">{test ? 'Avsluta' : 'Starta'}</span></li>
-            </ul>
+            {groupMore(MORE).map(([name, list]) => (
+              <div key={name}>
+                <h4 className="more-group">{name}</h4>
+                <ul className="list">
+                  {list.map((m) => (
+                    <li key={m.id} className="tap" onClick={() => pick(m.id)}><span className="row"><Icon name={m.icon} /> {m.label}{badge[m.id] > 0 && <span className="count">{badge[m.id]}</span>}</span><Icon name="chevron" size={18} className="muted" /></li>
+                  ))}
+                  {name === 'Inställningar' && <MoreSettings pick={pick} test={test} toggleTest={toggleTest} />}
+                </ul>
+              </div>
+            ))}
+            {!groupMore(MORE).some(([n]) => n === 'Inställningar') && <><h4 className="more-group">Inställningar</h4><ul className="list"><MoreSettings pick={pick} test={test} toggleTest={toggleTest} /></ul></>}
             <p className="muted small">I testläget räknas inget du gör i statistiken eller i barnens stjärnor. Gäller bara den här telefonen.</p>
           </section>
         )}
@@ -206,3 +211,13 @@ function Home({ me }) {
 
 function localStorageGet(k) { try { return localStorage.getItem(k) } catch { return null } }
 function localStorageSet(k, v) { try { localStorage.setItem(k, v) } catch { /* ignoreras */ } }
+
+// Sista raderna under Inställningar på Mer
+function MoreSettings({ pick, test, toggleTest }) {
+  return (
+    <>
+      <li className="tap" onClick={() => pick('menu')}><span className="row"><Icon name="menu" /> Anpassa menyn</span><Icon name="chevron" size={18} className="muted" /></li>
+      <li className="tap" onClick={toggleTest}><span className="row">🧪 Testläge{test && <span className="count test-on">PÅ</span>}</span><span className="muted small">{test ? 'Avsluta' : 'Starta'}</span></li>
+    </>
+  )
+}

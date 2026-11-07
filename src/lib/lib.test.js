@@ -337,3 +337,25 @@ test('dolda undersidor', async () => {
   assert.equal(isHidden('stats.food', []), false)
   setMenuState(null)
 })
+
+test('snabb inmatning', async () => {
+  const { parseQuick, guessKind } = await import('./quickadd.js')
+  const members = [{ id: 'j', name: 'Juhani' }, { id: 'm', name: 'Mamma' }]
+  const t = '2026-11-07' // lördag
+  let r = parseQuick('Tandläkare Juhani tis 15-16', { today: t, members })
+  assert.deepEqual([r.title, r.date, r.time, r.endTime, r.member], ['Tandläkare', '2026-11-10', '15:00', '16:00', 'j'])
+  assert.equal(guessKind('x', r), 'event')
+  r = parseQuick('fotboll imorgon kl 10 varje vecka', { today: t, members })
+  assert.deepEqual([r.title, r.date, r.time, r.repeat], ['Fotboll', '2026-11-08', '10:00', 'weekly'])
+  r = parseQuick('Mammas födelsedag 12 dec', { today: t, members })
+  assert.deepEqual([r.title, r.date, r.member], ['Födelsedag', '2026-12-12', 'm'])
+  r = parseQuick('mjölk, ägg och bröd', { today: t, members })
+  assert.deepEqual(r.items, ['Mjölk', 'Ägg', 'Bröd'])
+  assert.equal(guessKind('mjölk, ägg och bröd', r), 'item')
+  r = parseQuick('Dammsuga bilen', { today: t, members })
+  assert.equal(guessKind('Dammsuga bilen', r), 'chore')
+  r = parseQuick('Möte lör 9.30', { today: t, members })
+  assert.deepEqual([r.date, r.time], ['2026-11-07', '09:30'])
+  r = parseQuick('Simning nästa lör', { today: t, members })
+  assert.equal(r.date, '2026-11-14')
+})

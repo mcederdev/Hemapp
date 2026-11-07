@@ -18,6 +18,7 @@ export default function MedicineToday({ householdId, members, people, me, custod
   const doses = useTable('medicine_takes', householdId, 'taken_at', ['day', t])
   const [sent, setSent] = useState({})
   const [showTaken, setShowTaken] = useState(false)
+  const [showLater, setShowLater] = useState(false)
   const byId = Object.fromEntries((people || members).map((m) => [m.id, m]))
   const nowHM = new Date().toTimeString().slice(0, 5)
   const late = (time) => { const [h, m] = time.split(':').map(Number); return nowHM >= `${String(Math.min(23, h + 2)).padStart(2, '0')}:${String(m).padStart(2, '0')}` }
@@ -33,6 +34,10 @@ export default function MedicineToday({ householdId, members, people, me, custod
   if (!rows.length) return null
 
   const pending = rows.filter((r) => !r.dose)
+  // Doser mer än en timme bort visas på en rad, så rutan blir kort
+  const inHour = new Date(Date.now() + 3600000).toTimeString().slice(0, 5)
+  const isLater = (r) => !r.dose && r.slot > inHour && r.slot > nowHM
+  const later = rows.filter(isLater)
   const lateN = pending.filter((r) => r.late).length
   const nextUp = pending.find((r) => !r.late)
   const who = (m) => byId[m.member_id]
@@ -56,7 +61,7 @@ export default function MedicineToday({ householdId, members, people, me, custod
       summary={pending.length === 0 ? <span className="ok">✓ All medicin är tagen idag</span>
         : <>{lateN > 0 && <span className="error">{lateN} inte {lateN === 1 ? 'tagen' : 'tagna'} i tid</span>}{nextUp && <span>{lateN ? ' · ' : ''}nästa {nextUp.m.name} {nextUp.label}</span>}</>}>
       <ul className="list plain">
-        {rows.filter((r) => showTaken || !r.dose).map((r) => (
+        {rows.filter((r) => (showTaken || !r.dose) && (showLater || !isLater(r))).map((r) => (
           <li key={r.m.id + r.slot} className={`row med-dose ${r.dose ? 'taken' : r.late ? 'late' : ''}`}>
             <Check checked={!!r.dose} onChange={() => take(r)} label={`${r.dose ? 'Ångra' : 'Bocka av'} ${r.m.name} ${r.label}`} />
             <MemberTag member={who(r.m)} size={24} />
@@ -68,6 +73,11 @@ export default function MedicineToday({ householdId, members, people, me, custod
           </li>
         ))}
       </ul>
+      {later.length > 0 && !showLater && (
+        <button className="link small med-taken med-later" onClick={() => setShowLater(true)}>
+          Senare idag: {[...new Set(later.map((r) => r.slot))].map((slot) => `kl ${slot} ${later.filter((r) => r.slot === slot).map((r) => r.m.name).join(', ')}`).join(' · ')}
+        </button>
+      )}
       {rows.some((r) => r.dose) && (
         <button className="link small med-taken" onClick={() => setShowTaken(!showTaken)}>
           {showTaken ? 'Dölj tagna' : `✓ ${rows.every((r) => r.dose) ? 'All medicin är tagen idag' : (rows.filter((r) => r.dose).length === 1 ? '1 tagen' : `${rows.filter((r) => r.dose).length} tagna`)} · visa`}
