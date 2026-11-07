@@ -20,7 +20,16 @@ export const PAGES = [
 ]
 // Kortare namn i bottenmenyn
 export const SHORT = { messages: 'Chatt', finance: 'Ekonomi', kids: 'Barnen', vab: 'VAB', pickups: 'Hämta', medicine: 'Medicin', reminders: 'Påminn', kitchen: 'Kök', family: 'Familj' }
-export const LOCKED = ['today', 'family'] // går inte att dölja
+export const LOCKED = ['today', 'family']
+// Grupper på Mer-sidan. Sidorna ligger i den ordning man valt, inom sin grupp.
+export const GROUPS = [
+  ['Vardag', ['today', 'shopping', 'chores', 'calendar', 'meals']],
+  ['Familjen', ['messages', 'kids', 'pickups', 'medicine', 'vab']],
+  ['Pengar och bil', ['finance', 'car']],
+  ['Planering', ['reminders', 'stats']],
+  ['Inställningar', ['family', 'kitchen']]
+]
+export const groupMore = (pages) => GROUPS.map(([name, ids]) => [name, pages.filter((p) => ids.includes(p.id))]).filter(([, list]) => list.length) // går inte att dölja
 export const BAR_SIZE = 5
 
 // Undersidor som går att dölja var för sig. Döljs en undersida (eller hela sidan) försvinner också

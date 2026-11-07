@@ -15,6 +15,7 @@ import Icon from './Icon'
 import ShopForDishes from './ShopForDishes'
 import Notes, { Soon, NoteButton } from './Notes'
 import { CustodyLine } from './Custody'
+import QuickAdd from './QuickAdd'
 import Pickups from './Pickups'
 import Fold, { Movable, FoldProvider, useFoldOrder } from './Fold'
 import MedicineToday from './MedicineToday'
@@ -48,6 +49,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
   const [picking, setPicking] = useState(false)
   const [shopFor, setShopFor] = useState(null)
   const [noteOpen, setNoteOpen] = useState(false)
+  const [showPast, setShowPast] = useState(false)
   const now = useNow()
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
 
@@ -69,6 +71,8 @@ export default function Today({ householdId, members, people, go, me, focus, set
 
   const late = todo.filter((c) => c.due_date && c.due_date < t).length
   const upcoming = flow.filter((x) => x.type === 'event' && x.end >= now)
+  // Det som redan varit idag fälls ihop till en rad
+  const pastN = flow.filter((x) => x.type !== 'now' && x.end < now).length
   const next = upcoming[0]?.occ
   const daySummary = upcoming.length === 0 ? (allDay.length ? `Heldag: ${allDay.map((o) => o.title).join(', ')}` : 'Inget mer i kalendern idag')
     : `${upcoming.length} kvar idag · nästa ${next ? `${next.title} kl ${timeOf(next.start)}` : ''}`
@@ -120,7 +124,10 @@ export default function Today({ householdId, members, people, go, me, focus, set
         summary={daySummary}>
         <ul className="list flush flow">
           {allDay.map((o) => <EventRow key={o.key} occ={o} day={d0} byId={byId} />)}
-          {flow.map((x) => {
+          {pastN > 1 && !showPast && (
+            <li key="past" className="tap past-fold" onClick={() => setShowPast(true)}><span className="muted small">✓ {pastN} tidigare idag · visa</span></li>
+          )}
+          {flow.filter((x) => showPast || pastN < 2 || x.type === 'now' || x.end >= now).map((x) => {
             if (x.type === 'now') return (
               <li key="now" className="now-line" aria-label={`Klockan är ${timeOf(now)}`}><span>{timeOf(now)}</span><i /></li>
             )
@@ -180,8 +187,8 @@ export default function Today({ householdId, members, people, go, me, focus, set
           <ul className="prio-list">
             {prio.slice(0, 6).map((i) => <li key={i.id}>{i.name}</li>)}
           </ul>
-        ) : <p className="small pad muted">Inga prio-varor. Markera med ! i Handla.</p>}
-        {toBuy.length > prio.slice(0, 6).length && <p className="muted small pad">{prio.length ? `+ ${toBuy.length - Math.min(prio.length, 6)} till` : `${toBuy.length} varor på listan`}</p>}
+        ) : <p className="small pad">{toBuy.slice(0, 4).map((i) => i.name).join(', ')}</p>}
+        {toBuy.length > (prio.length ? Math.min(prio.length, 6) : 4) && <p className="muted small pad">+ {toBuy.length - (prio.length ? Math.min(prio.length, 6) : 4)} till</p>}
         {otherLists.map((l) => <p key={l.id} className="muted small pad">{l.name} · {parseDay(l.for_date).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })}</p>)}
       </Fold>}
 
@@ -189,6 +196,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
       </FoldProvider>
       <button className="link small arrange-btn" onClick={() => fold.setArranging(!fold.arranging)}>{fold.arranging ? '✓ Klar med ordningen' : '↕ Ändra ordning på rutorna'}</button>
 
+      <QuickAdd householdId={householdId} members={members} me={me} household={household} />
       {shopFor && <ShopForDishes householdId={householdId} me={me} dishes={shopFor} onClose={() => setShopFor(null)} />}
       {picking && <Picker day={t} all={allDishes} onPick={setDinner} onClose={() => setPicking(false)} />}
     </section>

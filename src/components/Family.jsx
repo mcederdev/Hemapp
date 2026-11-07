@@ -225,7 +225,7 @@ function SharedCustody({ members, householdId, linked, membersTable }) {
   return (
     <div className="card stack">
       <h3 className="row"><Icon name="repeat" size={18} /> Delad vårdnad</h3>
-      <p className="muted small">Barnets kalender, växelvisa schema, bil och VAB syns i båda hushållen. Sysslor, stjärnor, rutiner och egna sjukdagar är fortfarande era egna.</p>
+      <p className="muted small">Delas med det andra hemmet: barnets kalender, växelvisa schemat med byten och lov, packlistan, VAB, barnets medicin, den gemensamma bilen, sysslor ni markerar som delade och meddelanden mellan hemmen. Era egna: kalender, inköpslistor, middagar, ekonomi, lämna och hämta, övriga sysslor, stjärnor, rutiner och egna sjukdagar.</p>
       {linked?.households.length > 0 && (
         <ul className="list">
           {linked.households.map((h) => (

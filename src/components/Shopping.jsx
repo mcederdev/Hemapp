@@ -56,7 +56,8 @@ export default function Shopping({ householdId, me, members }) {
     const section = catalogByName[n.toLowerCase()]?.section || guessSection(n)
     items.insert({ name: n, list_id: targetList.id, added_by: me.id, section })
   }
-  const submit = (e) => { e.preventDefault(); add(text); setText('') }
+  // Flera varor på en gång: "mjölk, ägg och bröd"
+  const submit = (e) => { e.preventDefault(); text.split(/,|\soch\s/).map((x) => x.trim()).filter(Boolean).forEach((x) => add(x.charAt(0).toUpperCase() + x.slice(1))); setText('') }
   const clearDone = () => done.forEach((i) => items.remove(i.id))
 
   // Prio-markerade varor ligger överst och syns på Idag
@@ -90,7 +91,7 @@ export default function Shopping({ householdId, me, members }) {
           {adding && (
             <Sheet title={`Lägg till i ${list.name}`} onClose={() => { setAdding(false); setText('') }}>
               <form className="row" onSubmit={submit}>
-                <input placeholder="Vara…" value={text} onChange={(e) => setText(e.target.value)} autoFocus />
+                <input placeholder="Vara, eller flera: mjölk, ägg, bröd" value={text} onChange={(e) => setText(e.target.value)} autoFocus />
                 <button className="primary">Lägg till</button>
               </form>
               {matches.length > 0 && (

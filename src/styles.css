@@ -698,3 +698,7 @@ button.name-edit { padding: 0; color: inherit; text-align: left; white-space: no
 .ld-co-grid li { display: grid; grid-template-columns: 30px 1fr; column-gap: 8px; align-items: start; }
 .ld-co-grid .ld-co-icon { grid-row: span 2; line-height: 1.2; }
 .ld-co-grid strong { margin: 0 0 2px; }
+.more-group { margin: 16px 4px 6px; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; }
+.more-group:first-child { margin-top: 4px; }
+.past-fold { padding: 8px 14px; } .med-later { display: block; text-align: left; }
+.quick-preview { background: var(--bg); border-radius: 10px; padding: 8px 10px; margin: 0; font-size: .92rem; }

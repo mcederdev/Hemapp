@@ -62,7 +62,8 @@ export default function Calendar({ householdId, members, people, me, go, househo
 
   // Kommande 14 dagar
   const now0 = parseDay(t); const in14 = new Date(now0); in14.setDate(in14.getDate() + 14)
-  const upcoming = expandEvents(filtered, now0, in14).filter((o) => !(o.all_day && o.title.trim().toLowerCase() === 'dag2' && occ.some((x) => !x.all_day && x.start < o.start && x.end && x.end > o.start)))
+  // Kommande: börjar idag eller senare och inte den dag som redan visas ovanför
+  const upcoming = expandEvents(filtered, now0, in14).filter((o) => o.start >= now0 && iso(o.start) !== iso(selDate)).filter((o) => !(o.all_day && o.title.trim().toLowerCase() === 'dag2' && occ.some((x) => !x.all_day && x.start < o.start && x.end && x.end > o.start)))
 
   const add = (e) => {
     e.preventDefault()
