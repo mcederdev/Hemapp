@@ -177,6 +177,28 @@ test('växelvis boende: söndagar kl 18 varannan vecka', () => {
   assert.equal(withUs(c, 'B', '2026-11-10'), true)
 })
 
+test('växelvis boende: flytta bytet en gång', async () => {
+  const { moveHandover } = await import('./custody.js')
+  const base = { household_id: 'A', anchor: '2026-11-01', every_days: 7, handover_time: '18:00' }
+  // Tidigare: lördag kl 12 i stället för söndag kl 18
+  const e = moveHandover(base, { date: '2026-11-08', time: '18:00' }, { date: '2026-11-07', time: '12:00' })
+  assert.deepEqual(e, { from_date: '2026-11-07', from_time: '12:00', to_date: '2026-11-08', to_time: '18:00', with_anchor: false })
+  const c = { ...base, exceptions: [e] }
+  assert.equal(withAnchor(c, '2026-11-07', '11:59'), true)
+  assert.equal(withAnchor(c, '2026-11-07', '12:00'), false)
+  assert.equal(isHandover(c, '2026-11-07'), true)
+  assert.equal(isHandover(c, '2026-11-08'), false)
+  assert.deepEqual(nextHandover(c, '2026-11-07', '08:00'), { date: '2026-11-07', time: '12:00', toAnchor: false })
+  assert.deepEqual(nextHandover(c, '2026-11-07', '13:00'), { date: '2026-11-15', time: '18:00', toAnchor: true })
+  // Senare: måndag kl 10
+  const l = { ...base, exceptions: [moveHandover(base, { date: '2026-11-08', time: '18:00' }, { date: '2026-11-09', time: '10:00' })] }
+  assert.equal(isHandover(l, '2026-11-08'), false)
+  assert.deepEqual(nextHandover(l, '2026-11-08', '10:00'), { date: '2026-11-09', time: '10:00', toAnchor: false })
+  // Samma dag, tidigare klockslag
+  const s = { ...base, exceptions: [moveHandover(base, { date: '2026-11-08', time: '18:00' }, { date: '2026-11-08', time: '12:00' })] }
+  assert.deepEqual(nextHandover(s, '2026-11-08', '09:00'), { date: '2026-11-08', time: '12:00', toAnchor: false })
+})
+
 import { carBalance } from './car.js'
 test('bil: delade kostnader och reglering', () => {
   const car = { household_id: 'A', owner_share: 50 }

@@ -1,7 +1,7 @@
 import { MemberTag } from './MemberPicker'
 import { useState } from 'react'
 import { today, addDays, prettyDay, parseDay, iso } from '../lib/dates'
-import { withUs, nextHandover, isHandover } from '../lib/custody'
+import { withUs, nextHandover, isHandover, moveHandover } from '../lib/custody'
 import Icon from './Icon'
 import Sheet from './Sheet'
 import { useTable } from '../useTable'
@@ -28,6 +28,7 @@ const dayWord = (d) => { const t = today(); return d === t ? 'idag' : d === addD
 export function CustodyLine({ custody, members, me, linked, big = false }) {
   const items = useTable('packing_items', me.household_id)
   const [packFor, setPackFor] = useState(null)
+  const [moving, setMoving] = useState(null)
   if (!custody?.length) return null
   const packFc = packFor && custody.find((c) => c.child_id === packFor.id)
   return (
@@ -37,6 +38,7 @@ export function CustodyLine({ custody, members, me, linked, big = false }) {
           <PackingList child={packFor} custody={packFc} me={me} linked={linked} items={items} />
         </Sheet>
       )}
+      {moving && <MoveHandover c={moving.c} kid={moving.kid} me={me} linked={linked} onClose={() => setMoving(null)} />}
       {custody.map((c) => {
         const kid = members.find((m) => m.id === c.child_id)
         if (!kid) return null
@@ -45,7 +47,7 @@ export function CustodyLine({ custody, members, me, linked, big = false }) {
           <div key={c.id} className="row custody-item">
             <MemberTag member={kid} size={big ? 34 : 26} />
             <span className="grow"><strong>{kid.name}</strong> är {s.here ? 'hos oss' : `hos ${s.other}`}
-              <span className="muted"> · {s.nextHere ? 'kommer' : 'åker'} {dayWord(s.next.date)} kl {s.next.time}</span></span>
+              <button className="link-inline muted" onClick={() => setMoving({ c, kid })} aria-label="Flytta bytet"> · {s.nextHere ? 'kommer' : 'åker'} {dayWord(s.next.date)} kl {s.next.time} ✎</button></span>
             <PackChip kid={kid} c={c} me={me} linked={linked} items={items} onClick={() => setPackFor(kid)} />
           </div>
         )
@@ -214,6 +216,7 @@ export function lastArrival(c, me) {
 // Lov och semester: perioder då schemat inte följer varannan vecka
 function Holidays({ c, me, linked, excTable, kid }) {
   const [form, setForm] = useState(null)
+  const [moving, setMoving] = useState(false)
   const mine = c.household_id === me.household_id
   const other = otherName(c, me, linked)
   const list = (c.exceptions || []).filter((x) => x.to_date >= today()).sort((a, b) => a.from_date.localeCompare(b.from_date))
@@ -227,10 +230,13 @@ function Holidays({ c, me, linked, excTable, kid }) {
     <div className="holidays">
       {list.map((x) => (
         <div key={x.id} className="row between small">
-          <span>🏖️ {prettyDay(x.from_date)}–{prettyDay(x.to_date)}: {hereIn(x) ? 'hos er' : `hos ${other}`}{x.note ? ` · ${x.note}` : ''}</span>
+          <span>{x.from_time ? `🔁 ${x.note || 'Flyttat byte'}: ${prettyDay(x.from_date)} kl ${x.from_time} – ${prettyDay(x.to_date)} kl ${x.to_time} ${hereIn(x) ? 'hos er' : `hos ${other}`}`
+            : <>🏖️ {prettyDay(x.from_date)}–{prettyDay(x.to_date)}: {hereIn(x) ? 'hos er' : `hos ${other}`}{x.note ? ` · ${x.note}` : ''}</>}</span>
           <button className="icon-btn" onClick={() => confirm('Ta bort perioden?') && excTable.remove(x.id)} aria-label="Ta bort perioden">✕</button>
         </div>
       ))}
+      {!form && !moving && <button className="link small" onClick={() => setMoving(true)}>🔁 Flytta nästa byte en gång</button>}
+      {moving && <MoveHandover c={c} kid={kid} me={me} linked={linked} onClose={() => setMoving(false)} />}
       {!form && <button className="link small" onClick={() => setForm({ from: '', to: '', here: true, note: '' })}>+ Lov eller semester som avviker</button>}
       {form && (
         <div className="stack card-inset">
@@ -247,5 +253,37 @@ function Holidays({ c, me, linked, excTable, kid }) {
         </div>
       )}
     </div>
+  )
+}
+
+// Flytta nästa byte en gång, t.ex. lämna på lördag i stället för söndag. Sparas som en kort avvikelse med klockslag.
+export function MoveHandover({ c, kid, me, linked, onClose }) {
+  const exc = useTable('custody_exceptions', me.household_id, 'from_date')
+  const next = nextHandover(c, today(), nowHM())
+  const toUs = withUs(c, me.household_id, next.date, '23:59')
+  const other = otherName(c, me, linked)
+  const [date, setDate] = useState(today())
+  const [time, setTime] = useState(() => { const d = new Date(); d.setMinutes(d.getMinutes() < 30 ? 30 : 60, 0, 0); return d.toTimeString().slice(0, 5) })
+  const same = date === next.date && time === next.time
+  const save = async () => {
+    if (same) return onClose()
+    const x = moveHandover(c, next, { date, time })
+    await exc.insert({ custody_id: c.id, ...x, note: 'Flyttat byte' })
+    onClose()
+  }
+  const what = toUs ? `${kid.name} kommer till er` : `${kid.name} åker till ${other}`
+  return (
+    <Sheet title="Flytta bytet en gång" onClose={onClose}>
+      <p>Vanligtvis: {what} <strong>{dayWord(next.date)} kl {next.time}</strong>.</p>
+      <p className="muted small">Välj när bytet blir den här gången. Schemat fortsätter som vanligt efteråt, och det andra hemmet ser ändringen.</p>
+      <div className="chips">
+        {[-1, 0, 1].map((n) => { const d = addDays(next.date, n); return d >= today() && <button key={n} type="button" className={`chip ${date === d ? 'active' : ''}`} onClick={() => setDate(d)}>{dayWord(d)}</button> })}
+      </div>
+      <div className="row mt">
+        <label className="field"><span className="muted small">Dag</span><input type="date" value={date} min={today()} onChange={(e) => setDate(e.target.value)} /></label>
+        <label className="field"><span className="muted small">Klockan</span><input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
+      </div>
+      <button className="primary wide mt" onClick={save} disabled={!date || !time}>{same ? 'Stäng' : `Flytta till ${dayWord(date)} kl ${time}`}</button>
+    </Sheet>
   )
 }
