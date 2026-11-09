@@ -2,7 +2,7 @@
 // Gäller bara den här telefonen.
 import { supabase } from '../supabase'
 
-export const TEST_TABLES = ['chores', 'vab_days', 'pickups', 'grocery_spend', 'meal_plan', 'medicine_takes', 'moods']
+export const TEST_TABLES = ['chores', 'vab_days', 'pickups', 'grocery_spend', 'meal_plan', 'medicine_takes', 'moods', 'shopping_items']
 const TIME_COL = { medicine_takes: 'taken_at' }
 const get = (k) => { try { return localStorage.getItem(k) } catch { return null } }
 const set = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v) } catch { /* */ } }

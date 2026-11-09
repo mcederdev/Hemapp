@@ -126,7 +126,8 @@ function FoodStats({ householdId, since }) {
   const dishCount = new Map()
   for (const m of year) dishCount.set(m.dish, (dishCount.get(m.dish) || 0) + 1)
   const dishes = [...dishCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10)
-  const items = [...catalog.rows].sort((a, b) => (b.times_added || 0) - (a.times_added || 0)).slice(0, 10)
+  const bought = catalog.rows.filter((i) => i.times_added > 0)
+  const items = [...bought].sort((a, b) => (b.times_added || 0) - (a.times_added || 0)).slice(0, 10)
   const dmax = Math.max(1, ...dishes.map((d) => d[1])), imax = Math.max(1, ...items.map((i) => i.times_added || 0))
   const planned = meals.rows.filter((m) => m.day >= addDays(t, -28) && m.day <= t).length
   return (
@@ -135,7 +136,7 @@ function FoodStats({ householdId, since }) {
       <div className="stat-tiles mt">
         <div className="stat-tile"><strong>{dishCount.size}</strong><span>olika rätter i år</span></div>
         <div className="stat-tile"><strong>{Math.round((planned / 28) * 100)} %</strong><span>planerade middagar (4 v)</span></div>
-        <div className="stat-tile"><strong>{catalog.rows.length}</strong><span>varor ni köpt</span></div>
+        <div className="stat-tile"><strong>{bought.length}</strong><span>varor ni köpt</span></div>
       </div>
       <div className="card mt">
         <strong>Mest ätna middagar</strong>
