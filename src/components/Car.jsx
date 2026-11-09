@@ -9,6 +9,8 @@ import { custodyStatus } from './Custody'
 import Sheet, { Fab } from './Sheet'
 import Icon from './Icon'
 import CarTodo from './CarTodo'
+import SwipeRow from './Swipe'
+import { REPEATS, repeatText, dueDays } from '../lib/repeat'
 import { pickSub, shows } from '../lib/menu'
 
 const kr = (n) => `${Math.round(n).toLocaleString('sv-SE')} kr`
@@ -152,6 +154,24 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
       await cars.update(car.id, { tax_booked_through: t })
     })()
   }, [costs.loading, car.tax_booked_through])
+  // Återkommande kostnader: när nästa datum har passerat läggs kostnaden in igen.
+  // Den senaste raden bär upprepningen. Först "tar" vi den (så att inte båda hushållen lägger in samma), sedan läggs de nya in.
+  const booking = useRef(false)
+  useEffect(() => {
+    if (costs.loading || booking.current) return
+    const due = costs.rows.map((c) => ({ c, days: dueDays(c, t) })).filter((x) => x.days.length)
+    if (!due.length) return
+    booking.current = true
+    ;(async () => {
+      for (const { c, days } of due) {
+        const { data } = await supabase.from('car_costs').update({ every_months: null }).eq('id', c.id).eq('every_months', c.every_months).select('id')
+        if (!data?.length) continue
+        await costs.insert(days.map((day, i) => ({ day, amount: c.amount, kind: c.kind, shared: c.shared, note: c.note,
+          paid_by_household: c.paid_by_household, paid_by_name: c.paid_by_name, every_months: i === days.length - 1 ? c.every_months : null })))
+      }
+      booking.current = false
+    })()
+  }, [costs.loading, costs.rows.length])
   const taxM = taxMonths(car.reg_nr, car.tax_per_year)
   // Besiktningen är gjord: spara datumet och lägg in nästa
   const inspected = async (done) => {
@@ -167,13 +187,20 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
     return `${s.here ? 'Hos er' : `Hos ${s.other}`} med ${kid.name} · ${s.nextHere ? 'kommer' : 'åker'} ${prettyDay(s.next.date)} kl ${s.next.time}`
   })()
 
-  const startCost = (kind = 'bransle') => setForm({ day: t, amount: '', kind, shared: kindOf(kind).shared, paid: 'us', note: '', odometer: '' })
+  const startCost = (kind = 'bransle') => setForm({ day: t, amount: '', kind, shared: kindOf(kind).shared, paid: 'us', note: '', odometer: '', every_months: null })
+  const openCost = (c) => setForm({ ...c, amount: String(c.amount), paid: paidByUs(c) ? 'us' : 'them', note: c.note || '', odometer: c.odometer || '', every_months: c.every_months || null })
+  const removeCost = (c) => {
+    const k = kindOf(c.kind)
+    if (!confirm(c.every_months ? `Ta bort ${k.label.toLowerCase()} ${kr(c.amount)}? Den slutar också att komma ${repeatText(c.every_months)}.` : `Ta bort ${k.label.toLowerCase()} ${kr(c.amount)} (${prettyDay(c.day)})?`)) return false
+    costs.remove(c.id)
+    return true
+  }
   const saveCost = async (e) => {
     e.preventDefault()
     const amount = Number(String(form.amount).replace(',', '.').replace(/\s/g, ''))
     if (!amount) return
     const v = { day: form.day, amount, kind: form.kind, shared: form.shared, note: form.note || null, odometer: form.odometer ? Number(form.odometer) : null,
-      paid_by_household: form.paid === 'us' ? householdId : otherId, paid_by_name: form.paid === 'us' ? me.name : null }
+      paid_by_household: form.paid === 'us' ? householdId : otherId, paid_by_name: form.paid === 'us' ? me.name : null, every_months: form.every_months || null }
     if (form.id) await costs.update(form.id, v)
     else await costs.insert(v)
     setForm(null)
@@ -241,18 +268,22 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
               {up.map((c, i) => {
                 const k = kindOf(c.kind)
                 return (
-                  <li key={c.id || `${c.kind}${c.day}${i}`} className="tap" onClick={() => setForm(c.id ? { ...c, amount: String(c.amount), paid: paidByUs(c) ? 'us' : 'them', note: c.note || '', odometer: c.odometer || '' } : { day: c.day, amount: String(c.amount), kind: c.kind, shared: c.shared, paid: isOwner ? 'us' : 'them', note: c.note || '', odometer: '' })}>
+                  <li key={c.id || `${c.kind}${c.day}${i}`} className="tap" onClick={() => {
+                    const src = c.src && costs.rows.find((x) => x.id === c.src)
+                    if (src) return openCost(src)
+                    setForm(c.id ? { ...c, amount: String(c.amount), paid: paidByUs(c) ? 'us' : 'them', note: c.note || '', odometer: c.odometer || '', every_months: c.every_months || null } : { day: c.day, amount: String(c.amount), kind: c.kind, shared: c.shared, paid: isOwner ? 'us' : 'them', note: c.note || '', odometer: '', every_months: null })
+                  }}>
                     <span className="row grow">
                       <span className="big-emoji">{k.emoji}</span>
                       <span>{k.label}{c.note && <span className="muted"> · {c.note}</span>}
-                        <div className="muted small">{prettyDay(c.day)} {c.day.slice(0, 4)}{c.auto ? ' · beräknad' : ' · inlagd'}{c.shared ? ' · delas' : ''}</div></span>
+                        <div className="muted small">{prettyDay(c.day)} {c.day.slice(0, 4)}{c.repeat ? ' · 🔁 återkommande' : c.auto ? ' · beräknad' : ' · inlagd'}{c.shared ? ' · delas' : ''}</div></span>
                     </span>
                     <strong className={c.auto ? 'muted' : ''}>{kr(c.amount)}</strong>
                   </li>
                 )
               })}
             </ul>
-            <p className="muted small">Skatten läggs in som kostnad av sig själv när betalningsmånaden är slut. Tryck på en beräknad rad för att lägga in den nu.</p>
+            <p className="muted small">Skatten och återkommande kostnader läggs in av sig själva när dagen har passerat. Tryck på en återkommande rad för att ändra eller ta bort den, eller på en beräknad rad för att lägga in den nu. Skatten tar ni bort under ⚙︎.</p>
           </>
         )
       })()}
@@ -263,14 +294,17 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
             {shown.map((c) => {
               const k = kindOf(c.kind)
               return (
-                <li key={c.id} className="tap" onClick={() => setForm({ ...c, amount: String(c.amount), paid: paidByUs(c) ? 'us' : 'them', note: c.note || '', odometer: c.odometer || '' })}>
+                <SwipeRow key={c.id} className="tap" onDelete={() => removeCost(c)} onClick={() => openCost(c)}>
                   <span className="row grow">
                     <span className="big-emoji">{k.emoji}</span>
                     <span>{k.label}{c.note && <span className="muted"> · {c.note}</span>}
-                      <div className="muted small">{prettyDay(c.day)} · {paidByUs(c) ? `ni betalade${c.paid_by_name ? ` (${c.paid_by_name})` : ''}` : `${otherName} betalade`}{c.shared ? ' · delas' : ''}</div></span>
+                      <div className="muted small">{prettyDay(c.day)} · {paidByUs(c) ? `ni betalade${c.paid_by_name ? ` (${c.paid_by_name})` : ''}` : `${otherName} betalade`}{c.shared ? ' · delas' : ''}{c.every_months ? ` · 🔁 ${repeatText(c.every_months)}` : ''}</div></span>
                   </span>
-                  <strong>{kr(c.amount)}</strong>
-                </li>
+                  <span className="meta">
+                    <strong>{kr(c.amount)}</strong>
+                    <button className="icon-btn del" onClick={(e) => { e.stopPropagation(); removeCost(c) }} aria-label="Ta bort">✕</button>
+                  </span>
+                </SwipeRow>
               )
             })}
             {settlements.rows.map((s) => (
@@ -310,13 +344,18 @@ function CarBody({ cars, car, me, members, people, linked, custody, householdId 
               <button type="button" className={form.paid === 'us' ? 'active' : ''} onClick={() => setForm({ ...form, paid: 'us' })}>Vi betalade</button>
               <button type="button" className={form.paid === 'them' ? 'active' : ''} onClick={() => setForm({ ...form, paid: 'them' })}>{otherName} betalade</button>
             </div>
+            <label className="field"><span className="muted small">Återkommande</span>
+              <div className="seg">
+                {REPEATS.map((r) => <button type="button" key={r.label} className={(form.every_months || null) === r.n ? 'active' : ''} onClick={() => setForm({ ...form, every_months: r.n })}>{r.label}</button>)}
+              </div></label>
+            {form.every_months && <p className="muted small">Läggs in igen {repeatText(form.every_months)} från {prettyDay(form.day)}. Välj Nej för att sluta.</p>}
             <label className="row small"><input type="checkbox" checked={form.shared} onChange={(e) => setForm({ ...form, shared: e.target.checked })} /> Delas mellan hushållen ({mineShare} / {100 - mineShare})</label>
             <div className="row">
               <input placeholder="Anteckning (valfritt)" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
               <input placeholder="Mätare km" inputMode="numeric" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value.replace(/\D/g, '') })} style={{ maxWidth: 110 }} />
             </div>
             <button className="primary">Spara</button>
-            {form.id && <button type="button" className="danger" onClick={() => { costs.remove(form.id); setForm(null) }}>Ta bort</button>}
+            {form.id && <button type="button" className="danger" onClick={() => { if (removeCost(form)) setForm(null) }}>Ta bort</button>}
           </form>
         </Sheet>
       )}

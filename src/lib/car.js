@@ -1,4 +1,5 @@
 // Bilens kostnader och hur de delas mellan två hushåll
+import { futureDays } from './repeat.js'
 export const CAR_KINDS = [
   { id: 'bransle', label: 'Bensin & laddning', emoji: '⛽', shared: false, quick: true },
   { id: 'forsakring', label: 'Försäkring', emoji: '🛡️', shared: true, quick: true },
@@ -110,8 +111,13 @@ export function upcomingCosts(car, costs, t) {
   const tax = taxPayments(car, t, end).filter((p) => !costs.some((c) => c.kind === 'skatt' && c.day.slice(0, 7) === p.day.slice(0, 7)))
     .map((p) => ({ ...p, kind: 'skatt', shared: true, note: 'Fordonsskatt', auto: true }))
   const [py, pm] = addMonthsYM(t, -12); const yearAgo = `${py}-${pad(pm)}-${t.slice(8)}`
-  const ins = costs.filter((c) => c.kind === 'forsakring' && c.day > yearAgo && c.day <= t).map((c) => {
+  // Återkommande kostnader (månad, kvartal, år) fortsätter framåt
+  const rep = costs.filter((c) => Number(c.every_months)).flatMap((c) => futureDays(c, t, end).map((day) => ({
+    day, amount: Number(c.amount), kind: c.kind, shared: c.shared, note: c.note, auto: true, repeat: true, src: c.id
+  })))
+  const insRepeats = costs.some((c) => c.kind === 'forsakring' && Number(c.every_months))
+  const ins = costs.filter((c) => !insRepeats && c.kind === 'forsakring' && c.day > yearAgo && c.day <= t).map((c) => {
     const [ny, nm] = addMonthsYM(c.day, 12); return { day: `${ny}-${pad(nm)}-${c.day.slice(8)}`, amount: Number(c.amount), kind: 'forsakring', shared: c.shared, note: 'Som förra året', auto: true }
   }).filter((c) => !planned.some((p) => p.kind === 'forsakring' && p.day.slice(0, 7) === c.day.slice(0, 7)))
-  return [...planned, ...tax, ...ins].sort((a, b) => a.day.localeCompare(b.day))
+  return [...planned, ...rep, ...tax, ...ins].sort((a, b) => a.day.localeCompare(b.day))
 }

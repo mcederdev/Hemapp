@@ -147,7 +147,10 @@ export function useTable(table, householdId, order = 'created_at', where = null)
     setRows((r) => r.filter((x) => x.id !== id))
     if (!navigator.onLine) return queue({ table, op: 'delete', id })
     const { error } = await supabase.from(table).delete().eq('id', id)
-    if (error && offlineError(error)) return queue({ table, op: 'delete', id })
+    if (error) {
+      if (offlineError(error)) return queue({ table, op: 'delete', id })
+      alert(error.message)
+    }
     load()
   }
 
