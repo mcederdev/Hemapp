@@ -4,9 +4,11 @@ import { today, prettyDay } from '../lib/dates'
 import { daysUntil } from '../lib/yearly'
 import { MemberTag } from './MemberPicker'
 import Sheet, { Fab } from './Sheet'
+import SwipeRow from './Swipe'
+import { subMonths, perText } from '../lib/repeat'
 
 const kr = (n) => Math.round(n).toLocaleString('sv-SE') + ' kr'
-const blank = (paidBy) => ({ name: '', amount: '', period: 'month', renews_on: '', cancel_by: '', paid_by: paidBy, note: '' })
+const blank = (paidBy) => ({ name: '', amount: '', every_months: 1, renews_on: '', cancel_by: '', paid_by: paidBy, note: '' })
 export const SUB_SUGGESTIONS = ['Netflix', 'Spotify', 'Disney+', 'HBO Max', 'Viaplay', 'YouTube Premium', 'iCloud', 'Storytel', 'Gym', 'Mobil', 'Bredband', 'Tidning']
 
 // Abonnemang: vad familjen betalar för varje månad, och när något ska sägas upp
@@ -22,13 +24,16 @@ export default function Subscriptions({ householdId, members, household, househo
   const parents = members.filter((m) => m.role === 'parent' && m.household_id === householdId)
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
   const t = today()
-  const monthly = (s) => (s.period === 'year' ? Number(s.amount) / 12 : Number(s.amount))
+  const monthly = (s) => Number(s.amount) / subMonths(s)
   const total = subs.rows.reduce((a, s) => a + monthly(s), 0)
 
+  const remove = (s) => { if (!confirm(`Ta bort ${s.name}?`)) return false; subs.remove(s.id); return true }
   const save = async (e) => {
     e.preventDefault()
     if (!edit.name.trim()) return
-    const v = { name: edit.name.trim(), amount: Number(String(edit.amount).replace(',', '.')) || 0, period: edit.period, renews_on: edit.renews_on || null, cancel_by: edit.cancel_by || null, paid_by: edit.paid_by || null, note: edit.note || null }
+    const n = Number(edit.every_months) || 1
+    // period behålls för äldre versioner av appen: kvartal räknas där som månad
+    const v = { name: edit.name.trim(), amount: Number(String(edit.amount).replace(',', '.')) || 0, every_months: n, period: n === 12 ? 'year' : 'month', renews_on: edit.renews_on || null, cancel_by: edit.cancel_by || null, paid_by: edit.paid_by || null, note: edit.note || null }
     if (edit.id) await subs.update(edit.id, v); else await subs.insert(v)
     setEdit(null)
   }
@@ -45,16 +50,17 @@ export default function Subscriptions({ householdId, members, household, househo
         {[...subs.rows].sort((a, b) => monthly(b) - monthly(a)).map((s) => {
           const cancel = s.cancel_by ? daysUntil(t, s.cancel_by) : null
           return (
-            <li key={s.id} className="tap" onClick={() => setEdit({ ...s, amount: String(s.amount), renews_on: s.renews_on || '', cancel_by: s.cancel_by || '', note: s.note || '' })}>
+            <SwipeRow key={s.id} className="tap" onDelete={() => remove(s)} onClick={() => setEdit({ ...s, every_months: subMonths(s), amount: String(s.amount), renews_on: s.renews_on || '', cancel_by: s.cancel_by || '', note: s.note || '' })}>
               <span className="grow">
                 <strong>{s.name}</strong>
                 <div className={`small ${cancel !== null && cancel <= 7 ? 'error' : 'muted'}`}>
-                  {cancel !== null ? (cancel < 0 ? `Skulle sägas upp ${prettyDay(s.cancel_by)}` : `Säg upp senast ${prettyDay(s.cancel_by)}`) : s.renews_on ? `Förnyas ${prettyDay(s.renews_on)}` : s.period === 'year' ? 'Per år' : 'Per månad'}
+                  {cancel !== null ? (cancel < 0 ? `Skulle sägas upp ${prettyDay(s.cancel_by)}` : `Säg upp senast ${prettyDay(s.cancel_by)}`) : s.renews_on ? `Förnyas ${prettyDay(s.renews_on)}` : ({ 1: 'Per månad', 3: 'Per kvartal', 12: 'Per år' })[subMonths(s)]}
                   {s.note ? ` · ${s.note}` : ''}
                 </div>
               </span>
-              <span className="row">{byId[s.paid_by] && <MemberTag member={byId[s.paid_by]} size={22} />}<strong>{kr(s.amount)}</strong>{s.period === 'year' && <span className="muted small">/år</span>}</span>
-            </li>
+              <span className="row">{byId[s.paid_by] && <MemberTag member={byId[s.paid_by]} size={22} />}<strong>{kr(s.amount)}</strong>{subMonths(s) > 1 && <span className="muted small">{perText(subMonths(s))}</span>}
+                <button className="icon-btn del" onClick={(e) => { e.stopPropagation(); remove(s) }} aria-label="Ta bort">✕</button></span>
+            </SwipeRow>
           )
         })}
       </ul>
@@ -71,7 +77,7 @@ export default function Subscriptions({ householdId, members, household, househo
               <div className="chips">
                 {services.filter((x) => !has.has(x.name.toLowerCase())).map((x) => (
                   <button type="button" key={x.name} className={`chip ${edit.name === x.name ? 'active' : ''}`}
-                    onClick={() => setEdit({ ...edit, name: x.name, amount: x.amount ? String(x.amount) : edit.amount, period: x.period || edit.period })}>
+                    onClick={() => setEdit({ ...edit, name: x.name, amount: x.amount ? String(x.amount) : edit.amount, every_months: x.period === 'year' ? 12 : x.period === 'quarter' ? 3 : x.period ? 1 : edit.every_months })}>
                     {x.name}{x.amount ? ` · ${kr(x.amount)}` : ''}
                   </button>
                 ))}
@@ -81,7 +87,7 @@ export default function Subscriptions({ householdId, members, household, househo
             <div className="row">
               <label className="field"><span className="muted small">Kostar</span><input inputMode="decimal" placeholder="kr" value={edit.amount} onChange={(e) => setEdit({ ...edit, amount: e.target.value })} /></label>
               <label className="field"><span className="muted small">Per</span>
-                <select value={edit.period} onChange={(e) => setEdit({ ...edit, period: e.target.value })}><option value="month">månad</option><option value="year">år</option></select></label>
+                <select value={edit.every_months} onChange={(e) => setEdit({ ...edit, every_months: Number(e.target.value) })}><option value={1}>månad</option><option value={3}>kvartal</option><option value={12}>år</option></select></label>
             </div>
             {parents.length > 1 && (
               <label className="field"><span className="muted small">Betalas av</span>
@@ -95,7 +101,7 @@ export default function Subscriptions({ householdId, members, household, househo
             </div>
             <input placeholder="Anteckning (t.ex. provperiod, delas med mormor)" value={edit.note} onChange={(e) => setEdit({ ...edit, note: e.target.value })} />
             <button className="primary">Spara</button>
-            {edit.id && <button type="button" className="danger" onClick={() => { if (confirm(`Ta bort ${edit.name}?`)) { subs.remove(edit.id); setEdit(null) } }}>Ta bort</button>}
+            {edit.id && <button type="button" className="danger" onClick={() => { if (remove(edit)) setEdit(null) }}>Ta bort</button>}
           </form>
         </Sheet>
       )}
@@ -122,7 +128,7 @@ function Services({ services, custom, save, onClose }) {
           <li key={i} className="row service-row">
             <input value={r.name} placeholder="Tjänst" onChange={(e) => set(i, { name: e.target.value })} aria-label="Namn" />
             <input className="svc-amount" inputMode="decimal" placeholder="kr" value={r.amount} onChange={(e) => set(i, { amount: e.target.value })} aria-label="Pris" />
-            <select value={r.period} onChange={(e) => set(i, { period: e.target.value })} aria-label="Per"><option value="month">/mån</option><option value="year">/år</option></select>
+            <select value={r.period} onChange={(e) => set(i, { period: e.target.value })} aria-label="Per"><option value="month">/mån</option><option value="quarter">/kv</option><option value="year">/år</option></select>
             <button type="button" className="icon-btn del" onClick={() => setRows(rows.filter((_, j) => j !== i))} aria-label={`Ta bort ${r.name}`}>✕</button>
           </li>
         ))}

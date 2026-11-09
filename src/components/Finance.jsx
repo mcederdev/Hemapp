@@ -9,6 +9,7 @@ import Sheet, { Fab } from './Sheet'
 import Subscriptions from './Subscriptions'
 import Overtime from './Overtime'
 import { pickSub, shows } from '../lib/menu'
+import { billInMonth, billMonths, perText } from '../lib/repeat'
 
 const kr = (n) => Math.round(n).toLocaleString('sv-SE') + ' kr'
 
@@ -39,10 +40,10 @@ function Bills({ householdId, members, membersTable, go }) {
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
   const [paidBy, setPaidBy] = useState(null)
-  const [kind, setKind] = useState('fixed')
+  const [every, setEvery] = useState(1) // 0 = bara denna månad, annars 1, 3 eller 12 månader
   const [adding, setAdding] = useState(false)
 
-  const monthBills = bills.rows.filter((b) => b.kind === 'fixed' || b.month === month)
+  const monthBills = bills.rows.filter((b) => billInMonth(b, month))
   const fixed = monthBills.filter((b) => b.kind === 'fixed')
   const once = monthBills.filter((b) => b.kind === 'once')
   const result = splitBills(
@@ -57,7 +58,8 @@ function Bills({ householdId, members, membersTable, go }) {
   const add = (e) => {
     e.preventDefault()
     if (!name.trim() || !amount) return
-    bills.insert({ name: name.trim(), amount: Number(amount), paid_by: paidBy || parents[0]?.id, kind, month: kind === 'once' ? month : null })
+    // Fasta räkningar börjar den valda månaden, kvartals- och årsräkningar kommer sedan var 3:e eller 12:e månad
+    bills.insert({ name: name.trim(), amount: Number(amount), paid_by: paidBy || parents[0]?.id, kind: every ? 'fixed' : 'once', month, every_months: every || null })
     setName(''); setAmount(''); setAdding(false)
   }
   const markPaid = async (t) => {
@@ -93,11 +95,13 @@ function Bills({ householdId, members, membersTable, go }) {
         <Sheet title="Ny räkning" onClose={() => setAdding(false)}>
         <form className="stack" onSubmit={add}>
           <div className="seg">
-            <button type="button" className={kind === 'fixed' ? 'active' : ''} onClick={() => setKind('fixed')}>Fast varje månad</button>
-            <button type="button" className={kind === 'once' ? 'active' : ''} onClick={() => setKind('once')}>Bara {monthName(month).split(' ')[0]}</button>
+            {[[1, 'Varje månad'], [3, 'Kvartal'], [12, 'År'], [0, `Bara ${monthName(month).split(' ')[0]}`]].map(([n, l]) => (
+              <button type="button" key={n} className={every === n ? 'active' : ''} onClick={() => setEvery(n)}>{l}</button>
+            ))}
           </div>
+          {every > 1 && <p className="muted small">Kommer {every === 3 ? 'var tredje månad' : 'en gång om året'}, med start i {monthName(month)}.</p>}
           <div className="row">
-            <input placeholder={kind === 'fixed' ? 'T.ex. Hyra, el, försäkring' : 'T.ex. Tandläkare, bilreparation'} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            <input placeholder={every ? 'T.ex. Hyra, el, försäkring' : 'T.ex. Tandläkare, bilreparation'} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
             <input type="number" inputMode="numeric" placeholder="Belopp" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ maxWidth: 110 }} />
           </div>
           <div className="row">
@@ -109,7 +113,7 @@ function Bills({ householdId, members, membersTable, go }) {
         </Sheet>
         )}
         {monthBills.length === 0 && <p className="muted">Inga räkningar än. Tryck på + för att lägga till.</p>}
-        <BillList title="Fasta" rows={fixed} byId={byId} onRemove={(id) => bills.remove(id)} />
+        <BillList title="Återkommande" rows={fixed} byId={byId} onRemove={(id) => bills.remove(id)} />
         <BillList title="Bara denna månad" rows={once} byId={byId} onRemove={(id) => bills.remove(id)} />
         <div className="row between"><strong>Totalt</strong><strong>{kr(result.totalBills)}</strong></div>
       </div>
@@ -171,7 +175,7 @@ function BillList({ title, rows, byId, onRemove }) {
       <ul className="list">
         {rows.map((b) => (
           <SwipeRow key={b.id} onDelete={() => confirm(`Ta bort ${b.name}?`) && onRemove(b.id)}>
-            <span>{b.name}<span className="muted small"> · {byId[b.paid_by]?.name || '?'} betalar</span></span>
+            <span>{b.name}<span className="muted small"> · {byId[b.paid_by]?.name || '?'} betalar{billMonths(b) > 1 ? ` · ${perText(billMonths(b)).slice(1)}` : ''}</span></span>
             <span className="meta">
               <strong>{kr(b.amount)}</strong>
               <button className="icon-btn del" onClick={() => confirm(`Ta bort ${b.name}?`) && onRemove(b.id)} aria-label="Ta bort">✕</button>

@@ -359,3 +359,18 @@ test('snabb inmatning', async () => {
   r = parseQuick('Simning nästa lör', { today: t, members })
   assert.equal(r.date, '2026-11-14')
 })
+import { billInMonth, dueDays, subMonths } from './repeat.js'
+test('återkommande kostnader: månad, kvartal och år', () => {
+  assert.equal(billInMonth({ kind: 'fixed' }, '2026-05-01'), true)
+  const q = { kind: 'fixed', every_months: 3, month: '2026-01-01' }
+  assert.deepEqual(['2025-10-01', '2026-01-01', '2026-02-01', '2026-04-01', '2027-01-01'].map((m) => billInMonth(q, m)), [false, true, false, true, true])
+  assert.equal(billInMonth({ kind: 'fixed', every_months: 12, month: '2026-03-01' }, '2027-03-01'), true)
+  assert.equal(billInMonth({ kind: 'once', month: '2026-03-01' }, '2026-04-01'), false)
+  assert.deepEqual(dueDays({ day: '2026-08-15', every_months: 1 }, '2026-11-09'), ['2026-09-15', '2026-10-15'])
+  assert.deepEqual(dueDays({ day: '2026-08-15', every_months: 3 }, '2026-11-09'), [])
+  assert.deepEqual(dueDays({ day: '2026-08-15' }, '2027-11-09'), [])
+  assert.equal(subMonths({ period: 'year' }), 12)
+  assert.equal(subMonths({ period: 'month', every_months: 3 }), 3)
+  const up = upcomingCosts({}, [{ id: 'x', kind: 'parkering', day: '2026-11-01', amount: 500, shared: true, every_months: 3 }], '2026-11-09')
+  assert.deepEqual(up.map((c) => c.day), ['2027-02-01', '2027-05-01', '2027-08-01', '2027-11-01'])
+})
