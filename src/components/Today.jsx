@@ -13,6 +13,8 @@ import FamilyStrip, { forFocus } from './FamilyStrip'
 import SwipeRow, { Check } from './Swipe'
 import Icon from './Icon'
 import ShopForDishes from './ShopForDishes'
+import { DishView } from './Recipe'
+import { rowFor, hasRecipe } from '../lib/dishdata'
 import Notes, { Soon, NoteButton } from './Notes'
 import { CustodyLine } from './Custody'
 import QuickAdd from './QuickAdd'
@@ -43,6 +45,8 @@ export default function Today({ householdId, members, people, go, me, focus, set
   const events = useTable('events', householdId, 'starts_at')
   const chores = useTable('chores', householdId)
   const meals = useTable('meal_plan', householdId, 'day')
+  const dishItems = useTable('dish_items', householdId)
+  const [recipe, setRecipe] = useState(null)
   const dishes = useTable('dishes', householdId)
   const items = useTable('shopping_items', householdId)
   const lists = useTable('shopping_lists', householdId)
@@ -115,6 +119,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
         <div className="row">
           <button className="hero-btn" onClick={() => setPicking(true)}><Icon name="dice" size={18} /> {dinner ? 'Byt' : 'Tips'}</button>
           {dinner && <button className="hero-btn" onClick={() => setShopFor([dinner.dish])}><Icon name="cart" size={18} /> Varor</button>}
+          {dinner && hasRecipe(rowFor(dishItems.rows, dinner.dish)) && <button className="hero-btn" onClick={() => setRecipe(dinner.dish)}>📖 Recept</button>}
           <button className="hero-btn ghost" onClick={() => go('meals')}>Veckomeny</button>
         </div>
       </div>
@@ -185,7 +190,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
         summary={toBuy.length === 0 ? <span className="ok">✓ Inget att handla</span> : prio.length ? `Prio: ${prio.map((i) => i.name).join(', ')}` : `${toBuy.length} varor på listan`}>
         {toBuy.length === 0 ? <p className="small pad muted">Inget att handla just nu.</p> : prio.length > 0 ? (
           <ul className="prio-list">
-            {prio.slice(0, 6).map((i) => <li key={i.id}>{i.name}</li>)}
+            {prio.slice(0, 6).map((i) => <li key={i.id}>{i.name}{i.qty && <span className="muted small"> · {i.qty}</span>}</li>)}
           </ul>
         ) : <p className="small pad">{toBuy.slice(0, 4).map((i) => i.name).join(', ')}</p>}
         {toBuy.length > (prio.length ? Math.min(prio.length, 6) : 4) && <p className="muted small pad">+ {toBuy.length - (prio.length ? Math.min(prio.length, 6) : 4)} till</p>}
@@ -197,7 +202,8 @@ export default function Today({ householdId, members, people, go, me, focus, set
       <button className="link small arrange-btn" onClick={() => fold.setArranging(!fold.arranging)}>{fold.arranging ? '✓ Klar med ordningen' : '↕ Ändra ordning på rutorna'}</button>
 
       <QuickAdd householdId={householdId} members={members} me={me} household={household} />
-      {shopFor && <ShopForDishes householdId={householdId} me={me} dishes={shopFor} onClose={() => setShopFor(null)} />}
+      {shopFor && <ShopForDishes householdId={householdId} me={me} dishes={shopFor.dishes || shopFor} portions={shopFor.portions} onClose={() => setShopFor(null)} />}
+      {recipe && <DishView householdId={householdId} dish={recipe} onClose={() => setRecipe(null)} onShop={(d, p) => { setRecipe(null); setShopFor({ dishes: [d], portions: p }) }} />}
       {picking && <Picker day={t} all={allDishes} onPick={setDinner} onClose={() => setPicking(false)} />}
     </section>
   )

@@ -374,3 +374,84 @@ test('återkommande kostnader: månad, kvartal och år', () => {
   const up = upcomingCosts({}, [{ id: 'x', kind: 'parkering', day: '2026-11-01', amount: 500, shared: true, every_months: 3 }], '2026-11-09')
   assert.deepEqual(up.map((c) => c.day), ['2027-02-01', '2027-05-01', '2027-08-01', '2027-11-01'])
 })
+
+import { parseIngredient, addQty, scaleQty, combineLines, isBasic, splitTyped, linesOf } from './qty.js'
+
+test('läser receptrader med mängd och enhet', () => {
+  assert.deepEqual(parseIngredient('ca 2 dl vispgrädde'), { name: 'Vispgrädde', qty: '2 dl' })
+  assert.deepEqual(parseIngredient('1 gul lök, finhackad'), { name: 'Gul lök', qty: '1 st' })
+  assert.deepEqual(parseIngredient('1 burk krossade tomater (400 g)'), { name: 'Krossade tomater', qty: '1 burk' })
+  assert.deepEqual(parseIngredient('½ gurka'), { name: 'Gurka', qty: '½ st' })
+  assert.deepEqual(parseIngredient('2-3 klyftor vitlök'), { name: 'Vitlök', qty: '3 klyftor' })
+  assert.deepEqual(parseIngredient('500 g kycklingfilé'), { name: 'Kycklingfilé', qty: '500 g' })
+  assert.deepEqual(parseIngredient('1 stor gul lök'), { name: 'Gul lök', qty: '1 st' })
+  assert.deepEqual(parseIngredient('salt och peppar'), { name: 'Salt och peppar', qty: '' })
+  assert.deepEqual(parseIngredient('8 tortillabröd'), { name: 'Tortillabröd', qty: '8 st' })
+})
+
+test('mängder räknas ihop', () => {
+  assert.equal(addQty('1 st', '1 st'), '2 st')
+  assert.equal(addQty('500 g', '1 kg'), '1,5 kg')
+  assert.equal(addQty('2 dl', '3 dl', '1 l'), '1,5 l')
+  assert.equal(addQty('1 burk', '200 g'), '1 burk + 200 g')
+  assert.equal(addQty('1 burk', '1 burk'), '2 burkar')
+  assert.equal(addQty('2 burkar', '½ st'), '2 burkar + ½ st')
+  assert.equal(addQty('', '2 st'), '2 st')
+  assert.equal(addQty('', ''), '')
+})
+
+test('två rätter med gurka blir två gurkor', () => {
+  const r = combineLines([
+    { dish: 'Tacos', lines: [{ name: 'Gurka', qty: '1 st' }, { name: 'Nötfärs', qty: '500 g' }] },
+    { dish: 'Sallad', lines: [{ name: 'gurka', qty: '1 st' }] }
+  ])
+  assert.deepEqual(r.find((x) => x.name === 'Gurka'), { name: 'Gurka', qty: '2 st', dishes: ['Tacos', 'Sallad'] })
+})
+
+test('portioner räknar om mängden', () => {
+  assert.equal(scaleQty('1 st', 1.5), '1½ st')
+  assert.equal(scaleQty('1 st', 1.3), '1½ st')
+  assert.equal(scaleQty('500 g', 1.5), '750 g')
+  assert.equal(scaleQty('2 dl', 0.5), '1 dl')
+})
+
+test('basvaror och snabbinmatning', () => {
+  assert.equal(isBasic('Salt'), true)
+  assert.equal(isBasic('Olivolja'), true)
+  assert.equal(isBasic('Smör till stekning'), true)
+  assert.equal(isBasic('Gurka'), false)
+  assert.deepEqual(splitTyped('2 gurkor'), { name: 'Gurkor', qty: '2 st' })
+  assert.deepEqual(splitTyped('mjölk 1 l'), { name: 'Mjölk', qty: '1 l' })
+  assert.deepEqual(splitTyped('mjölk'), { name: 'Mjölk', qty: '' })
+  assert.deepEqual(linesOf({ items: ['Ost'] }), [{ name: 'Ost', qty: '' }])
+})
+
+import { extractRecipe } from './recipe.js'
+
+test('läser recept från en receptsida (JSON-LD)', () => {
+  const html = `<html><head><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage"},
+    {"@type":["Recipe"],"name":"Kycklingenchiladas","recipeYield":"4 portioner",
+     "recipeIngredient":["8 tortillabröd","500 g kycklingfilé","1 gurka"],
+     "recipeInstructions":[{"@type":"HowToSection","itemListElement":[{"@type":"HowToStep","text":"Sätt ugnen på 225&deg;."},{"@type":"HowToStep","text":"Stek kycklingen."}]}]}]}</script></head></html>`
+  const r = extractRecipe(html)
+  assert.equal(r.name, 'Kycklingenchiladas')
+  assert.equal(r.servings, 4)
+  assert.deepEqual(r.ingredients, ['8 tortillabröd', '500 g kycklingfilé', '1 gurka'])
+  assert.equal(r.instructions.length, 2)
+  assert.equal(extractRecipe('<html></html>'), null)
+})
+
+import { addToItem } from './qty.js'
+test('vara utan mängd på listan räknas som 1 st', () => {
+  assert.equal(addToItem('', '1 st'), '2 st')
+  assert.equal(addToItem('', '500 g'), '500 g')
+  assert.equal(addToItem('1 l', '5 dl'), '1,5 l')
+})
+
+import { itemKey } from './qty.js'
+test('samma vara i ental och flertal', () => {
+  assert.equal(itemKey('Gurka'), itemKey('gurkor'))
+  assert.equal(itemKey('Tomat'), itemKey('Tomater'))
+  assert.equal(itemKey('Lök'), itemKey('Lökar'))
+  assert.notEqual(itemKey('Ost'), itemKey('Ris'))
+})

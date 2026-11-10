@@ -702,3 +702,23 @@ button.name-edit { padding: 0; color: inherit; text-align: left; white-space: no
 .more-group:first-child { margin-top: 4px; }
 .past-fold { padding: 8px 14px; } .med-later { display: block; text-align: left; }
 .quick-preview { background: var(--bg); border-radius: 10px; padding: 8px 10px; margin: 0; font-size: .92rem; }
+
+/* Mat och handla: mängder och recept */
+textarea { width: 100%; min-width: 0; padding: .6rem .7rem; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font: inherit; color: inherit; resize: vertical; }
+.qty { font-size: .8rem; color: var(--muted); background: var(--bg); border: 1px solid var(--line); border-radius: 99px; padding: .05rem .5rem; white-space: nowrap; margin-left: 6px; }
+.sm-row .qty { margin-left: auto; }
+.item-name { cursor: pointer; }
+.ing-list li { padding: .35rem .5rem; gap: 6px; }
+.ing-list input { padding: .4rem .5rem; }
+.ing-list .ing-name { flex: 1 1 60%; }
+.ing-list .ing-qty { flex: 0 0 92px; text-align: right; }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 99px; overflow: hidden; margin-left: 6px; }
+.stepper button { border: none; border-radius: 0; padding: .25rem .65rem; background: transparent; }
+.stepper span { min-width: 1.6em; text-align: center; font-weight: 600; }
+.shop-dish { padding: .3rem 0; flex-wrap: wrap; }
+.shop-dish .link { margin-left: 4px; }
+.shop-lines li .check { display: flex; align-items: center; gap: 10px; }
+.recipe-lines li { padding: .5rem .8rem; }
+.recipe-steps { padding-left: 1.3rem; margin: .5rem 0 1rem; }
+.recipe-steps li { margin-bottom: .55rem; line-height: 1.45; }
+.k-recipe { margin-left: 8px; }
