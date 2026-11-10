@@ -194,10 +194,16 @@ Deno.serve(async (req) => {
           await db.from('overtime_settings').update({ last_reminder: todayLocal.slice(0, 7) }).eq('member_id', st.member_id)
         }
       }
-      // Medicin som snart tar slut (egna och delade barns). notified_by = { hushåll: opened_on }
-      const { data: meds } = await db.from('medicines').select('*').or(`household_id.eq.${h.id}${kidIds.length ? `,member_id.in.(${inList(kidIds)})` : ''}`)
+      // Medicin som snart tar slut, bara hushållets egna (andra föräldern har en egen uppsättning).
+      // Med delad vårdnad räknas den bara ner när barnet är här. notified_by = { hushåll: opened_on }
+      const { data: meds } = await db.from('medicines').select('*').eq('household_id', h.id)
+      const medKids = [...new Set((meds ?? []).map((m) => m.member_id))]
+      const { data: medCust } = medKids.length ? await db.from('custody').select('*').in('child_id', medKids) : { data: [] }
+      const medCustIds = (medCust ?? []).map((c) => c.id)
+      const { data: medExc } = medCustIds.length ? await db.from('custody_exceptions').select('*').in('custody_id', medCustIds) : { data: [] }
+      for (const c of medCust ?? []) c.exceptions = (medExc ?? []).filter((x) => x.custody_id === c.id)
       for (const m of meds ?? []) {
-        const st = medicineStatus(m, todayLocal)
+        const st = medicineStatus(m, todayLocal, (medCust ?? []).find((c) => c.child_id === m.member_id) ?? null)
         const by = m.notified_by ?? {}
         if (m.spare > 0 || st.daysLeft > m.remind_days || by[h.id] === m.opened_on) continue
         const who = nameOf(m.member_id) ?? ''
