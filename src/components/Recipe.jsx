@@ -62,7 +62,7 @@ async function importRecipe(url) {
 // En föreslagen rätt som byter namn eller kategori sparas som en egen, och originalet döljs.
 export function DishEditor({ householdId, dish, categories, onClose, onHide, onRemove }) {
   const dishes = useTable('dishes', householdId)
-  const dishItems = useTable('dish_items', householdId)
+  const dishItems = useTable('dish_items', householdId, 'dish')
   const isNew = !dish
   const row = dish ? rowFor(dishItems.rows, dish.name) : null
   const [name, setName] = useState(dish?.name || '')
@@ -113,7 +113,7 @@ export function DishEditor({ householdId, dish, categories, onClose, onHide, onR
     else if (dish.own && (renamed || c !== (dish.category || null))) await dishes.update(dish.id, { name: n, category: c })
     else if (!dish.own && (renamed || c !== (dish.category || null))) { await dishes.insert({ name: n, category: c }); if (renamed) onHide?.(dish.name) }
     // Varorna följer med när rätten byter namn
-    await saveDish(dishItems, dish?.name || n, { ...recipe, dish: n })
+    await saveDish(dishItems, dish?.name || n, { ...recipe, dish: n }, householdId)
     setSaving(false)
     onClose(n)
   }
@@ -149,7 +149,7 @@ export function DishEditor({ householdId, dish, categories, onClose, onHide, onR
 
 // Visa en rätt: varor (räknas om för antal portioner) och hur man lagar den
 export function DishView({ householdId, dish, onClose, onEdit, onShop }) {
-  const dishItems = useTable('dish_items', householdId)
+  const dishItems = useTable('dish_items', householdId, 'dish')
   const row = rowFor(dishItems.rows, dish)
   const base = servingsFor(dishItems.rows, dish)
   const [portions, setPortions] = useState(null)

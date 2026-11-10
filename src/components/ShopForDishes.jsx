@@ -10,7 +10,7 @@ import Sheet from './Sheet'
 // Samma vara i flera rätter räknas ihop (två rätter med 1 gurka = 2 gurkor), och ligger varan redan
 // på listan läggs mängden till där. Står en rätt två gånger i veckan blir det dubbla portioner.
 export default function ShopForDishes({ householdId, me, dishes, portions: startPortions, title, onClose }) {
-  const dishItems = useTable('dish_items', householdId)
+  const dishItems = useTable('dish_items', householdId, 'dish')
   const items = useTable('shopping_items', householdId)
   const lists = useTable('shopping_lists', householdId)
   const catalog = useTable('item_catalog', householdId)
@@ -65,7 +65,7 @@ export default function ShopForDishes({ householdId, me, dishes, portions: start
       {editing && (
         <div className="card">
           <p className="muted small">Varor till {editing} för {servingsFor(dishItems.rows, editing)} portioner. Sparas på rätten.</p>
-          <IngredientsEditor lines={linesFor(dishItems.rows, editing)} onChange={(next) => saveDish(dishItems, editing, { lines: next })} />
+          <IngredientsEditor lines={linesFor(dishItems.rows, editing)} onChange={(next) => saveDish(dishItems, editing, { lines: next }, householdId)} />
         </div>
       )}
 

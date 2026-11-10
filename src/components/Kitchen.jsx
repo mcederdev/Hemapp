@@ -29,7 +29,7 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
   const items = useTable('shopping_items', householdId)
   const lists = useTable('shopping_lists', householdId)
   const pantry = useTable('pantry_items', householdId, 'best_before')
-  const dishItems = useTable('dish_items', householdId)
+  const dishItems = useTable('dish_items', householdId, 'dish')
   const [recipe, setRecipe] = useState(false)
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
   useEffect(() => { document.documentElement.classList.add('kiosk'); return () => document.documentElement.classList.remove('kiosk') }, [])

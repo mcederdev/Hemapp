@@ -45,7 +45,7 @@ export default function Today({ householdId, members, people, go, me, focus, set
   const events = useTable('events', householdId, 'starts_at')
   const chores = useTable('chores', householdId)
   const meals = useTable('meal_plan', householdId, 'day')
-  const dishItems = useTable('dish_items', householdId)
+  const dishItems = useTable('dish_items', householdId, 'dish')
   const [recipe, setRecipe] = useState(null)
   const dishes = useTable('dishes', householdId)
   const items = useTable('shopping_items', householdId)
