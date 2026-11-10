@@ -26,7 +26,7 @@ export default function MedicineToday({ householdId, members, people, me, custod
   const here = (memberId) => { const c = (custody || []).find((x) => x.child_id === memberId); return !c || withUs(c, me.household_id, t, nowHM) }
 
   const rows = meds.rows
-    .filter((m) => byId[m.member_id] && !(m.hide_today || []).includes(me.household_id) && here(m.member_id) && forFocus(focus, m.member_id))
+    .filter((m) => m.household_id === me.household_id && byId[m.member_id] && !(m.hide_today || []).includes(me.household_id) && here(m.member_id) && forFocus(focus, m.member_id))
     .flatMap((m) => (m.times || []).filter((x) => x.time && Number(x.amount) > 0).map((x) => ({
       m, slot: x.time, label: `kl ${x.time}`, amount: x.amount, late: late(x.time),
       dose: doses.rows.find((d) => d.medicine_id === m.id && d.at_time === x.time)

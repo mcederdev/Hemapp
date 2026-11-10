@@ -481,3 +481,20 @@ test('halva skedar visas som ½', () => {
 test('snabbinmatning delar inte 1,5 l mjölk i två', () => {
   assert.deepEqual(parseQuick('1,5 l mjölk, 2 gurkor', { today: '2026-11-10' }).items, ['1,5 l mjölk', '2 gurkor'])
 })
+
+test('medicin: delad vårdnad räknas bara ner när barnet är hos ägaren', () => {
+  const c = { household_id: 'A', child_id: 'k', anchor: '2026-11-01', every_days: 7, handover_time: '18:00', exceptions: [] }
+  const times = [{ time: '08:00', amount: 5 }, { time: '20:00', amount: 5 }]
+  const ours = { household_id: 'A', bottle_size: 100, full_size: 100, dose: 10, doses_per_day: 1, times, opened_on: '2026-11-01' }
+  // 1/11 kväll + 2–7/11 + 8/11 morgon = 5 + 60 + 5
+  assert.equal(medicineStatus(ours, '2026-11-09', c).left, 30)
+  // Veckan hos andra föräldern: ingenting går åt
+  assert.equal(medicineStatus(ours, '2026-11-15', c).left, 30)
+  // Andra hushållets egen flaska räknas tvärtom: 1/11 morgon + 8/11 kväll
+  const theirs = { ...ours, household_id: 'B' }
+  assert.equal(medicineStatus(theirs, '2026-11-09', c).left, 90)
+  // Från 9/11 (hos B): 30 kvar räcker 15/11 kväll + 16–17/11, slut 18/11
+  assert.equal(medicineStatus(ours, '2026-11-09', c).runsOut, '2026-11-18')
+  // Utan vårdnad som förut
+  assert.equal(medicineStatus(ours, '2026-11-09').left, 20)
+})

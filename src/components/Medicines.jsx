@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTable } from '../useTable'
 import { today, prettyDay } from '../lib/dates'
-import { medicineStatus, UNITS, unitText, packName } from '../lib/medicine'
+import { medicineStatus, custodyOf, UNITS, unitText, packName } from '../lib/medicine'
 import { MemberTag } from './MemberPicker'
 import Sheet, { Fab } from './Sheet'
 
@@ -9,12 +9,18 @@ const blank = (memberId) => ({ name: '', member_id: memberId, unit: 'ml', full_s
 const timesOf = (m) => (m.times || []).filter((x) => x.time && Number(String(x.amount).replace(',', '.')) > 0).sort((a, b) => a.time.localeCompare(b.time))
 
 // Medicin: flaskans storlek och dosen ger hur länge den räcker. "Ny flaska" nollställer.
-export default function Medicines({ householdId, members }) {
+// Varje hushåll har sin egen uppsättning. Med delad vårdnad räknas den bara ner när barnet är hos er,
+// och andra hushållets mediciner syns bara (de kan inte ändras härifrån).
+export default function Medicines({ householdId, members, custody, linked }) {
   const meds = useTable('medicines', householdId)
   const [edit, setEdit] = useState(null)
   const t = today()
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
   const kidsFirst = [...members].sort((a, b) => Number(b.role === 'child') - Number(a.role === 'child'))
+  const status = (m) => medicineStatus(m, t, custodyOf(custody, m.member_id))
+  const otherHome = (m) => linked?.households?.find((h) => h.household_id === m.household_id)?.name || 'andra hushållet'
+  // Gör en egen kopia av andra hushållets medicin: samma namn och tider, egen flaska
+  const copy = (m) => setEdit({ ...blank(m.member_id), name: m.name, unit: m.unit, full_size: m.full_size || m.bottle_size, times: m.times?.length ? m.times : [{ amount: m.dose, time: '08:00' }], remind_days: m.remind_days, note: m.note || '' })
 
   const save = async (e) => {
     e.preventDefault()
@@ -37,7 +43,7 @@ export default function Medicines({ householdId, members }) {
   const newBottle = (m) => confirm(`Öppna en ny ${packName(m.unit)} ${m.name} (${fmtN(m.full_size || m.bottle_size)} ${unitText(m.unit, m.full_size || m.bottle_size)})?${m.spare > 0 ? ' Den tas från de ni har hemma.' : ''}`) &&
     meds.update(m.id, { bottle_size: m.full_size || m.bottle_size, opened_on: t, spare: Math.max(0, (m.spare || 0) - 1), notified_for: null, notified_by: {} })
   const adjust = (m) => {
-    const v = prompt(m.unit === 'doser' ? 'Hur många doser finns kvar nu?' : `Hur mycket finns kvar i ${m.unit === 'st' ? 'asken' : 'flaskan'} nu (${m.unit})?`, String(medicineStatus(m, t).left))
+    const v = prompt(m.unit === 'doser' ? 'Hur många doser finns kvar nu?' : `Hur mycket finns kvar i ${m.unit === 'st' ? 'asken' : 'flaskan'} nu (${m.unit})?`, String(status(m).left))
     if (v === null) return
     const n = Number(v.replace(',', '.'))
     if (Number.isFinite(n)) meds.update(m.id, { bottle_size: n, opened_on: t, notified_for: null, notified_by: {} })
@@ -48,8 +54,10 @@ export default function Medicines({ householdId, members }) {
       <h2>Medicin</h2>
       {meds.rows.length === 0 && <p className="muted">Lägg till en medicin med +. Appen räknar ut när flaskan tar slut och påminner i tid.</p>}
       {[...kidsFirst, null].map((person) => {
-        const list = meds.rows.filter((m) => person ? m.member_id === person.id : !byId[m.member_id])
-        if (!list.length) return null
+        const all = meds.rows.filter((m) => person ? m.member_id === person.id : !byId[m.member_id])
+        const list = all.filter((m) => m.household_id === householdId)
+        const theirs = all.filter((m) => m.household_id !== householdId)
+        if (!all.length) return null
         return (
           <div key={person?.id || 'x'} className="med-group">
             <div className="row med-person">
@@ -59,7 +67,7 @@ export default function Medicines({ householdId, members }) {
             </div>
       <ul className="list">
         {list.map((m) => {
-          const s = medicineStatus(m, t)
+          const s = status(m)
           const spare = m.spare || 0
           const low = spare === 0 && s.daysLeft <= m.remind_days
           return (
@@ -91,10 +99,25 @@ export default function Medicines({ householdId, members }) {
           )
         })}
       </ul>
+      {theirs.length > 0 && (
+        <ul className="list med-theirs">
+          {theirs.map((m) => {
+            const s = status(m)
+            const mine = list.some((x) => x.name.trim().toLowerCase() === m.name.trim().toLowerCase())
+            return (
+              <li key={m.id} className="row between">
+                <span className="grow"><span className="muted small">Hos {otherHome(m)}:</span> <strong>{m.name}</strong>
+                  <div className="muted small">{s.left <= 0 ? 'Slut' : `Kvar ${m.unit === 'ml' ? 'ca ' : ''}${fmtN(s.left)} ${unitText(m.unit, s.left)} · räcker ${s.daysLeft === 0 ? 'idag ut' : Number.isFinite(s.daysLeft) ? `${s.daysLeft} dagar till` : 'länge'}`}{m.spare > 0 ? ` · ${m.spare} oöppnade` : ''}</div></span>
+                {!mine && <button className="chip" onClick={() => copy(m)}>Lägg till hos oss</button>}
+              </li>
+            )
+          })}
+        </ul>
+      )}
           </div>
         )
       })}
-      <p className="muted small mt">Tryck + när ni hämtat ut fler flaskor. Ni får bara en notis när det inte finns någon mer hemma och det är så många dagar kvar som ni valt. Delas med andra hushållet om barnet har delad vårdnad.</p>
+      <p className="muted small mt">Tryck + när ni hämtat ut fler flaskor. Ni får bara en notis när det inte finns någon mer hemma och det är så många dagar kvar som ni valt. Med delad vårdnad har varje hem sin egen medicin: den räknas bara ner de dagar barnet är hos er, och ni ser hur mycket andra hushållet har kvar.</p>
       <Fab onClick={() => setEdit(blank(members.find((m) => m.role === 'child')?.id || members[0]?.id))} label="Ny medicin" />
       {edit && (
         <Sheet title={edit.id ? edit.name : 'Ny medicin'} onClose={() => setEdit(null)}>
