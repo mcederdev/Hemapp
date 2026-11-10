@@ -387,6 +387,9 @@ test('läser receptrader med mängd och enhet', () => {
   assert.deepEqual(parseIngredient('1 stor gul lök'), { name: 'Gul lök', qty: '1 st' })
   assert.deepEqual(parseIngredient('salt och peppar'), { name: 'Salt och peppar', qty: '' })
   assert.deepEqual(parseIngredient('8 tortillabröd'), { name: 'Tortillabröd', qty: '8 st' })
+  assert.deepEqual(parseIngredient('1 1/2 dl gräddfil'), { name: 'Gräddfil', qty: '1,5 dl' })
+  assert.deepEqual(parseIngredient('500 g \u200bköttfärs'), { name: 'Köttfärs', qty: '500 g' })
+  assert.deepEqual(parseIngredient('\u200b500\u00a0g köttfärs'), { name: 'Köttfärs', qty: '500 g' })
 })
 
 test('mängder räknas ihop', () => {

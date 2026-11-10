@@ -25,8 +25,10 @@ export function unitOf(word) {
 }
 
 const FRAC = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1 / 3, '⅔': 2 / 3 }
-const NUM = '(?:\\d+\\s*[½¼¾⅓⅔]|\\d+(?:[.,]\\d+)?(?:\\s*/\\s*\\d+)?|[½¼¾⅓⅔])'
+const NUM = '(?:\\d+\\s+\\d+\\s*/\\s*\\d+|\\d+\\s*[½¼¾⅓⅔]|\\d+(?:[.,]\\d+)?(?:\\s*/\\s*\\d+)?|[½¼¾⅓⅔])'
 const toNum = (s) => {
+  const mixed = s.trim().match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/) // "1 1/2"
+  if (mixed) return Number(mixed[1]) + Number(mixed[2]) / (Number(mixed[3]) || 1)
   s = s.replace(/\s+/g, '')
   const m = s.match(/^(\d+)([½¼¾⅓⅔])$/)
   if (m) return Number(m[1]) + FRAC[m[2]]
@@ -92,12 +94,12 @@ export function scaleQty(q, factor) {
   }))
 }
 
-const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1)
+const cap = (s) => { const i = s.search(/\p{L}/u); return i < 0 ? s : s.slice(0, i) + s.charAt(i).toUpperCase() + s.slice(i + 1) }
 
 // En rad från ett recept: "ca 2 dl vispgrädde", "1 gul lök, finhackad", "1 burk krossade tomater (400 g)"
 // -> { name: 'Vispgrädde', qty: '2 dl' }
 export function parseIngredient(line) {
-  let s = String(line || '').replace(/<[^>]+>/g, ' ').replace(/\([^)]*\)/g, ' ').replace(/[•·*]/g, ' ').replace(/\s+/g, ' ').trim()
+  let s = String(line || '').replace(/[\u00ad\u200b-\u200f\u2060\ufeff]/g, '').replace(/\u00a0/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\([^)]*\)/g, ' ').replace(/[•·*]/g, ' ').replace(/\s+/g, ' ').trim()
   s = s.replace(/^(ca\.?|cirka|ungefär|c:a)\s+/i, '')
   let qty = ''
   const m = s.match(new RegExp(`^(${NUM})(?:\\s*[-–]\\s*(${NUM}))?\\s+(.*)$`))
