@@ -457,6 +457,8 @@ test('samma vara i ental och flertal', () => {
   assert.equal(itemKey('Tomat'), itemKey('Tomater'))
   assert.equal(itemKey('Lök'), itemKey('Lökar'))
   assert.notEqual(itemKey('Ost'), itemKey('Ris'))
+})
+
 import { unitText, packName } from './medicine.js'
 test('medicinenheter: dos/doser och förpackning', () => {
   assert.equal(unitText('doser', 1), 'dos')
