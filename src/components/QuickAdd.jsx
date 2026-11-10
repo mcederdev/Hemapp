@@ -1,3 +1,4 @@
+import { splitTyped, addToItem, itemKey } from '../lib/qty'
 import { useState } from 'react'
 import { useTable } from '../useTable'
 import { today, prettyDay } from '../lib/dates'
@@ -61,8 +62,13 @@ function QuickSheet({ householdId, members, me, household, onClose }) {
     } else if (k === 'item') {
       if (!defaultList) return
       const names = q.items || [text.replace(/^\s*(köp|handla)\s+/i, '').trim()]
-      const on = new Set(items.rows.filter((i) => !i.done && i.list_id === defaultList.id).map((i) => i.name.toLowerCase()))
-      for (const n of names) if (n && !on.has(n.toLowerCase())) await items.insert({ name: n, list_id: defaultList.id, added_by: me.id, section: guessSection(n) })
+      // "köp 2 gurkor" ger Gurkor 2 st. Står varan redan på listan läggs mängden till där.
+      const on = items.rows.filter((i) => !i.done && i.list_id === defaultList.id)
+      for (const { name: n, qty } of names.filter(Boolean).map(splitTyped)) {
+        const existing = on.find((i) => itemKey(i.name) === itemKey(n))
+        if (existing) { if (qty) await items.update(existing.id, { qty: addToItem(existing.qty, qty) }) }
+        else if (n) await items.insert({ name: n, list_id: defaultList.id, added_by: me.id, section: guessSection(n), ...(qty ? { qty } : {}) })
+      }
     } else if (k === 'chore') {
       await chores.insert({ title: q.title || text.trim(), assigned_to: q.member, due_date: q.date || null, stars: 0 })
     } else {

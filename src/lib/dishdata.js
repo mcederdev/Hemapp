@@ -27,6 +27,14 @@ export async function saveDish(table, dish, patch, householdId) {
     const { data: found } = await supabase.from('dish_items').select('id, dish').eq('household_id', householdId).ilike('dish', String(dish).trim().replace(/[%_\\]/g, '\\$&'))
     row = found?.[0]
   }
+  // Byter rätten namn till en rätt som redan har en egen rad: skriv över den och ta bort den gamla
+  // (annars krockar det, det får bara finnas en rad per rätt och hushåll)
+  const target = data.dish && low(data.dish) !== low(dish) ? rowFor(table.rows, data.dish) : null
+  if (target && target.id !== row?.id) {
+    await table.update(target.id, { ...data, dish: target.dish })
+    if (row) await table.remove(row.id)
+    return
+  }
   if (row) { await table.update(row.id, data); table.reload?.(); return }
   return table.insert({ dish, items: [], ...data })
 }

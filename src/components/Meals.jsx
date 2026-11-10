@@ -8,7 +8,7 @@ import SwipeRow, { buzz } from './Swipe'
 import Sheet, { Fab } from './Sheet'
 import ShopForDishes from './ShopForDishes'
 import { DishEditor, DishView } from './Recipe'
-import { rowFor, linesFor } from '../lib/dishdata'
+import { rowFor, linesFor, hasRecipe } from '../lib/dishdata'
 
 const shuffle = (a) => [...a].sort(() => Math.random() - 0.5)
 // Samma "slumpade" ordning hela dagen så att förslagen inte hoppar runt vid varje uppdatering
@@ -240,7 +240,7 @@ function Dishes({ householdId, me, dishes, dishItems, all, household, households
           const n = linesFor(dishItems.rows, d.name).length
           return (
             <SwipeRow key={d.id || d.name} onDelete={() => drop(d)} onClick={() => setViewing(d.name)} className="tap">
-              <span>{d.name} {d.own && <span className="tag own">Egen</span>}{row?.instructions && <span title="Har recept"> 📖</span>}</span>
+              <span>{d.name} {d.own && <span className="tag own">Egen</span>}{hasRecipe(row) && <span title="Har recept"> 📖</span>}</span>
               <span className="meta">
                 <span className="muted small">{n ? `${n} varor` : 'Inga varor'}{d.category ? ` · ${d.category}` : ''}</span>
               </span>

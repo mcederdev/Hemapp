@@ -59,8 +59,8 @@ function show({ n, u }) {
   if (u === 'g' && n >= 1000) return `${nice(n / 1000)} kg`
   if (u === 'dl' && n >= 10) return `${nice(n / 10)} l`
   if (u === 'dl' && n < 0.5) return `${nice(n * 100)} ml`
-  // Halva saker visas som ½: "½ st", "1½ burk"
-  const half = WHOLE.has(u) && Math.abs((n % 1) - 0.5) < 0.001
+  // Halva saker och skedar visas som ½: "½ st", "1½ burk", "½ tsk"
+  const half = !BASE[u] && Math.abs((n % 1) - 0.5) < 0.001
   const num = half ? `${Math.floor(n) || ''}½` : nice(n)
   return `${num} ${n > 1 && PLURAL[u] ? PLURAL[u] : u}`
 }

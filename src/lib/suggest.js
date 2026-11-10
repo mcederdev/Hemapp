@@ -1,3 +1,5 @@
+import { DEFAULT_DISH_ITEMS } from './defaults.js'
+import { linesOf } from './qty.js'
 // Förslag på veckans middagar: inte ätit på två veckor, gärna det familjen brukar äta,
 // gärna det som använder sådant i skafferiet/kylen som snart går ut, och inte samma sorts mat två dagar i rad.
 const p = (s) => new Date(s + 'T12:00:00Z')
@@ -9,9 +11,11 @@ export function expiringSoon(pantry, today, days = 4) {
   return (pantry || []).filter((x) => x.best_before && x.best_before <= add(today, days))
 }
 
-// Använder rätten någon av varorna? (via rättens ingredienser, annars namnet)
+// Använder rätten någon av varorna? (via rättens varor, de föreslagna om rätten inte har egna, annars namnet)
 export function usesItems(dish, items, dishItems) {
-  const ing = (dishItems || []).find((d) => low(d.dish) === low(dish))?.items?.map(low) || []
+  const row = (dishItems || []).find((d) => low(d.dish) === low(dish))
+  const def = Object.keys(DEFAULT_DISH_ITEMS).find((n) => low(n) === low(dish))
+  const ing = linesOf(row, def ? DEFAULT_DISH_ITEMS[def] : []).map((l) => low(l.name).trim()).filter(Boolean)
   return items.filter((x) => {
     const n = low(x.name)
     return ing.some((i) => i.includes(n) || n.includes(i)) || low(dish).includes(n)

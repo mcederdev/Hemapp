@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
         const by = m.notified_by ?? {}
         if (m.spare > 0 || st.daysLeft > m.remind_days || by[h.id] === m.opened_on) continue
         const who = nameOf(m.member_id) ?? ''
-        await send({ title: `💊 ${m.name}${who ? ` till ${who}` : ''} ${st.left <= 0 ? 'är slut' : `räcker ${st.daysLeft === 0 ? 'bara idag' : `${st.daysLeft} dagar till`}`}`, body: m.note || 'Dags att hämta ut en ny flaska', url: '/?tab=medicine' })
+        await send({ title: `💊 ${m.name}${who ? ` till ${who}` : ''} ${st.left <= 0 ? 'är slut' : `räcker ${st.daysLeft === 0 ? 'bara idag' : `${st.daysLeft} dagar till`}`}`, body: m.note || `Dags att hämta ut ${m.unit === 'st' ? 'en ny ask' : m.unit === 'doser' ? 'en ny förpackning' : 'en ny flaska'}`, url: '/?tab=medicine' })
         await db.from('medicines').update({ notified_for: m.opened_on, notified_by: { ...by, [h.id]: m.opened_on } }).eq('id', m.id)
         log.push(`medicin ${m.name} ${h.name}`)
       }

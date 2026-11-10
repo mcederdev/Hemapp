@@ -67,7 +67,7 @@ export function parseQuick(text, { today, members = [] } = {}) {
 
   // Flera varor: "mjölk, ägg och bröd" (utan tid och dag)
   const raw = text.replace(/^\s*(köp|handla)\s+/i, '')
-  if (!out.date && !out.time && /,|\soch\s/.test(raw)) out.items = raw.split(/,|\soch\s/).map((x) => x.trim()).filter(Boolean).map((x) => x.charAt(0).toUpperCase() + x.slice(1))
+  if (!out.date && !out.time && /,|\soch\s/.test(raw)) out.items = raw.split(/,(?!\d)|\soch\s/).map((x) => x.trim()).filter(Boolean).map((x) => x.charAt(0).toUpperCase() + x.slice(1))
   return out
 }
 
