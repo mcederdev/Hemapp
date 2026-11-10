@@ -13,3 +13,19 @@ export function medicineStatus(m, today) {
   const full = Number(m.full_size || m.bottle_size) || 1
   return { left: Math.round(left * 10) / 10, daysLeft, runsOut: Number.isFinite(daysLeft) ? fmt(d) : null, share: Math.min(1, left / full) }
 }
+
+// Enheter: ml (flytande), st (tabletter), doser (nässpray, inhalator, droppar)
+export const UNITS = [
+  { v: 'ml', label: 'ml', hint: 'Flytande' },
+  { v: 'st', label: 'Tabletter', hint: 'Tabletter, kapslar' },
+  { v: 'doser', label: 'Doser', hint: 'Nässpray, inhalator' },
+]
+// "1 dos", "2 doser", "1 st", "5 ml"
+export function unitText(unit, n) {
+  if (unit === 'doser') return Number(n) === 1 ? 'dos' : 'doser'
+  return unit
+}
+// Vad förpackningen heter: flaska, ask eller förpackning
+export function packName(unit) {
+  return unit === 'st' ? 'ask' : unit === 'doser' ? 'förpackning' : 'flaska'
+}

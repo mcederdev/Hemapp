@@ -374,3 +374,12 @@ test('återkommande kostnader: månad, kvartal och år', () => {
   const up = upcomingCosts({}, [{ id: 'x', kind: 'parkering', day: '2026-11-01', amount: 500, shared: true, every_months: 3 }], '2026-11-09')
   assert.deepEqual(up.map((c) => c.day), ['2027-02-01', '2027-05-01', '2027-08-01', '2027-11-01'])
 })
+
+import { unitText, packName } from './medicine.js'
+test('medicinenheter: dos/doser och förpackning', () => {
+  assert.equal(unitText('doser', 1), 'dos')
+  assert.equal(unitText('doser', 2), 'doser')
+  assert.equal(unitText('ml', 5), 'ml')
+  assert.equal(packName('doser'), 'förpackning')
+  assert.equal(packName('st'), 'ask')
+})

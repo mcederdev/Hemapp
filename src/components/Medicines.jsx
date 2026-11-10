@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTable } from '../useTable'
 import { today, prettyDay } from '../lib/dates'
-import { medicineStatus } from '../lib/medicine'
+import { medicineStatus, UNITS, unitText, packName } from '../lib/medicine'
 import { MemberTag } from './MemberPicker'
 import Sheet, { Fab } from './Sheet'
 
@@ -34,10 +34,10 @@ export default function Medicines({ householdId, members }) {
     setEdit(null)
   }
   const setTime = (i, patch) => setEdit({ ...edit, times: edit.times.map((x, j) => (j === i ? { ...x, ...patch } : x)) })
-  const newBottle = (m) => confirm(`Öppna en ny ${m.unit === 'st' ? 'ask' : 'flaska'} ${m.name} (${m.full_size || m.bottle_size} ${m.unit})?${m.spare > 0 ? ' Den tas från de ni har hemma.' : ''}`) &&
+  const newBottle = (m) => confirm(`Öppna en ny ${packName(m.unit)} ${m.name} (${fmtN(m.full_size || m.bottle_size)} ${unitText(m.unit, m.full_size || m.bottle_size)})?${m.spare > 0 ? ' Den tas från de ni har hemma.' : ''}`) &&
     meds.update(m.id, { bottle_size: m.full_size || m.bottle_size, opened_on: t, spare: Math.max(0, (m.spare || 0) - 1), notified_for: null, notified_by: {} })
   const adjust = (m) => {
-    const v = prompt(`Hur mycket finns kvar i flaskan nu (${m.unit})?`, String(medicineStatus(m, t).left))
+    const v = prompt(m.unit === 'doser' ? 'Hur många doser finns kvar nu?' : `Hur mycket finns kvar i ${m.unit === 'st' ? 'asken' : 'flaskan'} nu (${m.unit})?`, String(medicineStatus(m, t).left))
     if (v === null) return
     const n = Number(v.replace(',', '.'))
     if (Number.isFinite(n)) meds.update(m.id, { bottle_size: n, opened_on: t, notified_for: null, notified_by: {} })
@@ -66,11 +66,11 @@ export default function Medicines({ householdId, members }) {
             <li key={m.id} className="col med">
               <div className="row between w100">
                 <span className="row tap grow" onClick={() => setEdit({ ...m, full_size: m.full_size || m.bottle_size, times: m.times?.length ? m.times : [{ amount: m.dose, time: '08:00' }], showToday: !(m.hide_today || []).includes(householdId) })}>
-                  <span className="big-emoji">💊</span>
+                  <span className="big-emoji">{m.unit === 'doser' ? '💨' : '💊'}</span>
                   <span><strong>{m.name}</strong>
-                    <div className="muted small">{timesOf(m).length ? timesOf(m).map((x) => `${fmtN(x.amount)} ${m.unit} kl ${x.time}`).join(' · ') : `${fmtN(m.dose)} ${m.unit} × ${fmtN(m.doses_per_day)} om dagen`}{m.note ? ` · ${m.note}` : ''}{(m.hide_today || []).includes(householdId) ? ' · visas inte på Idag' : ''}</div></span>
+                    <div className="muted small">{timesOf(m).length ? timesOf(m).map((x) => `${fmtN(x.amount)} ${unitText(m.unit, x.amount)} kl ${x.time}`).join(' · ') : `${fmtN(m.dose)} ${unitText(m.unit, m.dose)} × ${fmtN(m.doses_per_day)} om dagen`}{m.note ? ` · ${m.note}` : ''}{(m.hide_today || []).includes(householdId) ? ' · visas inte på Idag' : ''}</div></span>
                 </span>
-                <span className="med-spare" title={`${spare} ${m.unit === 'st' ? 'askar' : 'flaskor'} hemma`}>
+                <span className="med-spare" title={`${spare} ${m.unit === 'st' ? 'askar' : m.unit === 'doser' ? 'förpackningar' : 'flaskor'} hemma`}>
                   <button className="icon-btn" disabled={spare === 0} onClick={() => meds.update(m.id, { spare: spare - 1 })} aria-label="En mindre hemma">−</button>
                   <span className="spare-n"><Pack unit={m.unit} />{spare}</span>
                   <button className="icon-btn" onClick={() => meds.update(m.id, { spare: spare + 1, notified_for: null, notified_by: {} })} aria-label="En till hemma">+</button>
@@ -79,12 +79,12 @@ export default function Medicines({ householdId, members }) {
               <div className="med-bar"><i style={{ width: `${Math.round(s.share * 100)}%`, background: low ? 'var(--danger)' : 'var(--accent)' }} /></div>
               <div className="row between w100">
                 <span className={`small ${low ? 'error' : 'muted'}`}>
-                  {s.left <= 0 ? 'Slut!' : `Kvar ca ${fmtN(s.left)} ${m.unit} · räcker ${s.daysLeft === 0 ? 'idag ut' : `${s.daysLeft} dagar till`}`}
+                  {s.left <= 0 ? 'Slut!' : `Kvar ${m.unit === 'ml' ? 'ca ' : ''}${fmtN(s.left)} ${unitText(m.unit, s.left)} · räcker ${s.daysLeft === 0 ? 'idag ut' : `${s.daysLeft} dagar till`}`}
                   {s.runsOut && s.left > 0 && ` (${prettyDay(s.runsOut)})`}
                 </span>
                 <span className="row">
                   <button className="chip" onClick={() => adjust(m)}>Justera</button>
-                  <button className="chip on" onClick={() => newBottle(m)}>{m.unit === 'st' ? 'Ny ask' : 'Ny flaska'}</button>
+                  <button className="chip on" onClick={() => newBottle(m)}>{m.unit === 'st' ? 'Ny ask' : m.unit === 'doser' ? 'Ny förpackning' : 'Ny flaska'}</button>
                 </span>
               </div>
             </li>
@@ -99,23 +99,27 @@ export default function Medicines({ householdId, members }) {
       {edit && (
         <Sheet title={edit.id ? edit.name : 'Ny medicin'} onClose={() => setEdit(null)}>
           <form className="stack" onSubmit={save}>
-            <input placeholder="Namn (t.ex. Concerta, Desloratadin)" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus={!edit.id} />
+            <input placeholder="Namn (t.ex. Concerta, Desloratadin, Nasonex)" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus={!edit.id} />
             <label className="field"><span className="muted small">Till</span>
               <select value={edit.member_id} onChange={(e) => setEdit({ ...edit, member_id: e.target.value })}>
                 {kidsFirst.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select></label>
-            <div className="row">
-              <label className="field"><span className="muted small">Flaskan/förpackningen</span><input inputMode="decimal" value={edit.full_size} onChange={(e) => setEdit({ ...edit, full_size: e.target.value })} /></label>
-              <label className="field"><span className="muted small">Enhet</span>
-                <select value={edit.unit} onChange={(e) => setEdit({ ...edit, unit: e.target.value })}>
-                  <option value="ml">ml</option><option value="st">tabletter</option><option value="doser">doser</option>
-                </select></label>
+            <span className="muted small">Typ</span>
+            <div className="row wrap">
+              {UNITS.map((u) => (
+                <button key={u.v} type="button" className={`chip ${edit.unit === u.v ? 'on' : ''}`} onClick={() => setEdit({ ...edit, unit: u.v })}>
+                  {u.label} <span className="small">{u.hint}</span>
+                </button>
+              ))}
             </div>
+            <label className="field"><span className="muted small">{edit.unit === 'doser' ? 'Antal doser i en förpackning (står på förpackningen)' : edit.unit === 'st' ? 'Antal tabletter i en ask' : 'Flaskans storlek (ml)'}</span>
+              <input inputMode="decimal" value={edit.full_size} onChange={(e) => setEdit({ ...edit, full_size: e.target.value })} /></label>
+            {edit.unit === 'doser' && <p className="muted small">En spray eller ett puff är en dos. Nässpray i båda näsborrarna = 2 doser.</p>}
             <span className="muted small">När och hur mycket</span>
             {(edit.times || []).map((x, i) => (
               <div key={i} className="row med-time">
                 <input inputMode="decimal" value={x.amount} aria-label="Mängd" onChange={(e) => setTime(i, { amount: e.target.value })} />
-                <span className="muted">{edit.unit === 'st' ? 'st' : edit.unit} kl</span>
+                <span className="muted">{edit.unit === 'doser' ? (Number(String(x.amount).replace(',', '.')) === 1 ? 'dos' : 'doser') : edit.unit} kl</span>
                 <input type="time" value={x.time} aria-label="Tid" onChange={(e) => setTime(i, { time: e.target.value })} />
                 {edit.times.length > 1 && <button type="button" className="icon-btn" onClick={() => setEdit({ ...edit, times: edit.times.filter((_, j) => j !== i) })} aria-label="Ta bort tiden">✕</button>}
               </div>
@@ -124,7 +128,7 @@ export default function Medicines({ householdId, members }) {
             <label className="row"><input type="checkbox" checked={edit.showToday !== false} onChange={(e) => setEdit({ ...edit, showToday: e.target.checked })} /> Visa på Idag och bocka av där</label>
             {edit.showToday !== false && <p className="muted small">Varje tid syns på Idag. Den som bockar av syns för alla och resten av familjen får en notis.</p>}
             {!edit.id && <label className="field"><span className="muted small">Oöppnade hemma</span><input inputMode="numeric" value={edit.spare} onChange={(e) => setEdit({ ...edit, spare: e.target.value })} /></label>}
-            {!edit.id && <label className="field"><span className="muted small">Flaskan öppnades</span><input type="date" value={edit.opened_on} max={today()} onChange={(e) => setEdit({ ...edit, opened_on: e.target.value })} /></label>}
+            {!edit.id && <label className="field"><span className="muted small">{edit.unit === 'st' ? 'Asken' : edit.unit === 'doser' ? 'Förpackningen' : 'Flaskan'} öppnades</span><input type="date" value={edit.opened_on} max={today()} onChange={(e) => setEdit({ ...edit, opened_on: e.target.value })} /></label>}
             <label className="field"><span className="muted small">Påminn</span>
               <select value={edit.remind_days} onChange={(e) => setEdit({ ...edit, remind_days: e.target.value })}>
                 {[2, 3, 5, 7, 10, 14].map((d) => <option key={d} value={d}>{d} dagar innan den tar slut</option>)}
@@ -146,8 +150,9 @@ export function lowMedicines(rows, t = today()) {
   return rows.map((m) => ({ m, s: medicineStatus(m, t) })).filter(({ m, s }) => !(m.spare > 0) && s.daysLeft <= m.remind_days)
 }
 
-// Flaska för ml/doser, ask för tabletter
+// Flaska för ml, sprayflaska för doser, ask för tabletter
 function Pack({ unit }) {
+  if (unit === 'doser') return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M11 2h2v5h-2zM9 7h6v3H9zM7 10h10v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z" /></svg>
   return unit === 'st'
     ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="12" rx="2" /><path d="M3 11h18M8 7V5h8v2" /><circle cx="8" cy="15" r="1" fill="currentColor" /><circle cx="12" cy="15" r="1" fill="currentColor" /><circle cx="16" cy="15" r="1" fill="currentColor" /></svg>
     : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M9 2h6v3H9zM8 5h8l1 3v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V8z" /><path d="M7 12h10" /></svg>
