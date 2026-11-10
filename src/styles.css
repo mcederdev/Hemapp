@@ -635,7 +635,11 @@ textarea.ta { width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); 
 .movable.half .hero-dish { font-size: 1.15rem; }
 .movable.half .hero .row { flex-wrap: wrap; gap: 6px; margin-top: auto; }
 .movable.half .hero-btn { padding: 6px 10px; font-size: .85rem; }
-.fold.half .card-head { padding-right: 6px; }
+.fold.half .card-head { padding-right: 2px; padding-left: 12px; gap: 2px; }
+/* Halv bredd: rubrik, antal och pilar får plats utan att antalet hamnar under pilen */
+.fold.half .card-head > .row { gap: 5px; }
+.fold.half .card-head > .row > * { flex: none; }
+.fold.half .fold-open { margin-right: 2px; padding: .2rem; }
 .prio-list { list-style: none; margin: 0; padding: 0 .85rem .3rem; font-size: .92rem; }
 .prio-list li { padding: 3px 0; font-weight: 600; }
 .prio-list li::before { content: '! '; color: var(--danger); font-weight: 800; }
