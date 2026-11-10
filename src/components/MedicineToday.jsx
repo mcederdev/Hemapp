@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../supabase'
 import { useTable } from '../useTable'
 import { today } from '../lib/dates'
+import { unitText } from '../lib/medicine'
 import { withUs } from '../lib/custody'
 import { MemberTag } from './MemberPicker'
 import { Check } from './Swipe'
@@ -41,7 +42,7 @@ export default function MedicineToday({ householdId, members, people, me, custod
   const lateN = pending.filter((r) => r.late).length
   const nextUp = pending.find((r) => !r.late)
   const who = (m) => byId[m.member_id]
-  const what = (r) => `${r.m.name} ${fmtN(r.amount)} ${r.m.unit === 'st' ? 'st' : r.m.unit} ${r.label}`
+  const what = (r) => `${r.m.name} ${fmtN(r.amount)} ${unitText(r.m.unit, r.amount)} ${r.label}`
   const take = async (r) => {
     if (r.dose) return doses.remove(r.dose.id)
     const res = await doses.insert({ household_id: me.household_id, medicine_id: r.m.id, day: t, at_time: r.slot, taken_by: me.id })
@@ -66,7 +67,7 @@ export default function MedicineToday({ householdId, members, people, me, custod
             <Check checked={!!r.dose} onChange={() => take(r)} label={`${r.dose ? 'Ångra' : 'Bocka av'} ${r.m.name} ${r.label}`} />
             <MemberTag member={who(r.m)} size={24} />
             <span className="grow">
-              <strong>{r.m.name}</strong> <span className="muted small">{fmtN(r.amount)} {r.m.unit}</span>
+              <strong>{r.m.name}</strong> <span className="muted small">{fmtN(r.amount)} {unitText(r.m.unit, r.amount)}</span>
               <div className="small muted">{r.label.replace('kl', 'Kl')}{r.dose ? ` · ✓ ${byId[r.dose.taken_by]?.name || 'Någon'} ${hm(r.dose.taken_at)}` : r.late ? ' · inte tagen än' : ''}</div>
             </span>
             {!r.dose && <button className="chip" disabled={sent[r.m.id + r.slot]} onClick={() => remind(r)}>{sent[r.m.id + r.slot] ? 'Påmint' : 'Påminn'}</button>}
