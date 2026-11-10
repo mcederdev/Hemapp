@@ -132,7 +132,7 @@ function Home({ me }) {
     for (const e of ['online', 'offline', 'outbox-changed', 'outbox-flushed']) window.addEventListener(e, up)
     return () => { for (const e of ['online', 'offline', 'outbox-changed', 'outbox-flushed']) window.removeEventListener(e, up) }
   }, [])
-  const offlineBar = !online || pending ? <div className="offline-bar">{online ? `Skickar ${pending} ändringar…` : `Ingen anslutning${pending ? ` · ${pending} ändringar skickas sen` : ''}`}</div> : null
+  const offlineBar = !online || pending ? <div className="offline-bar">{online ? `Skickar ${pending} ${pending === 1 ? 'ändring' : 'ändringar'}…` : `Ingen anslutning${pending ? ` · ${pending} ${pending === 1 ? 'ändring' : 'ändringar'} skickas sen` : ''}`}</div> : null
 
   // Testläge: det man gör räknas inte i statistiken och kan tas bort när man avslutar. Gäller bara den här telefonen.
   const [test, setTestState] = useState(isTest())

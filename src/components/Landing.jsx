@@ -2,9 +2,11 @@ import { useState } from 'react'
 import Auth from './Auth'
 
 const FEATURES = [
-  { img: 'idag', title: 'Hela dagen på ett ställe', text: 'Vad som händer idag, kvällens middag, sysslor och lappar till varandra. Tryck på en person för att bara se deras saker.' },
+  { img: 'idag', title: 'Hela dagen på ett ställe', text: 'Vad som händer idag, kvällens middag med recept, medicinen som ska tas, sysslor och lappar till varandra. Tryck på en person för att bara se deras saker.' },
   { img: 'kalender', title: 'Familjens kalender', text: 'Allas händelser i samma vy, med upprepning och påminnelser. Importera schemat från jobbet eller skolan som .ics-fil.' },
-  { img: 'handla', title: 'Handla tillsammans', text: 'Gemensamma inköpslistor som uppdateras direkt. Tryck på det som tagit slut hemma så hamnar det på listan.' },
+  { img: 'handla', title: 'Handla tillsammans', text: 'Gemensamma inköpslistor som uppdateras direkt. Skriv "2 gurkor" eller "mjölk 1 l" så kommer mängden med, och lägger någon till samma vara räknas det ihop. Tryck på det som tagit slut hemma så hamnar det på listan.' },
+  { img: 'recept', title: 'Middag och recept', text: 'Planera veckans middagar eller låt appen föreslå. Klistra in en länk från ICA, Arla eller Köket så hämtas varor och gör så här. Ändra antal portioner så räknas mängderna om, och ett tryck lägger allt till veckans middagar på inköpslistan.' },
+  { img: 'medicin', title: 'Medicin med doser', text: 'Tabletter, flytande medicin, nässpray och inhalator, med dos och klockslag. Bocka av på Idag så ser alla att den är tagen, och appen säger till i god tid innan förpackningen tar slut.' },
   { img: 'barnen', title: 'Barnens egen sida', text: 'Morgon- och kvällsrutiner, sysslor som ger stjärnor och veckopeng, och ett sparmål att längta efter.' },
   { img: 'meddelanden', title: 'Meddelanden och lappar', text: 'Skriv till familjen, eller till barnets andra hem om ni har delad vårdnad. Sätt upp ett hjärta på kylskåpet.' },
   { img: 'bilen', title: 'Bilen', text: 'Kostnader, skatt och kommande utgifter, plus att göra för tvätt, service, däckbyte och besiktning. Delar ni bil mellan två hem räknar appen ut vem som ska swisha vem.' }
@@ -17,12 +19,12 @@ const COPARENT = [
   ['🎒', 'Packlista', 'En gemensam lista över vad som ska med vid bytet. Kvällen före får båda en påminnelse om vad som är kvar att packa.'],
   ['📅', 'Barnets kalender', 'Barnets aktiviteter, skola och tider syns i båda hemmen, oavsett vem som lagt in dem.'],
   ['🌡️', 'VAB och sjukdagar', 'Se vem som vabbar och när. Ni får en påminnelse om att anmäla dagarna till Försäkringskassan.'],
-  ['💊', 'Medicin', 'Barnets mediciner och doser med klockslag, så båda vet vad som har getts och när flaskan tar slut.'],
+  ['💊', 'Medicin', 'Barnets mediciner med doser och klockslag, även nässpray och inhalator. Båda hemmen ser vad som har getts idag och när förpackningen tar slut.'],
   ['💬', 'Meddelanden mellan hemmen', 'En egen kanal mellan hushållen, skild från familjens interna chatt.'],
   ['🚗', 'Gemensam bil', 'Delar ni bil ser båda kostnader, skatt, besiktning och bokade tider. Appen räknar ut vem som ska swisha vem.'],
   ['🧹', 'Delade sysslor', 'Sysslor som gäller båda hemmen, t.ex. att boka tandläkare eller tvätta den gemensamma bilen.']
 ]
-const MORE = ['🚸 Vem lämnar och hämtar på skolan, med varning om det krockar med jobbet', '🍝 Veckomeny och middagstips, och era egna rätter', '⭐ Prio-varor på inköpslistan', '🥛 Skafferi med bäst-före', '💰 Räkningar som delas efter inkomst', '📺 Abonnemang med påminnelse om uppsägning', '⏱️ Övertidsräknare enligt kollektivavtal', '🎂 Födelsedagar och årliga påminnelser', '🔔 Notiser på mobilen varje morgon', '🧭 Välj själv vilka sidor du vill se', '📊 Statistik över sysslor och sjukdagar']
+const MORE = ['🚸 Vem lämnar och hämtar på skolan, med varning om det krockar med jobbet', '⭐ Prio-varor på inköpslistan', '🥛 Skafferi med bäst-före', '💰 Räkningar som delas efter inkomst', '📺 Abonnemang med påminnelse om uppsägning', '⏱️ Övertidsräknare enligt kollektivavtal', '🎂 Födelsedagar och årliga påminnelser', '🔔 Notiser på mobilen varje morgon', '🧭 Välj själv vilka sidor du vill se', '📊 Statistik över sysslor och sjukdagar']
 
 // Startsida för den som inte är inloggad: vad appen är, med bilder
 export default function Landing() {
@@ -37,7 +39,7 @@ export default function Landing() {
 
       <section className="ld-hero">
         <h1>Familjens vardag, samlad i en app</h1>
-        <p>Kalender, inköpslista, sysslor, middagar och meddelanden som hela familjen delar, och som uppdateras direkt i allas telefoner.</p>
+        <p>Kalender, inköpslista, sysslor, middagar med recept, medicin och meddelanden som hela familjen delar, och som uppdateras direkt i allas telefoner.</p>
         <div className="row wrap ld-cta">
           <a className="link ld-co-link" href="#delad-vardnad">Delad vårdnad? Så fungerar det för två hem ↓</a>
           <button className="primary big" onClick={() => setAuth('signup')}>Kom igång gratis</button>

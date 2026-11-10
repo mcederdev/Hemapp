@@ -467,3 +467,17 @@ test('medicinenheter: dos/doser och förpackning', () => {
   assert.equal(packName('doser'), 'förpackning')
   assert.equal(packName('st'), 'ask')
 })
+
+import { usesItems } from './suggest.js'
+import { parseQuick } from './quickadd.js'
+test('förslag som använder det som snart går ut läser de föreslagna varorna', () => {
+  assert.equal(usesItems('Tacos', [{ name: 'Gräddfil' }], []).length, 1)
+  assert.equal(usesItems('Tacos', [{ name: 'Gräddfil' }], [{ dish: 'Tacos', lines: [{ name: 'Nötfärs', qty: '' }] }]).length, 0)
+})
+test('halva skedar visas som ½', () => {
+  assert.equal(parseIngredient('1/2 tsk salt').qty, '½ tsk')
+  assert.equal(scaleQty('1 msk', 1.5), '1½ msk')
+})
+test('snabbinmatning delar inte 1,5 l mjölk i två', () => {
+  assert.deepEqual(parseQuick('1,5 l mjölk, 2 gurkor', { today: '2026-11-10' }).items, ['1,5 l mjölk', '2 gurkor'])
+})

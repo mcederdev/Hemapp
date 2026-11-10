@@ -26,12 +26,25 @@ export default function ShopForDishes({ householdId, me, dishes, portions: start
   const [portions, setPortions] = useState({})
   const portionsFor = (dish, times) => portions[dish] ?? (startPortions && counts.length === 1 ? startPortions : servingsFor(dishItems.rows, dish) * times)
   const [editing, setEditing] = useState(null)
+  // Ändrade varor hålls lokalt medan man skriver och sparas på rätten när man trycker Klar
+  // (att spara vid varje tangenttryck tappade bokstäver och kunde ge dubbla rader i databasen)
+  const [draft, setDraft] = useState(null) // { dish, lines }
+  const linesOfDish = (dish) => (draft?.dish === dish ? draft.lines : linesFor(dishItems.rows, dish))
+  const saveDraft = async () => {
+    if (!draft) return
+    await saveDish(dishItems, draft.dish, { lines: draft.lines }, householdId)
+    setDraft(null)
+  }
+  const toggleEdit = async (dish) => {
+    await saveDraft()
+    setEditing(editing === dish ? null : dish)
+  }
   const [picked, setPicked] = useState({}) // namn -> true/false som man själv ändrat
   const [added, setAdded] = useState(0)
 
   const groups = counts.map(([dish, times]) => {
     const f = portionsFor(dish, times) / servingsFor(dishItems.rows, dish)
-    return { dish, times, lines: linesFor(dishItems.rows, dish).map((l) => ({ ...l, qty: scaleQty(l.qty, f) })) }
+    return { dish, times, lines: linesOfDish(dish).map((l) => ({ ...l, qty: scaleQty(l.qty, f) })) }
   })
   const all = combineLines(groups)
   // Det som brukar finnas hemma och det som redan står på listan kryssas inte i från början
@@ -40,6 +53,7 @@ export default function ShopForDishes({ householdId, me, dishes, portions: start
 
   const addAll = async () => {
     if (!list || !toAdd.length) return
+    await saveDraft()
     const catBy = Object.fromEntries(catalog.rows.map((c) => [c.name.toLowerCase(), c.section]))
     const fresh = []
     for (const x of toAdd) {
@@ -53,11 +67,11 @@ export default function ShopForDishes({ householdId, me, dishes, portions: start
   }
 
   return (
-    <Sheet title={title || `Handla till ${dishes[0]}`} onClose={onClose}>
+    <Sheet title={title || `Handla till ${dishes[0]}`} onClose={() => { saveDraft(); onClose() }}>
       {groups.map(({ dish, times }) => (
         <div key={dish} className="row between shop-dish">
           <span><strong>{dish}</strong>{times > 1 && <span className="muted small"> · {times} gånger</span>}
-            <button type="button" className="link small" onClick={() => setEditing(editing === dish ? null : dish)}>{editing === dish ? 'Klar' : 'Ändra varor'}</button>
+            <button type="button" className="link small" onClick={() => toggleEdit(dish)}>{editing === dish ? 'Klar' : 'Ändra varor'}</button>
           </span>
           <span className="row small">Port. <Stepper value={portionsFor(dish, times)} onChange={(v) => setPortions({ ...portions, [dish]: v })} label={`Portioner ${dish}`} /></span>
         </div>
@@ -65,7 +79,7 @@ export default function ShopForDishes({ householdId, me, dishes, portions: start
       {editing && (
         <div className="card">
           <p className="muted small">Varor till {editing} för {servingsFor(dishItems.rows, editing)} portioner. Sparas på rätten.</p>
-          <IngredientsEditor lines={linesFor(dishItems.rows, editing)} onChange={(next) => saveDish(dishItems, editing, { lines: next }, householdId)} />
+          <IngredientsEditor lines={linesOfDish(editing)} onChange={(next) => setDraft({ dish: editing, lines: next })} />
         </div>
       )}
 
