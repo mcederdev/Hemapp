@@ -1,79 +1,100 @@
 import { useMemo, useState } from 'react'
 import { useTable } from '../useTable'
-import { DEFAULT_DISH_ITEMS } from '../lib/defaults'
+import { linesFor, servingsFor, saveDish } from '../lib/dishdata'
+import { combineLines, scaleQty, addToItem, isBasic, itemKey } from '../lib/qty'
 import { guessSection } from '../lib/sections'
+import { IngredientsEditor, Stepper } from './Recipe'
 import Sheet from './Sheet'
 
-// Lägg varorna till en eller flera rätter på inköpslistan. Varorna per rätt går att ändra och sparas.
-export default function ShopForDishes({ householdId, me, dishes, title, onClose }) {
-  const dishItems = useTable('dish_items', householdId)
+// Lägg varorna till en eller flera rätter på inköpslistan, med mängder.
+// Samma vara i flera rätter räknas ihop (två rätter med 1 gurka = 2 gurkor), och ligger varan redan
+// på listan läggs mängden till där. Står en rätt två gånger i veckan blir det dubbla portioner.
+export default function ShopForDishes({ householdId, me, dishes, portions: startPortions, title, onClose }) {
+  const dishItems = useTable('dish_items', householdId, 'dish')
   const items = useTable('shopping_items', householdId)
   const lists = useTable('shopping_lists', householdId)
   const catalog = useTable('item_catalog', householdId)
   const list = lists.rows.find((l) => l.is_default)
-  const onList = new Set(items.rows.filter((i) => i.list_id === list?.id && !i.done).map((i) => i.name.toLowerCase()))
-  const saved = Object.fromEntries(dishItems.rows.map((d) => [d.dish.toLowerCase(), d]))
-  const itemsFor = (dish) => saved[dish.toLowerCase()]?.items ?? DEFAULT_DISH_ITEMS[dish] ?? findDefault(dish)
-  const [unchecked, setUnchecked] = useState(() => new Set())
-  const [newItem, setNewItem] = useState({})
+  const onList = Object.fromEntries(items.rows.filter((i) => i.list_id === list?.id && !i.done).map((i) => [itemKey(i.name), i]))
+
+  // Rätter och hur många gånger de står med
+  const counts = useMemo(() => {
+    const m = new Map()
+    for (const d of dishes) m.set(d, (m.get(d) || 0) + 1)
+    return [...m]
+  }, [dishes])
+  const [portions, setPortions] = useState({})
+  const portionsFor = (dish, times) => portions[dish] ?? (startPortions && counts.length === 1 ? startPortions : servingsFor(dishItems.rows, dish) * times)
+  const [editing, setEditing] = useState(null)
+  const [picked, setPicked] = useState({}) // namn -> true/false som man själv ändrat
   const [added, setAdded] = useState(0)
 
-  const all = useMemo(() => {
-    const seen = new Map()
-    for (const d of dishes) for (const it of itemsFor(d)) if (!seen.has(it.toLowerCase())) seen.set(it.toLowerCase(), it)
-    return [...seen.values()]
-  }, [dishes, dishItems.rows])
-  const toAdd = all.filter((n) => !onList.has(n.toLowerCase()) && !unchecked.has(n.toLowerCase()))
+  const groups = counts.map(([dish, times]) => {
+    const f = portionsFor(dish, times) / servingsFor(dishItems.rows, dish)
+    return { dish, times, lines: linesFor(dishItems.rows, dish).map((l) => ({ ...l, qty: scaleQty(l.qty, f) })) }
+  })
+  const all = combineLines(groups)
+  // Det som brukar finnas hemma och det som redan står på listan kryssas inte i från början
+  const isOn = (x) => picked[x.name.toLowerCase()] ?? !(isBasic(x.name) || onList[itemKey(x.name)])
+  const toAdd = all.filter(isOn)
 
-  const setItems = async (dish, next) => {
-    const row = saved[dish.toLowerCase()]
-    if (row) await dishItems.update(row.id, { items: next })
-    else await dishItems.insert({ dish, items: next })
-  }
-  const toggle = (n) => setUnchecked((s) => { const x = new Set(s); x.has(n.toLowerCase()) ? x.delete(n.toLowerCase()) : x.add(n.toLowerCase()); return x })
   const addAll = async () => {
     if (!list || !toAdd.length) return
     const catBy = Object.fromEntries(catalog.rows.map((c) => [c.name.toLowerCase(), c.section]))
-    await items.insert(toAdd.map((name) => ({ name, list_id: list.id, added_by: me.id, section: catBy[name.toLowerCase()] || guessSection(name) })))
+    const fresh = []
+    for (const x of toAdd) {
+      const existing = onList[itemKey(x.name)]
+      if (existing) { if (x.qty) await items.update(existing.id, { qty: addToItem(existing.qty, x.qty) }) }
+      else fresh.push({ name: x.name, qty: x.qty || null, list_id: list.id, added_by: me.id, section: catBy[x.name.toLowerCase()] || guessSection(x.name) })
+    }
+    if (fresh.length) await items.insert(fresh)
     setAdded(toAdd.length)
     setTimeout(onClose, 900)
   }
 
   return (
     <Sheet title={title || `Handla till ${dishes[0]}`} onClose={onClose}>
-      {dishes.map((dish) => {
-        const its = itemsFor(dish)
-        return (
-          <div key={dish} className="mb">
-            {dishes.length > 1 && <h4 className="day">{dish}</h4>}
-            <div className="chips">
-              {its.map((n) => {
-                const already = onList.has(n.toLowerCase())
-                const off = unchecked.has(n.toLowerCase())
-                return (
-                  <span key={n} className={`chip dish-item ${already ? 'already' : off ? 'off' : 'on'}`}>
-                    <button type="button" onClick={() => !already && toggle(n)}>{already ? '✓ ' : off ? '' : '+ '}{n}</button>
-                    <button type="button" className="x" aria-label={`Ta bort ${n} från ${dish}`} onClick={() => setItems(dish, its.filter((x) => x !== n))}>✕</button>
-                  </span>
-                )
-              })}
-            </div>
-            <form className="row mt" onSubmit={(e) => { e.preventDefault(); const v = (newItem[dish] || '').trim(); if (v) { setItems(dish, [...its, v]); setNewItem({ ...newItem, [dish]: '' }) } }}>
-              <input placeholder={`Lägg till vara för ${dish}`} value={newItem[dish] || ''} onChange={(e) => setNewItem({ ...newItem, [dish]: e.target.value })} />
-              <button>Spara</button>
-            </form>
-          </div>
-        )
-      })}
-      <p className="muted small">✓ = finns redan på listan. Tryck på en vara för att hoppa över den den här gången. ✕ tar bort varan från rätten för gott.</p>
-      <button className="primary w100" onClick={addAll} disabled={!toAdd.length}>
-        {added ? `La till ${added} varor ✓` : toAdd.length ? `Lägg ${toAdd.length} varor på ${list?.name || 'listan'}` : 'Allt finns redan på listan'}
+      {groups.map(({ dish, times }) => (
+        <div key={dish} className="row between shop-dish">
+          <span><strong>{dish}</strong>{times > 1 && <span className="muted small"> · {times} gånger</span>}
+            <button type="button" className="link small" onClick={() => setEditing(editing === dish ? null : dish)}>{editing === dish ? 'Klar' : 'Ändra varor'}</button>
+          </span>
+          <span className="row small">Port. <Stepper value={portionsFor(dish, times)} onChange={(v) => setPortions({ ...portions, [dish]: v })} label={`Portioner ${dish}`} /></span>
+        </div>
+      ))}
+      {editing && (
+        <div className="card">
+          <p className="muted small">Varor till {editing} för {servingsFor(dishItems.rows, editing)} portioner. Sparas på rätten.</p>
+          <IngredientsEditor lines={linesFor(dishItems.rows, editing)} onChange={(next) => saveDish(dishItems, editing, { lines: next }, householdId)} />
+        </div>
+      )}
+
+      <ul className="list shop-lines">
+        {all.map((x) => {
+          const key = x.name.toLowerCase()
+          const on = isOn(x)
+          const already = onList[itemKey(x.name)]
+          return (
+            <li key={key} className="tap" onClick={() => setPicked({ ...picked, [key]: !on })}>
+              <span className="check">
+                <input type="checkbox" checked={on} readOnly aria-label={x.name} />
+                <span>
+                  {x.name}
+                  {(already || (groups.length > 1 && x.dishes.length > 1) || isBasic(x.name)) && (
+                    <span className="muted small"> · {already ? `på listan${already.qty ? ` (${already.qty})` : ''}` : isBasic(x.name) ? 'finns oftast hemma' : x.dishes.join(', ')}</span>
+                  )}
+                </span>
+              </span>
+              {x.qty && <span className="qty">{already && on ? addToItem(already.qty, x.qty) : x.qty}</span>}
+            </li>
+          )
+        })}
+      </ul>
+      {all.length === 0 && <p className="muted">Inga varor kopplade än. Tryck på Ändra varor.</p>}
+      <p className="muted small">Tryck på en vara för att ta med eller hoppa över den. Ligger varan redan på listan läggs mängden till där.</p>
+      <button className="primary w100" onClick={addAll} disabled={!toAdd.length || !!added}>
+        {added ? `La till ${added} varor ✓` : toAdd.length ? `Lägg ${toAdd.length} varor på ${list?.name || 'listan'}` : 'Inget att lägga till'}
       </button>
     </Sheet>
   )
-}
-
-function findDefault(dish) {
-  const k = Object.keys(DEFAULT_DISH_ITEMS).find((n) => n.toLowerCase() === dish.toLowerCase())
-  return k ? DEFAULT_DISH_ITEMS[k] : []
 }

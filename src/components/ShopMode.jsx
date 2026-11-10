@@ -72,7 +72,7 @@ export default function ShopMode({ list, items, lists = [], onClose, householdId
             <h4 className="day">{section}</h4>
             {list.map((i) => (
               <button key={i.id} className="sm-row" onClick={() => toggle(i)}>
-                <span className="sm-box" /> {i.name}
+                <span className="sm-box" /> {i.name}{i.qty && <span className="qty">{i.qty}</span>}
               </button>
             ))}
           </div>
@@ -82,7 +82,7 @@ export default function ShopMode({ list, items, lists = [], onClose, householdId
             <h4 className="day">I korgen</h4>
             {taken.map((i) => (
               <button key={i.id} className="sm-row done" onClick={() => toggle(i)}>
-                <span className="sm-box on">✓</span> {i.name}
+                <span className="sm-box on">✓</span> {i.name}{i.qty && <span className="qty">{i.qty}</span>}
               </button>
             ))}
           </>

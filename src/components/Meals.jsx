@@ -7,6 +7,8 @@ import Icon from './Icon'
 import SwipeRow, { buzz } from './Swipe'
 import Sheet, { Fab } from './Sheet'
 import ShopForDishes from './ShopForDishes'
+import { DishEditor, DishView } from './Recipe'
+import { rowFor, linesFor } from '../lib/dishdata'
 
 const shuffle = (a) => [...a].sort(() => Math.random() - 0.5)
 // Samma "slumpade" ordning hela dagen så att förslagen inte hoppar runt vid varje uppdatering
@@ -98,6 +100,7 @@ export default function Meals({ householdId, me, household, households }) {
   const [picking, setPicking] = useState(null) // datum som väljs
   const [view, setView] = useState('week')
   const [shopFor, setShopFor] = useState(null)
+  const [viewing, setViewing] = useState(null) // rätt som visas med varor och recept
 
   const all = dishList(dishes.rows, household?.hidden_dishes)
   const days = Array.from({ length: 7 }, (_, i) => addDays(week, i))
@@ -149,7 +152,7 @@ export default function Meals({ householdId, me, household, households }) {
           })()}
           {(() => {
             const upcoming = days.filter((d) => d >= t).map(planFor).filter(Boolean).map((p) => p.dish)
-            return upcoming.length > 0 && <button className="wide" onClick={() => setShopFor([...new Set(upcoming)])}><Icon name="cart" size={18} /> Handla till veckans middagar ({upcoming.length})</button>
+            return upcoming.length > 0 && <button className="wide" onClick={() => setShopFor(upcoming)}><Icon name="cart" size={18} /> Handla till veckans middagar ({upcoming.length})</button>
           })()}
           <button className="primary wide" onClick={fillWeek}><Icon name="dice" size={18} /> Föreslå veckan</button>
           <p className="muted small center-text">Fyller tomma dagar med sådant ni gillar och inte ätit på två veckor{soon.length ? ', och använder det som snart går ut' : ''}.</p>
@@ -157,14 +160,15 @@ export default function Meals({ householdId, me, household, households }) {
         </>
       )}
 
-      {view === 'dishes' && <Dishes dishes={dishes} all={all} household={household} households={households} />}
-      {shopFor && <ShopForDishes householdId={householdId} me={me} dishes={shopFor} title="Handla till veckan" onClose={() => setShopFor(null)} />}
-      {picking && <Picker day={picking} all={all} onPick={(dish) => setDish(picking, dish)} onClose={() => setPicking(null)} />}
+      {view === 'dishes' && <Dishes householdId={householdId} me={me} dishes={dishes} dishItems={dishItems} all={all} household={household} households={households} />}
+      {shopFor && <ShopForDishes householdId={householdId} me={me} dishes={shopFor.dishes || shopFor} portions={shopFor.portions} title={shopFor.dishes ? undefined : 'Handla till veckan'} onClose={() => setShopFor(null)} />}
+      {picking && <Picker day={picking} all={all} current={planFor(picking)?.dish} onView={(d) => { setPicking(null); setViewing(d) }} onPick={(dish) => setDish(picking, dish)} onClose={() => setPicking(null)} />}
+      {viewing && <DishView householdId={householdId} dish={viewing} onClose={() => setViewing(null)} onShop={(d, p) => { setViewing(null); setShopFor({ dishes: [d], portions: p }) }} />}
     </section>
   )
 }
 
-export function Picker({ day, all, onPick, onClose }) {
+export function Picker({ day, all, current, onView, onPick, onClose }) {
   const [tips, setTips] = useState(() => shuffle(all).slice(0, 3))
   const [q, setQ] = useState('')
   const hits = q ? all.filter((d) => d.name.toLowerCase().includes(q.toLowerCase())) : all
@@ -175,6 +179,9 @@ export function Picker({ day, all, onPick, onClose }) {
           <input placeholder="Sök eller skriv egen rätt" value={q} onChange={(e) => setQ(e.target.value)} enterKeyHint="done" />
           <button className="primary">Välj</button>
         </form>
+        {current && onView && !q && (
+          <button className="wide" onClick={() => onView(current)}>📖 Visa {current}: varor och recept</button>
+        )}
         {!q && (
           <>
             <div className="row between mt"><span className="muted">Förslag</span><button className="link" onClick={() => setTips(shuffle(all).slice(0, 3))}><Icon name="dice" size={16} /> Nya förslag</button></div>
@@ -191,73 +198,55 @@ export function Picker({ day, all, onPick, onClose }) {
   )
 }
 
-// Alla rätter går att ändra. En föreslagen rätt som ändras blir en egen, och originalet döljs.
-function Dishes({ dishes, all, household, households }) {
-  const [name, setName] = useState('')
-  const [category, setCategory] = useState('')
+// Alla rätter går att ändra, även varorna och receptet. En föreslagen rätt som byter namn blir en egen, och originalet döljs.
+function Dishes({ householdId, me, dishes, dishItems, all, household, households }) {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [viewing, setViewing] = useState(null)
+  const [shopFor, setShopFor] = useState(null)
   const [showHidden, setShowHidden] = useState(false)
+  const [q, setQ] = useState('')
   const categories = [...new Set([...all, ...COMMON_DISHES].map((d) => d.category).filter(Boolean))]
   const hidden = household?.hidden_dishes || []
   const setHidden = (list) => household && households.update(household.id, { hidden_dishes: [...new Set(list)] })
   const hide = (n) => setHidden([...hidden, n])
   const unhide = (n) => setHidden(hidden.filter((x) => x.toLowerCase() !== n.toLowerCase()))
   const hiddenCommon = COMMON_DISHES.filter((c) => hidden.some((h) => h.toLowerCase() === c.name.toLowerCase()))
-  const add = (e) => {
-    e.preventDefault()
-    if (!name.trim()) return
-    dishes.insert({ name: name.trim(), category: category.trim() || null })
-    setName(''); setCategory(''); setAdding(false)
-  }
-  const open = (d) => { setEditing(d); setName(d.name); setCategory(d.category || '') }
-  const save = (e) => {
-    e.preventDefault()
-    const n = name.trim(), c = category.trim() || null
-    if (!n) return
-    if (editing.own) dishes.update(editing.id, { name: n, category: c })
-    else { dishes.insert({ name: n, category: c }); if (n.toLowerCase() !== editing.name.toLowerCase()) hide(editing.name) }
-    setEditing(null); setName(''); setCategory('')
-  }
   const drop = (d) => {
     if (d.own) { if (confirm(`Ta bort ${d.name}?`)) dishes.remove(d.id) } else hide(d.name)
     setEditing(null)
   }
+  const shown = q ? all.filter((d) => d.name.toLowerCase().includes(q.toLowerCase())) : all
+  const byName = (n) => all.find((d) => d.name.toLowerCase() === n.toLowerCase())
   return (
     <>
       <Fab onClick={() => setAdding(true)} label="Ny rätt" />
-      {adding && (
-        <Sheet title="Ny egen rätt" onClose={() => setAdding(false)}>
-          <form className="stack" onSubmit={add}>
-            <input placeholder="T.ex. Mormors köttbullar" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-            <input list="cats" placeholder="Kategori (valfritt)" value={category} onChange={(e) => setCategory(e.target.value)} />
-            <datalist id="cats">{categories.map((c) => <option key={c} value={c} />)}</datalist>
-            <button className="primary">Spara</button>
-          </form>
-        </Sheet>
+      {(adding || editing) && (
+        <DishEditor householdId={householdId} dish={editing} categories={categories}
+          onClose={() => { setAdding(false); setEditing(null) }}
+          onHide={(n, close) => { hide(n); if (close) setEditing(null) }} onRemove={drop} />
       )}
-      {editing && (
-        <Sheet title={editing.own ? 'Ändra rätt' : 'Ändra föreslagen rätt'} onClose={() => setEditing(null)}>
-          <form className="stack" onSubmit={save}>
-            <input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-            <input list="cats" placeholder="Kategori (valfritt)" value={category} onChange={(e) => setCategory(e.target.value)} />
-            <datalist id="cats">{categories.map((c) => <option key={c} value={c} />)}</datalist>
-            <button className="primary">Spara</button>
-            <button type="button" className="danger" onClick={() => drop(editing)}>{editing.own ? 'Ta bort rätten' : 'Dölj från listan'}</button>
-            {!editing.own && <p className="muted small">Ändrar du en föreslagen rätt sparas den som er egen.</p>}
-          </form>
-        </Sheet>
+      {viewing && (
+        <DishView householdId={householdId} dish={viewing} onClose={() => setViewing(null)}
+          onEdit={(n) => { setViewing(null); setEditing(byName(n) || { name: n }) }}
+          onShop={(d, p) => { setViewing(null); setShopFor({ dishes: [d], portions: p }) }} />
       )}
-      <p className="muted small">Tryck på en rätt för att ändra namn eller kategori, eller dölja den.</p>
+      {shopFor && <ShopForDishes householdId={householdId} me={me} dishes={shopFor.dishes} portions={shopFor.portions} onClose={() => setShopFor(null)} />}
+      {all.length > 8 && <input className="mb" placeholder="Sök rätt" value={q} onChange={(e) => setQ(e.target.value)} />}
+      <p className="muted small">Tryck på en rätt för att se varor och recept. Svep åt vänster för att ta bort. Plus lägger till en ny rätt, med receptlänk om ni vill.</p>
       <ul className="list">
-        {all.map((d) => (
-          <SwipeRow key={d.id || d.name} onDelete={() => drop(d)} onClick={() => open(d)} className="tap">
-            <span>{d.name} {d.own && <span className="tag own">Egen</span>}</span>
-            <span className="meta">
-              {d.category && <span className="muted small">{d.category}</span>}
-            </span>
-          </SwipeRow>
-        ))}
+        {shown.map((d) => {
+          const row = rowFor(dishItems.rows, d.name)
+          const n = linesFor(dishItems.rows, d.name).length
+          return (
+            <SwipeRow key={d.id || d.name} onDelete={() => drop(d)} onClick={() => setViewing(d.name)} className="tap">
+              <span>{d.name} {d.own && <span className="tag own">Egen</span>}{row?.instructions && <span title="Har recept"> 📖</span>}</span>
+              <span className="meta">
+                <span className="muted small">{n ? `${n} varor` : 'Inga varor'}{d.category ? ` · ${d.category}` : ''}</span>
+              </span>
+            </SwipeRow>
+          )
+        })}
       </ul>
       {hiddenCommon.length > 0 && (
         <>

@@ -31,5 +31,5 @@ function toPantry(pantry, item) {
   const best_before = p.days ? addDays(p.days) : null
   const same = pantry.rows.find((x) => x.name.trim().toLowerCase() === name.toLowerCase())
   if (same) { if (best_before && (!same.best_before || same.best_before < best_before)) pantry.update(same.id, { best_before }) }
-  else pantry.insert({ name: name.charAt(0).toUpperCase() + name.slice(1), place: p.place, best_before })
+  else pantry.insert({ name: name.charAt(0).toUpperCase() + name.slice(1), place: p.place, best_before, ...(item.qty ? { qty: item.qty } : {}) })
 }

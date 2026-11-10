@@ -34,32 +34,34 @@ export const COMMON_DISHES = [
 
 export const MEMBER_COLORS = ['#4f7cff', '#e0567a', '#f0a030', '#2f9e6e', '#8a5cf6']
 
-// Varor som brukar behövas till vanliga rätter (går att ändra per hushåll)
+// Varor som brukar behövas till vanliga rätter, för 4 portioner (går att ändra per hushåll).
+// Skrivs som en rad i ett recept: mängd, enhet och vara.
+export const DEFAULT_SERVINGS = 4
 export const DEFAULT_DISH_ITEMS = {
-  'Lasagne': ['Nötfärs', 'Lasagneplattor', 'Krossade tomater', 'Mjölk', 'Riven ost', 'Gul lök'],
-  'Spaghetti och köttfärssås': ['Spaghetti', 'Nötfärs', 'Krossade tomater', 'Gul lök', 'Morötter'],
-  'Pasta carbonara': ['Pasta', 'Bacon', 'Ägg', 'Parmesan', 'Grädde'],
-  'Pannkakor': ['Mjölk', 'Ägg', 'Vetemjöl', 'Sylt'],
-  'Tacos': ['Tortillabröd', 'Nötfärs', 'Tacokrydda', 'Riven ost', 'Gurka', 'Tomat', 'Sallad', 'Gräddfil', 'Salsa'],
-  'Pizza': ['Pizzadeg', 'Tomatsås', 'Riven ost', 'Skinka'],
-  'Köttbullar och potatismos': ['Köttbullar', 'Potatis', 'Mjölk', 'Smör', 'Lingonsylt', 'Gräddsås'],
-  'Fiskpinnar och potatis': ['Fiskpinnar', 'Potatis', 'Remouladsås', 'Citron'],
-  'Ugnsbakad lax': ['Lax', 'Potatis', 'Citron', 'Crème fraiche', 'Broccoli'],
-  'Kycklinggryta med ris': ['Kycklingfilé', 'Ris', 'Grädde', 'Paprika', 'Gul lök'],
-  'Kyckling i ugn': ['Kycklingklubbor', 'Potatis', 'Paprika'],
-  'Falukorv stroganoff': ['Falukorv', 'Grädde', 'Tomatpuré', 'Gul lök', 'Ris'],
-  'Korv och makaroner': ['Korv', 'Makaroner', 'Ketchup'],
-  'Pytt i panna': ['Pytt i panna', 'Ägg', 'Rödbetor'],
-  'Hamburgare': ['Hamburgare', 'Hamburgerbröd', 'Ost', 'Sallad', 'Tomat', 'Pommes frites'],
-  'Chili con carne': ['Nötfärs', 'Kidneybönor', 'Krossade tomater', 'Gul lök', 'Ris', 'Chilikrydda'],
-  'Ärtsoppa': ['Ärtsoppa', 'Senap', 'Pannkakor'],
-  'Tomatsoppa': ['Krossade tomater', 'Buljong', 'Grädde', 'Bröd'],
-  'Wok med nudlar': ['Nudlar', 'Wokgrönsaker', 'Kycklingfilé', 'Soja'],
-  'Fläskfilé med klyftpotatis': ['Fläskfilé', 'Potatis', 'Bearnaisesås'],
-  'Kåldolmar': ['Kåldolmar', 'Potatis', 'Lingonsylt', 'Gräddsås'],
-  'Omelett': ['Ägg', 'Mjölk', 'Skinka', 'Ost'],
-  'Quesadillas': ['Tortillabröd', 'Riven ost', 'Kycklingfilé', 'Salsa'],
-  'Gratäng med skinka': ['Skinka', 'Potatis', 'Grädde', 'Riven ost', 'Purjolök']
+  'Lasagne': ['500 g Nötfärs', '1 paket Lasagneplattor', '2 burkar Krossade tomater', '5 dl Mjölk', '150 g Riven ost', '1 st Gul lök'],
+  'Spaghetti och köttfärssås': ['400 g Spaghetti', '500 g Nötfärs', '1 burk Krossade tomater', '1 st Gul lök', '2 st Morötter'],
+  'Pasta carbonara': ['400 g Pasta', '140 g Bacon', '4 st Ägg', '1 bit Parmesan', '2 dl Grädde'],
+  'Pannkakor': ['6 dl Mjölk', '3 st Ägg', '2,5 dl Vetemjöl', '1 burk Sylt'],
+  'Tacos': ['8 st Tortillabröd', '500 g Nötfärs', '1 påse Tacokrydda', '150 g Riven ost', '1 st Gurka', '2 st Tomat', '1 st Sallad', '2 dl Gräddfil', '1 burk Salsa'],
+  'Pizza': ['2 st Pizzadeg', '1 burk Tomatsås', '150 g Riven ost', '1 paket Skinka'],
+  'Köttbullar och potatismos': ['500 g Köttbullar', '1 kg Potatis', '3 dl Mjölk', 'Smör', '1 burk Lingonsylt', '1 paket Gräddsås'],
+  'Fiskpinnar och potatis': ['1 paket Fiskpinnar', '1 kg Potatis', '1 st Remouladsås', '1 st Citron'],
+  'Ugnsbakad lax': ['500 g Lax', '1 kg Potatis', '1 st Citron', '2 dl Crème fraiche', '1 st Broccoli'],
+  'Kycklinggryta med ris': ['600 g Kycklingfilé', '4 dl Ris', '2 dl Grädde', '1 st Paprika', '1 st Gul lök'],
+  'Kyckling i ugn': ['1 kg Kycklingklubbor', '1 kg Potatis', '2 st Paprika'],
+  'Falukorv stroganoff': ['1 st Falukorv', '2 dl Grädde', '1 tub Tomatpuré', '1 st Gul lök', '4 dl Ris'],
+  'Korv och makaroner': ['1 paket Korv', '400 g Makaroner', 'Ketchup'],
+  'Pytt i panna': ['1 paket Pytt i panna', '4 st Ägg', '1 burk Rödbetor'],
+  'Hamburgare': ['4 st Hamburgare', '4 st Hamburgerbröd', '4 skivor Ost', '1 st Sallad', '2 st Tomat', '1 påse Pommes frites'],
+  'Chili con carne': ['500 g Nötfärs', '1 burk Kidneybönor', '2 burkar Krossade tomater', '1 st Gul lök', '4 dl Ris', 'Chilikrydda'],
+  'Ärtsoppa': ['2 burkar Ärtsoppa', 'Senap', '1 paket Pannkakor'],
+  'Tomatsoppa': ['2 burkar Krossade tomater', '1 tärning Buljong', '2 dl Grädde', '1 st Bröd'],
+  'Wok med nudlar': ['250 g Nudlar', '1 påse Wokgrönsaker', '500 g Kycklingfilé', 'Soja'],
+  'Fläskfilé med klyftpotatis': ['1 st Fläskfilé', '1 kg Potatis', '1 paket Bearnaisesås'],
+  'Kåldolmar': ['1 paket Kåldolmar', '1 kg Potatis', '1 burk Lingonsylt', '1 paket Gräddsås'],
+  'Omelett': ['6 st Ägg', '1 dl Mjölk', '1 paket Skinka', '100 g Ost'],
+  'Quesadillas': ['8 st Tortillabröd', '150 g Riven ost', '400 g Kycklingfilé', '1 burk Salsa'],
+  'Gratäng med skinka': ['1 paket Skinka', '1 kg Potatis', '3 dl Grädde', '150 g Riven ost', '1 st Purjolök']
 }
 
 // Våra egna rätter plus de föreslagna, utom de föreslagna som familjen dolt eller gjort om till en egen

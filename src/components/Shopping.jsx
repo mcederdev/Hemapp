@@ -10,6 +10,7 @@ import Pantry from './Pantry'
 import Icon from './Icon'
 import { checkOff } from '../lib/refill'
 import { pickSub, shows } from '../lib/menu'
+import { splitTyped, addToItem, itemKey } from '../lib/qty'
 
 export default function Shopping({ householdId, me, members }) {
   const lists = useTable('shopping_lists', householdId)
@@ -23,6 +24,7 @@ export default function Shopping({ householdId, me, members }) {
   const [groupBySection, setGroupBySection] = useState(true)
   const [adding, setAdding] = useState(false)
   const [shopping, setShopping] = useState(false)
+  const [editItem, setEditItem] = useState(null) // { id, name, qty }
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
 
   const activeLists = lists.rows.filter((l) => !l.archived)
@@ -48,16 +50,23 @@ export default function Shopping({ householdId, me, members }) {
   const typed = text.trim().toLowerCase()
   const matches = typed ? catalog.rows.filter((c) => c.name.toLowerCase().includes(typed) && !onList.has(c.name.toLowerCase())).slice(0, 6) : []
 
-  const add = (name, targetList = list) => {
+  // Mängd går att skriva direkt: "2 gurkor" eller "mjölk 1 l". Finns varan redan läggs mängden till.
+  const add = (name, targetList = list, qty = '') => {
     const n = name.trim()
     if (!n || !targetList) return
-    const existing = items.rows.find((i) => i.list_id === targetList.id && !i.done && i.name.toLowerCase() === n.toLowerCase())
-    if (existing) return
+    const existing = items.rows.find((i) => i.list_id === targetList.id && !i.done && itemKey(i.name) === itemKey(n))
+    if (existing) { if (qty) items.update(existing.id, { qty: addToItem(existing.qty, qty) }); return }
     const section = catalogByName[n.toLowerCase()]?.section || guessSection(n)
-    items.insert({ name: n, list_id: targetList.id, added_by: me.id, section })
+    items.insert({ name: n, list_id: targetList.id, added_by: me.id, section, ...(qty ? { qty } : {}) })
   }
-  // Flera varor på en gång: "mjölk, ägg och bröd"
-  const submit = (e) => { e.preventDefault(); text.split(/,|\soch\s/).map((x) => x.trim()).filter(Boolean).forEach((x) => add(x.charAt(0).toUpperCase() + x.slice(1))); setText('') }
+  // Flera varor på en gång: "mjölk, ägg och bröd", "2 gurkor, 1 l mjölk"
+  const submit = (e) => { e.preventDefault(); text.split(/,(?!\d)|\soch\s/).map((x) => x.trim()).filter(Boolean).map(splitTyped).forEach((x) => add(x.name, list, x.qty)); setText('') }
+  const saveItem = (e) => {
+    e.preventDefault()
+    const n = editItem.name.trim()
+    if (n) items.update(editItem.id, { name: n.charAt(0).toUpperCase() + n.slice(1), qty: editItem.qty.trim() || null })
+    setEditItem(null)
+  }
   const clearDone = () => done.forEach((i) => items.remove(i.id))
 
   // Prio-markerade varor ligger överst och syns på Idag
@@ -91,7 +100,7 @@ export default function Shopping({ householdId, me, members }) {
           {adding && (
             <Sheet title={`Lägg till i ${list.name}`} onClose={() => { setAdding(false); setText('') }}>
               <form className="row" onSubmit={submit}>
-                <input placeholder="Vara, eller flera: mjölk, ägg, bröd" value={text} onChange={(e) => setText(e.target.value)} autoFocus />
+                <input placeholder="Vara, eller flera: 2 gurkor, mjölk, bröd" value={text} onChange={(e) => setText(e.target.value)} autoFocus />
                 <button className="primary">Lägg till</button>
               </form>
               {matches.length > 0 && (
@@ -114,9 +123,10 @@ export default function Shopping({ householdId, me, members }) {
                   <SwipeRow key={i.id} onCheck={() => tick(i)} onDelete={() => items.remove(i.id)} checkLabel="I korgen">
                     <span className="check">
                       <Check checked={false} onChange={() => tick(i)} label={`Bocka av ${i.name}`} />
-                      <span className={i.prio ? 'prio-name' : ''}>{i.name}</span>
+                      <span className={`item-name ${i.prio ? 'prio-name' : ''}`} onClick={(e) => { e.stopPropagation(); setEditItem({ id: i.id, name: i.name, qty: i.qty || '' }) }}>{i.name}</span>
                     </span>
                     <span className="meta">
+                      {i.qty && <span className="qty" onClick={() => setEditItem({ id: i.id, name: i.name, qty: i.qty || '' })}>{i.qty}</span>}
                       <button className={`icon-btn prio-btn ${i.prio ? 'on' : ''}`} onClick={() => items.update(i.id, { prio: !i.prio })}
                         aria-pressed={!!i.prio} aria-label={i.prio ? `Ta bort prio på ${i.name}` : `Prio-markera ${i.name}`}>!</button>
                       <MemberTag member={byId[i.added_by]} size={22} />
@@ -128,7 +138,17 @@ export default function Shopping({ householdId, me, members }) {
             </div>
           ))}
           {!items.loading && todo.length === 0 && <p className="muted">Listan är tom.</p>}
-          {todo.length > 0 && <p className="muted small">Tryck på ! för att prio-markera en vara. Prio-varorna syns på Idag.</p>}
+          {todo.length > 0 && <p className="muted small">Tryck på en vara för att ändra mängd. Tryck på ! för att prio-markera, prio-varorna syns på Idag.</p>}
+          {editItem && (
+            <Sheet title="Ändra vara" onClose={() => setEditItem(null)}>
+              <form className="stack" onSubmit={saveItem}>
+                <input value={editItem.name} onChange={(e) => setEditItem({ ...editItem, name: e.target.value })} aria-label="Vara" />
+                <input value={editItem.qty} placeholder="Mängd, t.ex. 2 st eller 500 g" onChange={(e) => setEditItem({ ...editItem, qty: e.target.value })} aria-label="Mängd" autoFocus />
+                <div className="chips">{['1 st', '2 st', '3 st', '4 st', '500 g', '1 kg', '1 l', '1 paket'].map((q) => <button type="button" key={q} className="chip" onClick={() => setEditItem({ ...editItem, qty: q })}>{q}</button>)}</div>
+                <button className="primary">Spara</button>
+              </form>
+            </Sheet>
+          )}
           <div className="row between">
             <button className="link" onClick={() => setGroupBySection(!groupBySection)}>{groupBySection ? 'Visa utan avdelningar' : 'Sortera efter avdelning'}</button>
           </div>
@@ -148,7 +168,7 @@ export default function Shopping({ householdId, me, members }) {
                   <SwipeRow key={i.id} onDelete={() => items.remove(i.id)}>
                     <span className="check">
                       <Check checked onChange={() => items.update(i.id, { done: false })} label={`Ångra ${i.name}`} />
-                      <span>{i.name}</span>
+                      <span>{i.name}{i.qty && <span className="muted small"> · {i.qty}</span>}</span>
                     </span>
                   </SwipeRow>
                 ))}

@@ -15,6 +15,8 @@ import { checkOff } from '../lib/refill'
 import { CustodyLine } from './Custody'
 import Messages from './Messages'
 import { shows } from '../lib/menu'
+import { DishView } from './Recipe'
+import { rowFor, hasRecipe } from '../lib/dishdata'
 
 // Köksskärm för en iPad på kylskåpet: klocka, dagen, sysslor, mat och inköp på en skärm
 export default function Kitchen({ householdId, members, people, me, onExit, custody, linked, guests, household }) {
@@ -27,6 +29,8 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
   const items = useTable('shopping_items', householdId)
   const lists = useTable('shopping_lists', householdId)
   const pantry = useTable('pantry_items', householdId, 'best_before')
+  const dishItems = useTable('dish_items', householdId, 'dish')
+  const [recipe, setRecipe] = useState(false)
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
   useEffect(() => { document.documentElement.classList.add('kiosk'); return () => document.documentElement.classList.remove('kiosk') }, [])
   // Helskärm (döljer webbläsarens adressrad) och håll skärmen vaken
@@ -85,7 +89,9 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
         <div className="k-clock">{timeOf(now)}</div>
         <div>
           <div className="k-date cap">{now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
-          <div className="muted">Middag: <strong>{dinner?.dish || 'inte bestämd'}</strong></div>
+          <div className="muted">Middag: <strong>{dinner?.dish || 'inte bestämd'}</strong>
+            {dinner && hasRecipe(rowFor(dishItems.rows, dinner.dish)) && <button className="chip k-recipe" onClick={() => setRecipe(true)}>📖 Recept</button>}</div>
+          {recipe && dinner && <DishView householdId={householdId} dish={dinner.dish} onClose={() => setRecipe(false)} />}
         </div>
         <Weather household={household} />
         {canFs && <button className="k-exit k-fs" onClick={toggleFs} aria-label={isFs ? 'Lämna helskärm' : 'Helskärm'}>{isFs ? '⤡' : '⛶'}</button>}
@@ -149,7 +155,7 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
         <section className="k-card k-shop">
           <h3>Handla {toBuy.length > 0 && <span className="count">{toBuy.length}</span>}</h3>
           <div className="chips">
-            {toBuy.map((i) => <button key={i.id} className={`chip big-chip ${i.prio ? 'prio-chip' : ''}`} onClick={() => checkOff(items, i, lists.rows, pantry)}>{i.prio ? '! ' : ''}{i.name}</button>)}
+            {toBuy.map((i) => <button key={i.id} className={`chip big-chip ${i.prio ? 'prio-chip' : ''}`} onClick={() => checkOff(items, i, lists.rows, pantry)}>{i.prio ? '! ' : ''}{i.name}{i.qty ? ` · ${i.qty}` : ''}</button>)}
           </div>
           {toBuy.length === 0 && <p className="muted">Listan är tom.</p>}
         </section>
