@@ -7,6 +7,8 @@ import SwipeRow, { Check } from './Swipe'
 import { MemberTag } from './MemberPicker'
 import ShopMode from './ShopMode'
 import Pantry from './Pantry'
+import Scanner from './Scanner'
+import { useBarcodes } from '../useBarcodes'
 import Icon from './Icon'
 import { checkOff } from '../lib/refill'
 import { pickSub, shows } from '../lib/menu'
@@ -178,7 +180,7 @@ export default function Shopping({ householdId, me, members }) {
         </>
       )}
 
-      {view === 'home' && <OutAtHome catalog={catalog} items={items} add={(n) => add(n, refillList || defaultList)} defaultList={refillList || defaultList} />}
+      {view === 'home' && <OutAtHome householdId={householdId} catalog={catalog} items={items} pantry={pantry} add={(n) => add(n, refillList || defaultList)} defaultList={refillList || defaultList} />}
       {view === 'pantry' && <Pantry householdId={householdId} onOut={(n) => add(n, refillList || defaultList)} />}
       {view === 'lists' && <Lists lists={lists} items={items} onOpen={(id) => { setListId(id); setView('list') }} />}
     </section>
@@ -186,8 +188,11 @@ export default function Shopping({ householdId, me, members }) {
 }
 
 // "Slut hemma": tryck på det som tar slut så hamnar det på veckohandlingen, tryck igen för att ångra
-function OutAtHome({ catalog, items, add, defaultList }) {
+function OutAtHome({ householdId, catalog, items, pantry, add, defaultList }) {
   const [edit, setEdit] = useState(false)
+  const [scan, setScan] = useState(false)
+  const [note, setNote] = useState('')
+  const { lookup, remember } = useBarcodes(householdId)
   const [sheet, setSheet] = useState(null) // null | { id?, name, section }
   const staples = catalog.rows.filter((c) => c.is_staple).sort((a, b) => a.name.localeCompare(b.name, 'sv'))
   const usingDefaults = staples.length === 0
@@ -200,6 +205,28 @@ function OutAtHome({ catalog, items, add, defaultList }) {
     const existing = itemFor(t.name)
     if (existing) items.remove(existing.id)
     else add(t.name)
+  }
+
+  // Skanna den tomma förpackningen: varan läggs på listan och tas bort ur skafferiet
+  const scanned = async (code) => {
+    setScan(false)
+    setNote('Letar upp varan…')
+    const p = await lookup(code)
+    let name = p.name
+    if (!name) {
+      setNote('')
+      name = (prompt('Okänd streckkod. Vad är det för vara? Appen kommer ihåg det till nästa gång.') || '').trim()
+      if (!name) return
+    }
+    if (p.from !== 'known') remember(code, { name, place: p.place, qty: p.qty })
+    const n = name.toLowerCase()
+    const here = pantry?.rows.filter((x) => x.name.trim().toLowerCase() === n)
+      .sort((a, b) => (a.best_before || '9999').localeCompare(b.best_before || '9999'))[0]
+    if (here) pantry.remove(here.id)
+    const shown = here?.name || name
+    const already = itemFor(shown)
+    if (!already) add(shown)
+    setNote(`${shown} ${already ? 'låg redan' : 'är lagd'} på ${defaultList?.name || 'inköpslistan'}${here ? ' och borttagen ur skafferiet' : ''}.`)
   }
 
   const adoptDefaults = async () => {
@@ -237,7 +264,14 @@ function OutAtHome({ catalog, items, add, defaultList }) {
       <p className="muted small">
         {edit ? 'Tryck på en vara för att ändra eller ta bort den.' : `Tryck på det som håller på att ta slut så läggs det på ${defaultList?.name || 'inköpslistan'}. Tryck igen för att ångra.`}
       </p>
-      <div className="tiles">
+      {!edit && (
+        <div className="scan-btns mt">
+          <button onClick={() => { setNote(''); setScan(true) }}>📷 Skanna det som är slut</button>
+        </div>
+      )}
+      {note && <p className="muted small mt">{note}</p>}
+      {scan && <Scanner title="Vad är slut?" hint="Skanna den tomma förpackningen." onCode={scanned} onClose={() => setScan(false)} />}
+      <div className="tiles mt">
         {tiles.map((t) => {
           const added = !!itemFor(t.name)
           return (

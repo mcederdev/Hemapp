@@ -4,7 +4,7 @@ import { today, prettyDay } from '../lib/dates'
 import { daysUntil } from '../lib/yearly'
 import Sheet, { Fab } from './Sheet'
 import Scanner from './Scanner'
-import { pantryPlace } from '../lib/refill'
+import { useBarcodes } from '../useBarcodes'
 
 const PLACES = [['skafferi', '🥫 Skafferi'], ['kyl', '🧊 Kyl'], ['frys', '❄️ Frys']]
 const blank = () => ({ name: '', place: 'kyl', qty: '', best_before: '' })
@@ -24,58 +24,23 @@ const SOURCE = {
 // Varor kan skannas in med streckkoden. Koderna sparas i barcodes så att de känns igen nästa gång.
 export default function Pantry({ householdId, onOut }) {
   const pantry = useTable('pantry_items', householdId, 'best_before')
-  const codes = useTable('barcodes', householdId)
+  const { lookup, remember } = useBarcodes(householdId)
   const [edit, setEdit] = useState(null)
   const [place, setPlace] = useState('alla')
-  const [scan, setScan] = useState(null) // 'in' = lägg till, 'out' = slut
+  const [scan, setScan] = useState(false)
   const [looking, setLooking] = useState(false)
   const [note, setNote] = useState('')
   const t = today()
   const rows = pantry.rows.filter((x) => place === 'alla' || x.place === place)
     .sort((a, b) => (a.best_before || '9999').localeCompare(b.best_before || '9999') || a.name.localeCompare(b.name))
 
-  // Kom ihåg vad koden betyder hos oss
-  const remember = (code, v) => {
-    const known = codes.rows.find((r) => r.code === code)
-    if (!known) codes.insert({ code, name: v.name, place: v.place, qty: v.qty || null })
-    else if (known.name !== v.name || known.place !== v.place || (known.qty || null) !== (v.qty || null)) codes.update(known.id, { name: v.name, place: v.place, qty: v.qty || null })
-  }
-
-  // Vad är det för vara? Först det vi skannat förut, sen Open Food Facts.
-  const lookup = async (code) => {
-    const known = codes.rows.find((r) => r.code === code)
-    if (known) return { name: known.name, place: known.place || 'skafferi', qty: known.qty || '', from: 'known' }
-    try {
-      const r = await fetch(`/api/barcode?code=${code}`)
-      if (r.ok) {
-        const p = await r.json()
-        return { name: p.name, brand: p.brand, qty: p.qty || '', place: p.place || pantryPlace({ name: p.name })?.place || 'skafferi', from: 'off' }
-      }
-    } catch { /* utan nät: skriv själv */ }
-    return { name: '', qty: '', place: place === 'alla' ? 'kyl' : place, from: 'unknown' }
-  }
-
   const scanned = async (code) => {
-    const mode = scan
-    setScan(null)
+    setScan(false)
     setNote('')
     setLooking(true)
-    const p = await lookup(code)
+    const p = await lookup(code, place === 'alla' ? 'kyl' : place)
     setLooking(false)
-    if (mode === 'in') { setEdit({ ...blank(), name: p.name, place: p.place, qty: p.qty, code, from: p.from, brand: p.brand }); return }
-    // Slut: ta bort varan ur skafferiet och fråga om den ska på Komplettera
-    let name = p.name
-    if (!name) {
-      name = (prompt('Okänd streckkod. Vad är det för vara?') || '').trim()
-      if (!name) return
-    }
-    if (p.from !== 'known') remember(code, { name, place: p.place, qty: p.qty })
-    const n = name.toLowerCase()
-    const here = pantry.rows.filter((x) => x.name.trim().toLowerCase() === n)
-      .sort((a, b) => (a.best_before || '9999').localeCompare(b.best_before || '9999'))[0]
-    if (here) pantry.remove(here.id)
-    if (confirm(`${here ? `${here.name} är borttagen ur ${PLACES.find((x) => x[0] === here.place)?.[1].slice(3).toLowerCase() || 'skafferiet'}. ` : ''}Lägga ${name} på Komplettera-listan?`)) onOut(here?.name || name)
-    else if (here) setNote(`${here.name} är borttagen.`)
+    setEdit({ ...blank(), name: p.name, place: p.place, qty: p.qty, code, from: p.from, brand: p.brand })
   }
 
   const save = async (e, next = false) => {
@@ -84,7 +49,7 @@ export default function Pantry({ householdId, onOut }) {
     const v = { name: edit.name.trim(), place: edit.place, qty: edit.qty || null, best_before: edit.best_before || null }
     if (edit.id) await pantry.update(edit.id, v); else await pantry.insert(v)
     if (edit.code) remember(edit.code, v)
-    if (next) { setEdit(null); setNote(`${v.name} är tillagd.`); setScan('in'); return }
+    if (next) { setEdit(null); setNote(`${v.name} är tillagd.`); setScan(true); return }
     setEdit(edit.id || edit.code ? null : { ...blank(), place: edit.place })
   }
   const out = (x) => { pantry.remove(x.id); if (confirm(`Lägga ${x.name} på Komplettera-listan?`)) onOut(x.name) }
@@ -96,8 +61,7 @@ export default function Pantry({ householdId, onOut }) {
         {PLACES.map(([v, l]) => <button key={v} className={`chip ${place === v ? 'on' : ''}`} onClick={() => setPlace(v)}>{l}</button>)}
       </div>
       <div className="scan-btns mt">
-        <button onClick={() => { setNote(''); setScan('in') }}>📷 Skanna in vara</button>
-        <button onClick={() => { setNote(''); setScan('out') }}>📷 Slut, skanna</button>
+        <button onClick={() => { setNote(''); setScan(true) }}>📷 Skanna in vara</button>
       </div>
       {looking && <p className="muted small mt">Letar upp varan…</p>}
       {note && !looking && <p className="muted small mt">{note}</p>}
@@ -118,9 +82,7 @@ export default function Pantry({ householdId, onOut }) {
         })}
       </ul>
       <Fab onClick={() => setEdit({ ...blank(), place: place === 'alla' ? 'kyl' : place })} label="Lägg till" />
-      {scan && <Scanner title={scan === 'in' ? 'Skanna in vara' : 'Vad är slut?'}
-        hint={scan === 'out' ? 'Skanna den tomma förpackningen. Varan tas bort ur skafferiet och kan läggas på Komplettera.' : null}
-        onCode={scanned} onClose={() => setScan(null)} />}
+      {scan && <Scanner title="Skanna in vara" onCode={scanned} onClose={() => setScan(false)} />}
       {edit && (
         <Sheet title={edit.id ? edit.name : 'Finns hemma'} onClose={() => setEdit(null)}>
           <form className="stack" onSubmit={save}>
