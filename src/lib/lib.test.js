@@ -513,3 +513,14 @@ test('streckkoder: kontrollsiffra och Open Food Facts', () => {
   assert.equal(placeFromCategories(['en:pastas']), 'skafferi')
   assert.equal(placeFromCategories([]), null)
 })
+
+test('kryddor får egen plats', () => {
+  assert.equal(pantryPlace({ name: 'Svartpeppar' }).place, 'kryddor')
+  assert.equal(pantryPlace({ name: 'Salt' }).place, 'kryddor')
+  assert.equal(pantryPlace({ name: 'Tacokrydda' }).place, 'kryddor')
+  assert.equal(pantryPlace({ name: 'Kanel' }).place, 'kryddor')
+  assert.notEqual(pantryPlace({ name: 'Chilisås' })?.place, 'kryddor')
+  assert.equal(pantryPlace({ name: 'Kryddkorv' }).place, 'kyl')
+  assert.equal(pantryPlace({ name: 'Pasta' }).place, 'skafferi')
+  assert.equal(placeFromCategories(['en:groceries', 'en:spices']), 'kryddor')
+})
