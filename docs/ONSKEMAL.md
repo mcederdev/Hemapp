@@ -2,6 +2,8 @@
 
 Alla önskemål som Magnus har bett om, och hur långt de har kommit. Listan uppdateras varje gång något byggs, mergas eller ändras.
 
+Samma lista finns överst i dokumentet [Hemappen – önskemål och förbättringsidéer](https://claude.ai/artifact/HD2vtyY5PeqVHSoAAcPiC9), som också har förbättringsidéerna 1–71. Båda uppdateras samtidigt.
+
 Senast uppdaterad: 2026-11-11 (genomgång av alla önskemål sedan 2026-11-05 mot koden på main, `de171c3`).
 
 **Status:** ✅ klart · 🟡 delvis eller väntar på någon · ⏳ pågår · ⬜ inte byggt (väntar på besked) · ⏸️ pausat
@@ -12,11 +14,11 @@ Senast uppdaterad: 2026-11-11 (genomgång av alla önskemål sedan 2026-11-05 mo
 
 | Status | Önskemål | Kommentar |
 |---|---|---|
-| ⏳ | Köksskärmen: ändra storlek och ordning på blocken (dra ut, flytta, innehållet anpassas) | Byggs i en egen tråd (förslag 71) |
+| ⏳ | Köksskärmen: ändra storlek och ordning på blocken (dra ut, flytta, innehållet anpassas) | Byggs i en egen tråd (förslag 71 i dokumentet) |
 | 🟡 | Ta bort gamla medicinfält i databasen (`medicine_doses`, `dose_morning`, `dose_evening`) | Godkänt 2026-11-05, men SQL:en måste köras av Magnus i Supabase och har inte körts |
 | 🟡 | Se Juhanis skolschema även andra hemmets veckor | Ingen kodändring behövs. Andra hemmet (eller Magnus) lägger in "Skola" på Juhani för sina veckor |
 | 🟡 | Egen medicin per hem | Byggt. Andra hemmet behöver trycka "Lägg till hos oss" |
-| ⬜ | Förslag 49–71 i förbättringsdokumentet | 49, 50, 63, 67 och småfel 60, 64 är klara. 58 bortvald. Resten väntar på att Magnus väljer |
+| ⬜ | Förbättringsförslag 42–71 i dokumentet | 49, 50, 63, 67 och småfel 60, 64 är klara. 58 bortvald. Resten väntar på att Magnus väljer |
 | ⬜ | Knapp "Visa på TV" med AirPlay-steg | Erbjuden. Riktig AirPlay-knapp går inte från en webbapp |
 | ⬜ | Lämna/hämta i morgonnotisen ("Du hämtar Juhani 14:00") | Erbjuden, inget svar |
 | ⬜ | Export av databasen till Home-app-mappen (backup) | Erbjuden. Supabase gratisplan har inga backuper |
