@@ -4,7 +4,7 @@ Alla önskemål som Magnus har bett om, och hur långt de har kommit. Listan upp
 
 Samma lista finns överst i dokumentet [Hemappen – önskemål och förbättringsidéer](https://claude.ai/artifact/HD2vtyY5PeqVHSoAAcPiC9), som också har förbättringsidéerna 1–71. Båda uppdateras samtidigt.
 
-Senast uppdaterad: 2026-11-11 (streckkod byggd; genomgång av alla önskemål sedan 2026-11-05 mot koden på main, `de171c3`).
+Senast uppdaterad: 2026-11-11 (kryddor; genomgång av alla önskemål sedan 2026-11-05 mot koden på main, `de171c3`).
 
 **Status:** ✅ klart · 🟡 delvis eller väntar på någon · ⏳ pågår · ⬜ inte byggt (väntar på besked) · ⏸️ pausat
 
@@ -22,7 +22,6 @@ Senast uppdaterad: 2026-11-11 (streckkod byggd; genomgång av alla önskemål se
 | ⬜ | Knapp "Visa på TV" med AirPlay-steg | Erbjuden. Riktig AirPlay-knapp går inte från en webbapp |
 | ⬜ | Lämna/hämta i morgonnotisen ("Du hämtar Juhani 14:00") | Erbjuden, inget svar |
 | ⬜ | Export av databasen till Home-app-mappen (backup) | Erbjuden. Supabase gratisplan har inga backuper |
-| 🟡 | Skafferi: skanna streckkod för att lägga till varor, och skanna tom förpackning på Slut hemma | Byggt 2026-11-11 i PR #11: Open Food Facts + appens eget minne av koder (044 körd). Väntar på test och merge |
 | ⬜ | Kvitto: fota kvittot för priser och varor, utan dubbletter mot det som redan bockats av | Plan B. Kan göras gratis med textigenkänning i telefonen eller iPhonens Live Text. Väntar på besked |
 | ⬜ | Mat: standardportioner efter vårdnadsveckor, kopiera förra veckans meny, dra av lagat från skafferiet | Idéer från mat-ombyggnaden |
 | ⏸️ | Byta namn på appen | Pausat tills Magnus säger till |
@@ -68,6 +67,8 @@ Senast uppdaterad: 2026-11-11 (streckkod byggd; genomgång av alla önskemål se
 - ✅ Mest köpta varor räknas först vid avbockning, och inte i testläget
 
 ### Mat
+- ✅ Skafferi: skanna in varor med streckkod (Open Food Facts + appens minne), skanna tom förpackning på Slut hemma (PR #11)
+- 🟡 Skafferi: egen plats för Kryddor (även vid skanning, kryddor hamnar där av sig själva). Byggt, väntar på merge (PR #12)
 - ✅ Veckomeny som färgade kort, håll inne för att byta dag
 - ✅ Föreslå hela veckan
 - ✅ Föreslagna rätter går att redigera och dölja

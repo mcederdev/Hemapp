@@ -15,8 +15,11 @@ export function checkOff(items, item, lists, pantry = null) {
 // Var varan hamnar hemma, och ungefär hur länge den håller (dagar). null = inte en skafferivara
 // (frukt och grönt, dryck, hygien, hushåll m.m. hoppas över).
 const PLACES = { 'Mejeri': ['kyl', 7], 'Kött & fisk': ['kyl', 2], 'Chark': ['kyl', 7], 'Bröd': ['skafferi', 4], 'Frys': ['frys', null], 'Skafferi': ['skafferi', null], 'Godis & snacks': ['skafferi', null] }
+// Kryddor får en egen plats i skafferiet
+export const SPICE = /krydd|peppar|^salt$|flingsalt|havssalt|kanel|oregano|timjan|rosmarin|paprikapulver|spiskummin|kummin|curry|chili|cayenne|lagerblad|kardemumma|muskot|nejlika|saffran|gurkmeja|garam masala|vaniljsocker|vaniljpulver|torkad basilika|dragon|mejram|anis|fänkålsfrö|senapsfrö|koriander(frö|, mald)|ingefära, mald|malen ingefära/
 export function pantryPlace(item) {
   const name = item.name.toLowerCase()
+  if (SPICE.test(name) && !/korv|chips|sås|ost\b/.test(name)) return { place: 'kryddor', days: null }
   if (/fryst|frysta|glass|fiskpinnar|pommes/.test(name)) return { place: 'frys', days: null }
   const section = item.section && PLACES[item.section] ? item.section : guessSection(item.name)
   const p = PLACES[section]

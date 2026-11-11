@@ -6,7 +6,7 @@ import Sheet, { Fab } from './Sheet'
 import Scanner from './Scanner'
 import { useBarcodes } from '../useBarcodes'
 
-const PLACES = [['skafferi', '🥫 Skafferi'], ['kyl', '🧊 Kyl'], ['frys', '❄️ Frys']]
+const PLACES = [['skafferi', '🥫 Skafferi'], ['kyl', '🧊 Kyl'], ['frys', '❄️ Frys'], ['kryddor', '🌶️ Kryddor']]
 const blank = () => ({ name: '', place: 'kyl', qty: '', best_before: '' })
 
 export const bestBeforeText = (d, t = today()) => {
@@ -88,7 +88,7 @@ export default function Pantry({ householdId, onOut }) {
           <form className="stack" onSubmit={save}>
             {edit.from && <p className={`small ${edit.from === 'unknown' ? 'error' : 'muted'}`}>{SOURCE[edit.from](edit)}</p>}
             <input placeholder="Vad? (t.ex. Mjölk, Kycklingfilé)" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus={!edit.code || !edit.name} />
-            <div className="seg">{PLACES.map(([v, l]) => <button type="button" key={v} className={edit.place === v ? 'active' : ''} onClick={() => setEdit({ ...edit, place: v })}>{l}</button>)}</div>
+            <div className="seg compact">{PLACES.map(([v, l]) => <button type="button" key={v} className={edit.place === v ? 'active' : ''} onClick={() => setEdit({ ...edit, place: v })}>{l}</button>)}</div>
             <div className="row">
               <label className="field"><span className="muted small">Hur mycket (valfritt)</span><input placeholder="t.ex. 2 st, 1 liter" value={edit.qty} onChange={(e) => setEdit({ ...edit, qty: e.target.value })} /></label>
               <label className="field"><span className="muted small">Bäst före</span><input type="date" value={edit.best_before} onChange={(e) => setEdit({ ...edit, best_before: e.target.value })} /></label>

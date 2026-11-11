@@ -733,3 +733,4 @@ textarea { width: 100%; min-width: 0; padding: .6rem .7rem; border: 1px solid va
 .scan-line { position: absolute; left: 12%; right: 12%; top: 50%; height: 2px; background: #ff3b30; box-shadow: 0 0 8px #ff3b30; pointer-events: none; }
 .scan-btns { display: flex; gap: 8px; }
 .scan-btns button { flex: 1; }
+.seg.compact button { padding: .5rem .15rem; font-size: .85rem; min-width: 0; white-space: nowrap; }
