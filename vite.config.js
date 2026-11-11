@@ -13,6 +13,8 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.js',
       injectRegister: 'auto',
+      // Streckkodsläsaren (ca 1 MB) hämtas först när någon skannar, inte vid varje uppdatering
+      injectManifest: { globIgnores: ['**/*.wasm'] },
       includeAssets: ['apple-touch-icon.png'],
       manifest: {
         name: 'Hemappen',

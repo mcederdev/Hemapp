@@ -498,3 +498,18 @@ test('medicin: delad vårdnad räknas bara ner när barnet är hos ägaren', () 
   // Utan vårdnad som förut
   assert.equal(medicineStatus(ours, '2026-11-09').left, 20)
 })
+
+import { validCode, productFromOff, placeFromCategories } from './barcode.js'
+test('streckkoder: kontrollsiffra och Open Food Facts', () => {
+  assert.ok(validCode('7318690017622'))
+  assert.ok(validCode('96385074'))
+  assert.ok(!validCode('7318690017623'))
+  assert.ok(!validCode('12345'))
+  assert.ok(!validCode('abc'))
+  const p = productFromOff({ status: 1, product: { product_name: 'MELLANMJÖLK', brands: 'Arla,Arla Foods', quantity: '1,5 l', categories_tags: ['en:dairies', 'en:milks'] } })
+  assert.deepEqual(p, { name: 'Mellanmjölk', brand: 'Arla', qty: '1,5 l', place: 'kyl' })
+  assert.equal(productFromOff({ status: 0 }), null)
+  assert.equal(productFromOff({ status: 1, product: { product_name_sv: 'Pommes frites', categories_tags: ['en:frozen-foods'] } }).place, 'frys')
+  assert.equal(placeFromCategories(['en:pastas']), 'skafferi')
+  assert.equal(placeFromCategories([]), null)
+})
