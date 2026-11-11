@@ -18,6 +18,31 @@ import { shows } from '../lib/menu'
 import { DishView } from './Recipe'
 import { rowFor, hasRecipe } from '../lib/dishdata'
 
+// Köksskärmens block: ordning och storlek (bredd i kolumner, höjd i rader) sparas i enheten
+const K_DEFAULT = ['day', 'chores', 'meals', 'notes', 'msgs', 'shop', 'soon']
+const K_SIZE = { day: { w: 1, h: 4 }, shop: { w: 2, h: 1 }, soon: { w: 1, h: 1 } }
+const K_KEY = 'kitchenLayout'
+const readLayout = () => { try { return JSON.parse(localStorage.getItem(K_KEY)) || {} } catch { return {} } }
+function useKitchenLayout() {
+  const [saved, setSaved] = useState(readLayout)
+  const save = (next) => { setSaved(next); try { localStorage.setItem(K_KEY, JSON.stringify(next)) } catch { /* privat läge */ } }
+  const o = saved.order || []
+  const order = [...o.filter((x) => K_DEFAULT.includes(x)), ...K_DEFAULT.filter((x) => !o.includes(x))]
+  const size = (id) => ({ w: 1, h: 2, ...K_SIZE[id], ...saved.size?.[id] })
+  return {
+    order,
+    size,
+    move: (id, dir) => {
+      const i = order.indexOf(id), j = i + dir
+      if (j < 0 || j >= order.length) return
+      const next = [...order]; next[i] = next[j]; next[j] = id
+      save({ ...saved, order: next })
+    },
+    resize: (id, change) => save({ ...saved, size: { ...saved.size, [id]: { ...size(id), ...change } } }),
+    reset: () => save({}),
+  }
+}
+
 // Köksskärm för en iPad på kylskåpet: klocka, dagen, sysslor, mat och inköp på en skärm
 export default function Kitchen({ householdId, members, people, me, onExit, custody, linked, guests, household }) {
   useWakeLock(true)
@@ -31,6 +56,8 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
   const pantry = useTable('pantry_items', householdId, 'best_before')
   const dishItems = useTable('dish_items', householdId, 'dish')
   const [recipe, setRecipe] = useState(false)
+  const layout = useKitchenLayout()
+  const [arranging, setArranging] = useState(false)
   const byId = Object.fromEntries(members.map((m) => [m.id, m]))
   useEffect(() => { document.documentElement.classList.add('kiosk'); return () => document.documentElement.classList.remove('kiosk') }, [])
   // Helskärm (döljer webbläsarens adressrad) och håll skärmen vaken
@@ -83,6 +110,69 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
     )
   }
 
+  const blocks = {
+    day: { cls: 'k-day', body: (<>
+        <h3>Idag</h3>
+        <ul className="list flush flow">
+          {allDay.map((o) => <EventRow key={o.key} occ={o} day={d0} byId={byId} />)}
+          {flow.map((x) => x.type === 'now'
+            ? <li key="now" className="now-line"><span>{timeOf(now)}</span><i /></li>
+            : x.type === 'dinner'
+              ? <li key="dinner" className={`tl dinner ${x.end < now ? 'past' : ''}`}><div className="tl-time"><strong>18:00</strong></div><div className="tl-bar" style={{ background: 'var(--accent)' }} /><div className="tl-body"><div className="tl-title">🍽 {dinner?.dish || 'Middag'}</div></div></li>
+              : <EventRow key={x.occ.key} occ={x.occ} day={d0} byId={byId} className={x.end < now ? 'past' : ''} />)}
+        </ul>
+        {tomorrow.length > 0 && <p className="muted small pad">Imorgon: {tomorrow.map(shortLine).join(', ')}</p>}
+    </>) },
+    chores: { cls: '', body: (<>
+        <h3>Sysslor</h3>
+        <div className="k-chores">
+          {todo.map((c) => (
+            <button key={c.id} className="kid-task" onClick={() => completeChore(chores, c, me?.id)}>
+              <span className="box" /><span className="grow">{c.title}</span>
+              {c.stars > 0 && <span>⭐{c.stars}</span>}
+              <MemberTag member={byId[c.assigned_to]} size={30} />
+            </button>
+          ))}
+          {todo.length === 0 && <p className="muted">Allt är gjort! 🎉</p>}
+        </div>
+    </>) },
+    meals: { cls: '', body: (<>
+        <h3>Veckans middagar</h3>
+        <ul className="k-meals">
+          {week.map((d) => {
+            const p = meals.rows.find((m) => m.day === d)
+            return (
+              <li key={d} className={d === t ? 'today' : d < t ? 'past' : ''}>
+                <span className="cap muted">{weekdayName(d, 'short').replace('.', '')}</span>
+                <i style={{ background: p ? dishColor(catOf(p.dish)) : 'var(--line)' }} />
+                <span>{p?.dish || '–'}</span>
+              </li>
+            )
+          })}
+        </ul>
+    </>) },
+    notes: { cls: 'k-notes', body: (<>
+        <h3>Lappar</h3>
+        <Notes householdId={householdId} members={members} me={me} guests={guests} big />
+    </>) },
+    msgs: { cls: 'k-msgs', body: (<>
+        <h3>Meddelanden</h3>
+        <Messages me={me} householdId={householdId} people={people} guests={guests} linked={linked} compact />
+    </>) },
+    shop: { cls: 'k-shop', body: (<>
+        <h3>Handla {toBuy.length > 0 && <span className="count">{toBuy.length}</span>}</h3>
+        <div className="chips">
+          {toBuy.map((i) => <button key={i.id} className={`chip big-chip ${i.prio ? 'prio-chip' : ''}`} onClick={() => checkOff(items, i, lists.rows, pantry)}>{i.prio ? '! ' : ''}{i.name}{i.qty ? ` · ${i.qty}` : ''}</button>)}
+        </div>
+        {toBuy.length === 0 && <p className="muted">Listan är tom.</p>}
+    </>) },
+    soon: { cls: 'k-soon', body: (<>
+        <h3>Snart</h3>
+        <CustodyLine custody={custody} members={members} me={me} linked={linked} />
+        <Soon householdId={householdId} go={() => {}} bare />
+    </>) },
+  }
+
   return (
     <div className="kitchen">
       <header className="k-head">
@@ -94,77 +184,37 @@ export default function Kitchen({ householdId, members, people, me, onExit, cust
           {recipe && dinner && <DishView householdId={householdId} dish={dinner.dish} onClose={() => setRecipe(false)} />}
         </div>
         <Weather household={household} />
+        <button className="k-exit k-arrange" onClick={() => setArranging(!arranging)} aria-label="Ändra ordning och storlek på blocken" title="Ändra blocken">▦</button>
         {canFs && <button className="k-exit k-fs" onClick={toggleFs} aria-label={isFs ? 'Lämna helskärm' : 'Helskärm'}>{isFs ? '⤡' : '⛶'}</button>}
         <button className="k-exit" onClick={onExit} aria-label="Stäng köksskärmen">✕</button>
       </header>
 
-      <div className="k-grid">
-        <section className="k-card k-day">
-          <h3>Idag</h3>
-          <ul className="list flush flow">
-            {allDay.map((o) => <EventRow key={o.key} occ={o} day={d0} byId={byId} />)}
-            {flow.map((x) => x.type === 'now'
-              ? <li key="now" className="now-line"><span>{timeOf(now)}</span><i /></li>
-              : x.type === 'dinner'
-                ? <li key="dinner" className={`tl dinner ${x.end < now ? 'past' : ''}`}><div className="tl-time"><strong>18:00</strong></div><div className="tl-bar" style={{ background: 'var(--accent)' }} /><div className="tl-body"><div className="tl-title">🍽 {dinner?.dish || 'Middag'}</div></div></li>
-                : <EventRow key={x.occ.key} occ={x.occ} day={d0} byId={byId} className={x.end < now ? 'past' : ''} />)}
-          </ul>
-          {tomorrow.length > 0 && <p className="muted small pad">Imorgon: {tomorrow.map(shortLine).join(', ')}</p>}
-        </section>
-
-        <section className="k-card">
-          <h3>Sysslor</h3>
-          <div className="k-chores">
-            {todo.map((c) => (
-              <button key={c.id} className="kid-task" onClick={() => completeChore(chores, c, me?.id)}>
-                <span className="box" /><span className="grow">{c.title}</span>
-                {c.stars > 0 && <span>⭐{c.stars}</span>}
-                <MemberTag member={byId[c.assigned_to]} size={30} />
-              </button>
-            ))}
-            {todo.length === 0 && <p className="muted">Allt är gjort! 🎉</p>}
-          </div>
-        </section>
-
-        <section className="k-card">
-          <h3>Veckans middagar</h3>
-          <ul className="k-meals">
-            {week.map((d) => {
-              const p = meals.rows.find((m) => m.day === d)
-              return (
-                <li key={d} className={d === t ? 'today' : d < t ? 'past' : ''}>
-                  <span className="cap muted">{weekdayName(d, 'short').replace('.', '')}</span>
-                  <i style={{ background: p ? dishColor(catOf(p.dish)) : 'var(--line)' }} />
-                  <span>{p?.dish || '–'}</span>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-
-        <section className="k-card k-notes">
-          <h3>Lappar</h3>
-          <Notes householdId={householdId} members={members} me={me} guests={guests} big />
-        </section>
-
-        <section className="k-card k-msgs">
-          <h3>Meddelanden</h3>
-          <Messages me={me} householdId={householdId} people={people} guests={guests} linked={linked} compact />
-        </section>
-
-        <section className="k-card k-shop">
-          <h3>Handla {toBuy.length > 0 && <span className="count">{toBuy.length}</span>}</h3>
-          <div className="chips">
-            {toBuy.map((i) => <button key={i.id} className={`chip big-chip ${i.prio ? 'prio-chip' : ''}`} onClick={() => checkOff(items, i, lists.rows, pantry)}>{i.prio ? '! ' : ''}{i.name}{i.qty ? ` · ${i.qty}` : ''}</button>)}
-          </div>
-          {toBuy.length === 0 && <p className="muted">Listan är tom.</p>}
-        </section>
-
-        <section className="k-card k-soon">
-          <h3>Snart</h3>
-          <CustodyLine custody={custody} members={members} me={me} linked={linked} />
-          <Soon householdId={householdId} go={() => {}} bare />
-        </section>
+      {arranging && (
+        <div className="k-arrange-bar">
+          <span>Flytta blocken med pilarna och välj bredd och höjd. Sparas på den här skärmen.</span>
+          <button className="chip" onClick={layout.reset}>Återställ</button>
+          <button className="chip on" onClick={() => setArranging(false)}>Klar</button>
+        </div>
+      )}
+      <div className={`k-grid ${arranging ? 'arranging' : ''}`}>
+        {layout.order.map((id, i) => {
+          const b = blocks[id], { w, h } = layout.size(id)
+          return (
+            <section key={id} className={`k-card ${b.cls} w${w} h${h}`}>
+              {arranging && (
+                <div className="k-tools">
+                  <span className="k-tools-row">
+                    <button className="icon-btn" disabled={i === 0} onClick={() => layout.move(id, -1)} aria-label="Flytta tidigare">←</button>
+                    <button className="icon-btn" disabled={i === layout.order.length - 1} onClick={() => layout.move(id, 1)} aria-label="Flytta senare">→</button>
+                  </span>
+                  <span className="k-tools-row k-w"><small>Bredd</small>{[1, 2, 3].map((n) => <button key={n} className={`chip ${w === n ? 'on' : ''}`} onClick={() => layout.resize(id, { w: n })}>{n}</button>)}</span>
+                  <span className="k-tools-row"><small>Höjd</small>{[1, 2, 3, 4].map((n) => <button key={n} className={`chip ${h === n ? 'on' : ''}`} onClick={() => layout.resize(id, { h: n })}>{n}</button>)}</span>
+                </div>
+              )}
+              {b.body}
+            </section>
+          )
+        })}
       </div>
     </div>
   )
