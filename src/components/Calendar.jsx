@@ -87,7 +87,9 @@ export default function Calendar({ householdId, members, people, me, go, househo
     const rows = parsed.map((p) => ({
       household_id: householdId, title: p.title, location: p.location, all_day: p.allDay,
       starts_at: p.start.toISOString(), ends_at: p.end ? p.end.toISOString() : null,
-      ics_uid: p.uid, member_id: importMember, rrule: p.rrule, remind_minutes: p.allDay ? 0 : 30
+      ics_uid: p.uid, member_id: importMember, rrule: p.rrule, remind_minutes: p.allDay ? 0 : 30,
+      // Inställda tillfällen från filen + de som tagits bort här i appen
+      exdates: [...new Set([...(events.rows.find((e) => e.ics_uid === p.uid)?.exdates || []), ...p.exdates])]
     }))
     const { error } = await supabase.from('events').upsert(rows, { onConflict: 'household_id,ics_uid' })
     // Kategorisera nya poster (ändrar inte poster som redan har en kategori)

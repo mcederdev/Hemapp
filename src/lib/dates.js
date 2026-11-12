@@ -36,3 +36,7 @@ export function repeatLabel(every, unit) {
   if (n === 2) return { day: 'varannan dag', week: 'varannan vecka', month: 'varannan månad' }[unit]
   return `var ${n}:e ${names[unit][1]}`
 }
+
+// Lokal dag ('YYYY-MM-DD') för en tidsstämpel som sparats i UTC (t.ex. done_at).
+// slice(0, 10) på ISO-strängen ger UTC-dagen, som är fel strax efter midnatt i Sverige.
+export function dayOf(ts) { return ts ? iso(new Date(ts)) : null }

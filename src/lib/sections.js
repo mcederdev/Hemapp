@@ -11,7 +11,7 @@ const WORDS = {
   'Kött & fisk': ['kött', 'färs', 'kyckling', 'fläsk', 'lax', 'fisk', 'torsk', 'räk', 'biff', 'filé', 'kotlett', 'bacon', 'kalkon'],
   'Chark': ['korv', 'skinka', 'salami', 'pålägg', 'leverpastej', 'falukorv', 'prinskorv'],
   'Frys': ['fryst', 'glass', 'fiskpinnar', 'pommes', 'ärtor', 'frysta'],
-  'Skafferi': ['pasta', 'spaghetti', 'makaroner', 'ris', 'mjöl', 'socker', 'salt', 'peppar', 'krydda', 'olja', 'vinäger', 'buljong', 'krossade', 'passerade', 'tacokrydda', 'tacosås', 'flingor', 'müsli', 'havregryn', 'gryn', 'bönor', 'linser', 'ketchup', 'senap', 'majonnäs', 'sylt', 'honung', 'nötter', 'kaffe', 'te', 'kakao', 'konserv', 'nudlar', 'soja', 'mos'],
+  'Skafferi': ['pasta', 'spaghetti', 'makaroner', 'ris', 'mjöl', 'socker', 'salt', 'peppar', 'krydda', 'olja', 'vinäger', 'buljong', 'krossade', 'passerade', 'tacokrydda', 'tacosås', 'flingor', 'müsli', 'havregryn', 'gryn', 'bönor', 'linser', 'ketchup', 'senap', 'majonnäs', 'sylt', 'honung', 'nötter', 'kaffe', 'te', 'kakao', 'konserv', 'nudlar', 'soja', 'mos', 'tepåsar'],
   'Dryck': ['juice', 'läsk', 'vatten', 'saft', 'öl', 'vin', 'cola', 'festis'],
   'Godis & snacks': ['godis', 'chips', 'choklad', 'popcorn', 'snacks', 'kex', 'dipp'],
   'Hygien': ['tandkräm', 'tandborste', 'schampo', 'balsam', 'tvål', 'deo', 'bomull', 'plåster', 'binda', 'tampong', 'rakhyvel', 'hudkräm', 'solkräm'],
@@ -20,10 +20,24 @@ const WORDS = {
 }
 
 export function guessSection(name) {
-  const n = name.toLowerCase()
+  const n = String(name || '').toLowerCase()
   const tokens = n.split(/[^a-zåäöé]+/)
   // Korta ord (t.ex. "te", "ris") måste matcha ett helt ord, längre räcker som del av ordet
   const hit = (w) => (w.length <= 3 ? tokens.includes(w) : n.includes(w))
+  // Sammansatta ord avgörs av sista delen: potatischips = chips, apelsinjuice = juice.
+  // Bland ord som slutar ett ord vinner det som står sist, sedan det längsta.
+  let best = null
+  for (const [section, words] of Object.entries(WORDS)) {
+    for (const w of words) {
+      if (!hit(w)) continue
+      const re = new RegExp(`${w}(?![a-zåäöé])`, 'g')
+      let m, end = -1
+      while ((m = re.exec(n))) end = m.index + w.length
+      if (end < 0) continue
+      if (!best || end > best.end || (end === best.end && w.length > best.len)) best = { section, end, len: w.length }
+    }
+  }
+  if (best) return best.section
   for (const [section, words] of Object.entries(WORDS)) {
     if (words.some(hit)) return section
   }

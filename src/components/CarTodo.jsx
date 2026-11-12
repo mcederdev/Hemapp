@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTable } from '../useTable'
-import { today, prettyDay, repeatLabel } from '../lib/dates'
+import { today, prettyDay, repeatLabel, dayOf } from '../lib/dates'
 import { completeChore } from './Chores'
 import { INSPECT_RE } from '../lib/car'
 import { MemberTag } from './MemberPicker'
@@ -79,7 +79,7 @@ export default function CarTodo({ car, householdId, me, people, otherName, onIns
             {done.map((c) => (
               <li key={c.id} className="is-done">
                 <span>{emojiOf(c.title)} {c.title}</span>
-                <span className="muted small">{byId[c.done_by]?.name || 'Någon'} · {prettyDay(c.done_at.slice(0, 10))}</span>
+                <span className="muted small">{byId[c.done_by]?.name || 'Någon'} · {prettyDay(dayOf(c.done_at))}</span>
               </li>
             ))}
           </ul>

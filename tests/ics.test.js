@@ -99,22 +99,22 @@ describe('trasiga och ofullständiga filer', () => {
     expect(e.uid).toBe('1')
   })
 
-  it('BUGG: omöjligt datum (månad 13) ska inte bli januari nästa år', () => {
+  it('Fixad bugg: omöjligt datum (månad 13) ska inte bli januari nästa år', () => {
     expect(parseIcs(cal(ev('UID:1', 'DTSTART;VALUE=DATE:20261301')))).toEqual([])
   })
 
-  it('BUGG: SUMMARY i en påminnelse (VALARM) skriver inte över händelsens titel', () => {
+  it('Fixad bugg: SUMMARY i en påminnelse (VALARM) skriver inte över händelsens titel', () => {
     const [e] = parseIcs(cal(ev('UID:1', 'SUMMARY:Tandläkare', 'DTSTART:20261110T160000Z',
       'BEGIN:VALARM', 'ACTION:EMAIL', 'SUMMARY:Påminnelse', 'TRIGGER:-PT30M', 'END:VALARM')))
     expect(e.title).toBe('Tandläkare')
   })
 
-  it('BUGG: EXDATE (inställda tillfällen) läses in', () => {
+  it('Fixad bugg: EXDATE (inställda tillfällen) läses in', () => {
     const [e] = parseIcs(cal(ev('UID:1', 'DTSTART:20261110T160000Z', 'RRULE:FREQ=WEEKLY', 'EXDATE:20261117T160000Z')))
     expect(e.exdates).toEqual([new Date('2026-11-17T16:00:00Z').toISOString()])
   })
 
-  it('BUGG: ett flyttat tillfälle (RECURRENCE-ID) får inte samma uid som serien', () => {
+  it('Fixad bugg: ett flyttat tillfälle (RECURRENCE-ID) får inte samma uid som serien', () => {
     // Samma uid två gånger i en upsert får Supabase att avvisa hela importen
     const events = parseIcs(cal(
       ev('UID:serie@x', 'SUMMARY:Simning', 'DTSTART:20261110T160000Z', 'RRULE:FREQ=WEEKLY'),
@@ -212,23 +212,23 @@ describe('återkommande händelser (RRULE)', () => {
     expect(simpleRrule(null)).toBeNull()
   })
 
-  it('BUGG: månadsvis den 31:a hoppar över månader som saknar den 31:a', () => {
+  it('Fixad bugg: månadsvis den 31:a hoppar över månader som saknar den 31:a', () => {
     // RFC 5545: inget tillfälle de månaderna. Nu blir det 3 mars, 1 maj osv.
     const r = occurrences(local(2027, 1, 31, 12), 'FREQ=MONTHLY', local(2027, 1, 1), local(2027, 6, 1))
     expect(days(r)).toEqual(['2027-01-31', '2027-03-31', '2027-05-31'])
   })
 
-  it('BUGG: årligen den 29 feb visas bara på skottår', () => {
+  it('Fixad bugg: årligen den 29 feb visas bara på skottår', () => {
     const r = occurrences(local(2028, 2, 29, 12), 'FREQ=YEARLY', local(2028, 1, 1), local(2033, 1, 1))
     expect(days(r)).toEqual(['2028-02-29', '2032-02-29'])
   })
 
-  it('BUGG: månadsvis "första måndagen" (BYDAY=1MO)', () => {
+  it('Fixad bugg: månadsvis "första måndagen" (BYDAY=1MO)', () => {
     const r = occurrences(local(2026, 11, 2, 18), 'FREQ=MONTHLY;BYDAY=1MO', local(2026, 11, 1), local(2027, 2, 1))
     expect(days(r)).toEqual(['2026-11-02', '2026-12-07', '2027-01-04'])
   })
 
-  it('BUGG: en daglig händelse som startade för länge sedan syns fortfarande', () => {
+  it('Fixad bugg: en daglig händelse som startade för länge sedan syns fortfarande', () => {
     // Loopen stannar efter 5000 varv, alltså cirka 13,7 år för dagliga händelser
     const r = occurrences(local(2010, 1, 1, 8), 'FREQ=DAILY', local(2026, 11, 10), local(2026, 11, 11))
     expect(days(r)).toEqual(['2026-11-10'])

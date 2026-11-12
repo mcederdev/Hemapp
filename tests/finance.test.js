@@ -62,7 +62,7 @@ describe('fördelning efter inkomst', () => {
     expect(() => splitBills([], [{ amount: 100, paidBy: 'a' }])).not.toThrow()
   })
 
-  it('BUGG: negativ inkomst ger aldrig en andel under 0 % eller över 100 %', () => {
+  it('Fixad bugg: negativ inkomst ger aldrig en andel under 0 % eller över 100 %', () => {
     const r = splitBills([A(-10000), B(30000)], [{ amount: 1000, paidBy: 'b' }])
     for (const row of r.rows) {
       expect(row.share).toBeGreaterThanOrEqual(0)
@@ -100,9 +100,17 @@ describe('öresbelopp och avrundning', () => {
     expect(r.transfers).toEqual([{ from: 'Bo', to: 'Anna', amount: 100 }])
   })
 
-  it('333 kr delat 50/50: 166,50 avrundas uppåt till 167 kr', () => {
+  it('333 kr delat 50/50: den extra kronan hamnar på den som redan betalat, så Bo swishar 166 kr', () => {
     const r = splitBills([A(30000), B(30000)], [{ amount: 333, paidBy: 'a' }])
-    expect(r.transfers).toEqual([{ from: 'Bo', to: 'Anna', amount: 167 }])
+    expect(r.rows.map((x) => x.shouldPayKr)).toEqual([167, 166])
+    expect(r.transfers).toEqual([{ from: 'Bo', to: 'Anna', amount: 166 }])
+  })
+
+  it('swishen stämmer exakt med det som visas: visad del − betalt = swish', () => {
+    for (const [people, total] of [[[A(30000), B(30000)], 333], [[A(70000), B(30000)], 333], [[A(10000), B(20000)], 100]]) {
+      const r = splitBills(people, [{ amount: total, paidBy: 'a' }])
+      expect(r.transfers[0].amount).toBe(r.rows[1].shouldPayKr)
+    }
   })
 
   it('under 50 öre i skillnad blir ingen swish', () => {
@@ -110,10 +118,13 @@ describe('öresbelopp och avrundning', () => {
     expect(r.transfers).toEqual([])
   })
 
-  it('BUGG: de avrundade andelarna som visas summerar till totalen (333 kr delat 50/50)', () => {
-    // Visas som "Ska stå för 167 kr" för båda = 334 kr fast räkningarna är 333 kr
-    const r = splitBills([A(30000), B(30000)], [{ amount: 333, paidBy: 'a' }])
-    expect(sum(r.rows.map((x) => kr(x.shouldPay)))).toBe(333)
+  it('Fixad bugg: de avrundade andelarna som visas summerar till totalen (333 kr delat 50/50)', () => {
+    // Visades som "Ska stå för 167 kr" för båda = 334 kr fast räkningarna är 333 kr.
+    // Finance.jsx visar nu shouldPayKr (hela kronor som alltid summerar till totalen).
+    for (const [people, total] of [[[A(30000), B(30000)], 333], [[A(70000), B(30000)], 333], [[A(10000), B(20000)], 100], [[A(1), B(1), { id: 'c', name: 'C', income: 1 }], 100]]) {
+      const r = splitBills(people, [{ amount: total, paidBy: 'a' }])
+      expect(sum(r.rows.map((x) => x.shouldPayKr))).toBe(total)
+    }
   })
 })
 

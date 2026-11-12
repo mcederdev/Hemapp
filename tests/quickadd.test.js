@@ -23,7 +23,7 @@ describe('datum', () => {
     expect(q('Simning torsdag').date).toBe('2026-11-12')
     expect(q('Simning nästa torsdag').date).toBe('2026-11-19')
   })
-  it('BUGG: "4e dec", "4:e dec" och "1a dec" känns igen som datum', () => {
+  it('Fixad bugg: "4e dec", "4:e dec" och "1a dec" känns igen som datum', () => {
     expect(q('Nytt pass den 4e dec kl 14:50').date).toBe('2026-12-04')
     expect(q('Nytt pass 4:e dec').date).toBe('2026-12-04')
     expect(q('Möte 1a dec').date).toBe('2026-12-01')
@@ -41,7 +41,7 @@ describe('klockslag', () => {
     expect(q('Möte 10-12:30')).toMatchObject({ time: '10:00', endTime: '12:30' })
   })
   it('omöjlig tid ignoreras', () => expect(q('Pass kl 25').time).toBeNull())
-  it('BUGG: "kl 14:0" blir 14:00 och inte en del av titeln', () => {
+  it('Fixad bugg: "kl 14:0" blir 14:00 och inte en del av titeln', () => {
     const r = q('Nytt pass den 4 dec kl 14:0')
     expect(r.time).toBe('14:00')
     expect(r.title).not.toMatch(/14/)
@@ -53,7 +53,7 @@ describe('titel, person och upprepning', () => {
   it('namn i familjen blir person', () => expect(q('Tandläkare Juhani tis 15–16').member).toBe('j'))
   it('"varannan vecka" blir upprepning', () => expect(q('Städa varannan vecka').repeat).toBe('biweekly'))
   it('stor bokstav först', () => expect(q('fika idag').title).toBe('Fika'))
-  it('BUGG: utfyllnadsordet "den" tas bort ur titeln', () => {
+  it('Fixad bugg: utfyllnadsordet "den" tas bort ur titeln', () => {
     expect(q('Nytt pass den 4 dec kl 14:50').title).toBe('Nytt pass')
   })
 })

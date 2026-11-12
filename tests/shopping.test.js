@@ -65,11 +65,11 @@ describe('snabblägga basvaror utan dubbletter', () => {
     expect(itemKey('Ost')).not.toBe(itemKey('Os'))
   })
 
-  it('BUGG: "Äpple" och standardvaran "Äpplen" räknas som samma vara', () => {
+  it('Fixad bugg: "Äpple" och standardvaran "Äpplen" räknas som samma vara', () => {
     expect(active(quickAdd(quickAdd([], 'Äpplen'), 'Äpple'))).toHaveLength(1)
   })
 
-  it('BUGG: "Morot" och "Morötter" räknas som samma vara', () => {
+  it('Fixad bugg: "Morot" och "Morötter" räknas som samma vara', () => {
     expect(active(quickAdd(quickAdd([], 'Morötter'), 'Morot'))).toHaveLength(1)
   })
 })
@@ -124,14 +124,14 @@ describe('avdelning i butiken', () => {
     expect(groups.flatMap(([, v]) => v)).toHaveLength(rows.length)
   })
 
-  it('BUGG: chips, juice och fiskpinnar hamnar på rätt avdelning', () => {
+  it('Fixad bugg: chips, juice och fiskpinnar hamnar på rätt avdelning', () => {
     // Första träffen vinner: "potatis" i Frukt & grönt, "apelsin" i Frukt & grönt, "fisk" i Kött & fisk
     expect(guessSection('Potatischips')).toBe('Godis & snacks')
     expect(guessSection('Apelsinjuice')).toBe('Dryck')
     expect(guessSection('Fiskpinnar')).toBe('Frys')
   })
 
-  it('BUGG: tepåsar är inte hushållspåsar', () => {
+  it('Fixad bugg: tepåsar är inte hushållspåsar', () => {
     expect(guessSection('Tepåsar')).toBe('Skafferi')
   })
 })

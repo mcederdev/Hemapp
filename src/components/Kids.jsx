@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTable } from '../useTable'
-import { startOfWeek, addDays, today, prettyDay } from '../lib/dates'
+import { startOfWeek, addDays, today, prettyDay, dayOf } from '../lib/dates'
 import { completeChore, showToday } from './Chores'
 import { weekStars, sumStars, goalSaved } from '../lib/stars'
 import Sheet from './Sheet'
@@ -50,7 +50,7 @@ export default function Kids({ householdId, members, household, households, memb
   const allToday = routines.rows.filter((r) => r.member_id === kid.id)
   const checkFor = (r) => checks.rows.find((c) => c.routine_id === r.id && c.day === t)
   const doneCards = cards.filter(checkFor).length
-  const choresToday = theirs.filter((c) => (c.due_date === t) || (c.done && c.done_at?.slice(0, 10) === t))
+  const choresToday = theirs.filter((c) => (c.due_date === t) || (c.done && dayOf(c.done_at) === t))
   const ringTotal = allToday.length + choresToday.length
   const ringDone = allToday.filter(checkFor).length + choresToday.filter((c) => c.done).length
   const toggleCard = (r) => {

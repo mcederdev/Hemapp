@@ -53,7 +53,7 @@ describe('nästa datum när en syssla bockas av', () => {
     it('den 15:e', () => expect(nextChoreDue(chore('2026-11-15', 1, 'month'), '2026-11-15')).toBe('2026-12-15'))
     it('den 31 jan: sista februari', () => expect(nextChoreDue(chore('2026-01-31', 1, 'month'), '2026-01-31')).toBe('2026-02-28'))
     it('den 31 jan på skottår: 29 feb', () => expect(nextChoreDue(chore('2028-01-31', 1, 'month'), '2028-01-31')).toBe('2028-02-29'))
-    it('BUGG: sysslan den 31:a glider inte till den 28:e efter februari', () => {
+    it('Fixad bugg: sysslan den 31:a glider inte till den 28:e efter februari', () => {
       // Bockad för sent den 1 mars: 31 jan → 28 feb (passerat) → 28 mar. Borde bli 31 mar.
       expect(nextChoreDue(chore('2026-01-31', 1, 'month'), '2026-03-01')).toBe('2026-03-31')
     })
@@ -106,7 +106,7 @@ describe('bocka av och ångra (completeChore)', () => {
     expect(t.insert).not.toHaveBeenCalled()
   })
 
-  it('BUGG: bocka av, ångra och bocka av igen skapar inte två nästa-omgångar', () => {
+  it('Fixad bugg: bocka av, ångra och bocka av igen skapar inte två nästa-omgångar', () => {
     const t = table([{ id: 'c1', title: 'Dammsuga', due_date: '2026-11-12', repeat_every: 1, repeat_unit: 'week', done: false }])
     completeChore(t, t.rows[0], 'mamma')
     t.update('c1', { done: false, done_at: null, done_by: null }) // Ångra, som i Chores.jsx

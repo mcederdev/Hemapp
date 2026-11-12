@@ -14,8 +14,21 @@ export function periodEnd(unit, t) {
 
 // Nästa förfallodag när en syssla med egen upprepning bockas av (idag = t).
 // Samma veckodag/dag i nästa period, men aldrig idag eller bakåt i tiden.
+// Räknas alltid från förfallodagen (inte steg för steg), så att en syssla den 31:a
+// inte glider till den 28:e när den bockas av för sent efter februari.
 export function nextChoreDue(c, t) {
-  let next = nextDue(c.due_date || t, c.repeat_every, c.repeat_unit)
-  while (next && next <= t) next = nextDue(next, c.repeat_every, c.repeat_unit)
-  return next
+  const from = c.due_date || t
+  const n = Math.max(1, Number(c.repeat_every) || 1)
+  for (let k = 1; k < 10000; k++) {
+    const next = nextDue(from, k * n, c.repeat_unit)
+    if (!next) return null
+    if (next > t) return next
+  }
+  return null
+}
+
+// Finns nästa omgång redan (t.ex. efter bocka av, ångra, bocka av igen)?
+export function hasNext(rows, c, due) {
+  return (rows || []).some((x) => x.id !== c.id && !x.done && x.title === c.title && x.due_date === due &&
+    (x.plan_id || null) === (c.plan_id || null) && (x.assigned_to || null) === (c.assigned_to || null))
 }

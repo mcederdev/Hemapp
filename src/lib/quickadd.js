@@ -9,6 +9,7 @@ const DAYS = [['mån', 1], ['måndag', 1], ['tis', 2], ['tisdag', 2], ['ons', 3]
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec']
 const REPEATS = [[/\bvarje vardag\b/, 'weekdays'], [/\bvarannan vecka\b/, 'biweekly'], [/\bvarje vecka\b/, 'weekly'], [/\bvarje dag\b/, 'daily'],
   [/\bvarje månad\b/, 'monthly'], [/\bvarje år\b/, 'yearly']]
+const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const pad = (h, m = '00') => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 
 export function parseQuick(text, { today, members = [] } = {}) {
@@ -20,9 +21,10 @@ export function parseQuick(text, { today, members = [] } = {}) {
   for (const [re, val] of REPEATS) if (re.test(s.toLowerCase())) { out.repeat = val; s = s.replace(new RegExp(re.source, 'i'), ' '); break }
 
   // Klockslag: "kl 15", "15:30", "15.30", "15-16", "10–12:30"
+  // Efter "kl" räcker en minutsiffra ("kl 14:0" = 14:00)
   const tm = s.match(/\s(?:kl\.?\s*)?(\d{1,2})(?:[:.](\d{2}))?\s*[-–]\s*(\d{1,2})(?:[:.](\d{2}))?(?=\s)/i) ||
-    s.match(/\skl\.?\s*(\d{1,2})(?:[:.](\d{2}))?(?=\s)/i) || s.match(/\s(\d{1,2})[:.](\d{2})(?=\s)/)
-  if (tm && Number(tm[1]) < 24) {
+    s.match(/\skl\.?\s*(\d{1,2})(?:[:.](\d{1,2}))?(?=\s)/i) || s.match(/\s(\d{1,2})[:.](\d{2})(?=\s)/)
+  if (tm && Number(tm[1]) < 24 && Number(tm[2] || 0) < 60) {
     out.time = pad(tm[1], tm[2] || '00')
     if (tm[3] !== undefined && tm.length > 3 && Number(tm[3]) < 24) out.endTime = pad(tm[3], tm[4] || '00')
     s = s.replace(tm[0], ' ')
@@ -34,13 +36,14 @@ export function parseQuick(text, { today, members = [] } = {}) {
   if ((m = low().match(/\si\s?övermorgon(?=\s)/))) { out.date = plus(today, 2); cut(/\si\s?övermorgon(?=\s)/i) }
   else if ((m = low().match(/\s(i\s?morgon|imorgon)(?=\s)/))) { out.date = plus(today, 1); cut(/\s(i\s?morgon|imorgon)(?=\s)/i) }
   else if ((m = low().match(/\s(idag|i dag|ikväll|i kväll)(?=\s)/))) { out.date = today; cut(/\s(idag|i dag|ikväll|i kväll)(?=\s)/i) }
-  else if ((m = low().match(/\s(\d{1,2})\s?(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec)[a-zåäö]*\.?(?=\s)/))) {
+  // "4 dec", "4e dec", "4:e december", "1a dec", gärna med "den" före
+  else if ((m = low().match(/\s(?:den\s)?(\d{1,2})(?::?[ea])?\s?(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec)[a-zåäö]*\.?(?=\s)/))) {
     const mon = MONTHS.indexOf(m[2]); const y = +today.slice(0, 4)
     let d = iso(new Date(y, mon, Number(m[1]), 12)); if (d < today) d = iso(new Date(y + 1, mon, Number(m[1]), 12))
-    out.date = d; s = s.replace(new RegExp(m[0].trim().replace('.', '\\.'), 'i'), ' ')
-  } else if ((m = low().match(/\s(\d{1,2})\/(\d{1,2})(?=\s)/))) {
+    out.date = d; s = s.replace(new RegExp(esc(m[0].trim()), 'i'), ' ')
+  } else if ((m = low().match(/\s(?:den\s)?(\d{1,2})\/(\d{1,2})(?=\s)/))) {
     const y = +today.slice(0, 4); let d = iso(new Date(y, Number(m[2]) - 1, Number(m[1]), 12)); if (d < today) d = iso(new Date(y + 1, Number(m[2]) - 1, Number(m[1]), 12))
-    out.date = d; s = s.replace(m[0], ' ')
+    out.date = d; s = s.replace(new RegExp(esc(m[0].trim()), 'i'), ' ')
   } else {
     // Veckodag: närmaste kommande (idag räknas om det är samma dag)
     for (const [name, wd] of [...DAYS].sort((a, b) => b[0].length - a[0].length)) {

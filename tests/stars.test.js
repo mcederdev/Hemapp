@@ -69,13 +69,13 @@ describe('stjärnor och veckopeng', () => {
     expect(sumStars(thisWeek)).toBe(2)
   })
 
-  it('BUGG: måndag strax efter midnatt räknas till den nya veckan', () => {
+  it('Fixad bugg: måndag strax efter midnatt räknas till den nya veckan', () => {
     // done_at sparas i UTC: 00:30 svensk tid = 23:30 UTC söndag, så stjärnorna hamnar på förra veckan
     const { thisWeek } = weekStars([c(2, at('2026-11-16T00:30'))], 'kid', H, '2026-11-16')
     expect(sumStars(thisWeek)).toBe(2)
   })
 
-  it('BUGG: i sommartid gäller samma sak fram till 02:00', () => {
+  it('Fixad bugg: i sommartid gäller samma sak fram till 02:00', () => {
     const { thisWeek } = weekStars([c(1, at('2026-06-15T01:30'))], 'kid', H, '2026-06-15')
     expect(sumStars(thisWeek)).toBe(1)
   })
