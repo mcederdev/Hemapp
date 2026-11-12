@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { supabase } from '../supabase'
 import { useTable } from '../useTable'
 import { COMMON_CHORES } from '../lib/defaults'
-import { nextDue, repeatLabel, prettyDay, today, addDays, startOfWeek } from '../lib/dates'
+import { repeatLabel, prettyDay, today, addDays, startOfWeek } from '../lib/dates'
 import { planDue, planLabel, PLAN_SUGGESTIONS } from '../lib/plans'
-import { showToday, periodEnd } from '../lib/choreRules'
+import { showToday, periodEnd, nextChoreDue } from '../lib/choreRules'
 import MemberPicker, { MemberTag } from './MemberPicker'
 import Sheet, { Fab } from './Sheet'
 import SwipeRow, { Check } from './Swipe'
@@ -31,9 +31,7 @@ export function completeChore(chores, c, doerId) {
   if (isSharedChore(c) && sharedLink) supabase.rpc('notify_linked', { link: sharedLink, msg: `har gjort: ${c.title}${c.car_id ? ' 🚗' : ''} ✓`, url: c.car_id ? '/?tab=car' : '/?tab=chores' })
   // Sysslor med valt datum (och äldre med egen upprepning): nästa gång läggs till direkt, samma veckodag nästa period
   if (c.repeat_unit && (!c.plan_id || c.fixed_day)) {
-    const t = today()
-    let next = nextDue(c.due_date || t, c.repeat_every, c.repeat_unit)
-    while (next && next <= t) next = nextDue(next, c.repeat_every, c.repeat_unit)
+    const next = nextChoreDue(c, today())
     chores.insert({
       title: c.title, assigned_to: c.assigned_to, stars: c.stars, plan_id: c.plan_id || null, fixed_day: !!c.fixed_day, shared: !!c.shared, car_id: c.car_id || null,
       repeat_every: c.repeat_every, repeat_unit: c.repeat_unit, due_date: next

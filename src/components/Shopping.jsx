@@ -12,7 +12,8 @@ import { useBarcodes } from '../useBarcodes'
 import Icon from './Icon'
 import { checkOff } from '../lib/refill'
 import { pickSub, shows } from '../lib/menu'
-import { splitTyped, addToItem, itemKey } from '../lib/qty'
+import { splitTyped, addToItem } from '../lib/qty'
+import { findActive, sectionFor, bySection } from '../lib/shopping'
 
 export default function Shopping({ householdId, me, members }) {
   const lists = useTable('shopping_lists', householdId)
@@ -56,9 +57,9 @@ export default function Shopping({ householdId, me, members }) {
   const add = (name, targetList = list, qty = '') => {
     const n = name.trim()
     if (!n || !targetList) return
-    const existing = items.rows.find((i) => i.list_id === targetList.id && !i.done && itemKey(i.name) === itemKey(n))
+    const existing = findActive(items.rows, targetList.id, n)
     if (existing) { if (qty) items.update(existing.id, { qty: addToItem(existing.qty, qty) }); return }
-    const section = catalogByName[n.toLowerCase()]?.section || guessSection(n)
+    const section = sectionFor(n, catalogByName)
     items.insert({ name: n, list_id: targetList.id, added_by: me.id, section, ...(qty ? { qty } : {}) })
   }
   // Flera varor på en gång: "mjölk, ägg och bröd", "2 gurkor, 1 l mjölk"
@@ -74,7 +75,7 @@ export default function Shopping({ householdId, me, members }) {
   // Prio-markerade varor ligger överst och syns på Idag
   const prioFirst = (rows) => [...rows].sort((a, b) => Number(!!b.prio) - Number(!!a.prio))
   const groups = groupBySection
-    ? SECTIONS.map((s) => [s, prioFirst(todo.filter((i) => (SECTIONS.includes(i.section) ? i.section : 'Övrigt') === s))]).filter(([, v]) => v.length)
+    ? bySection(todo).map(([s, v]) => [s, prioFirst(v)])
     : [[null, prioFirst(todo)]]
 
   return (

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
-import { SECTIONS } from '../lib/sections'
+import { bySection } from '../lib/shopping'
 import { useWakeLock } from '../lib/useNow'
 import { buzz } from './Swipe'
 import { checkOff } from '../lib/refill'
@@ -20,8 +20,7 @@ export default function ShopMode({ list, items, lists = [], onClose, householdId
   const left = rows.filter((i) => !i.done)
   const taken = rows.filter((i) => i.done)
   const total = rows.length
-  const sec = (i) => (SECTIONS.includes(i.section) ? i.section : 'Övrigt')
-  const groups = SECTIONS.map((s) => [s, left.filter((i) => sec(i) === s)]).filter(([, v]) => v.length)
+  const groups = bySection(left)
 
   const toggle = (i) => { buzz(); if (i.done) items.update(i.id, { done: false }); else checkOff(items, i, lists, pantry) }
   const finish = async () => {
