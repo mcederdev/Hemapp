@@ -162,8 +162,14 @@ export function addToItem(existing, q) {
 }
 
 // Nyckel för att känna igen samma vara i ental och flertal: Gurka/Gurkor, Tomat/Tomater, Lök/Lökar
+// Oregelbundna pluralformer
+const IRREGULAR = { 'morötter': 'morot', 'jordnötter': 'jordnöt', 'nötter': 'nöt', 'rötter': 'rot' }
 export function itemKey(name) {
-  const n = String(name || '').trim().toLowerCase()
+  const n0 = String(name || '').trim().toLowerCase()
+  const n = IRREGULAR[n0] || n0
   const stem = n.replace(/(or|ar|er|a)$/, '')
-  return stem.length >= 3 && stem !== n ? stem : n
+  if (stem.length >= 3 && stem !== n) return stem
+  // "Äpple" = "Äpplen" (kräver minst 4 bokstäver kvar, så att "lime" inte blir "lim")
+  const e = n.replace(/(en|e)$/, '')
+  return e.length >= 4 && e !== n ? e : n
 }

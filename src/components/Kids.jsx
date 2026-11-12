@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useTable } from '../useTable'
-import { startOfWeek, addDays, today, prettyDay } from '../lib/dates'
+import { startOfWeek, addDays, today, prettyDay, dayOf } from '../lib/dates'
 import { completeChore, showToday } from './Chores'
+import { weekStars, sumStars, goalSaved } from '../lib/stars'
 import Sheet from './Sheet'
 import { buzz } from './Swipe'
 import Mood from './Mood'
@@ -40,11 +41,8 @@ export default function Kids({ householdId, members, household, households, memb
   const theirs = chores.rows.filter((c) => c.assigned_to === kid.id)
   const todo = theirs.filter((c) => showToday(c, t) || (!c.done && c.due_date === addDays(t, 1)))
     .sort((a, b) => (a.due_date || '9').localeCompare(b.due_date || '9'))
-  const doneBy = chores.rows.filter((c) => (c.done_by || c.assigned_to) === kid.id && !c.is_test && c.household_id === householdId)
-  const doneIn = (from, to) => doneBy.filter((c) => c.done && c.done_at && c.done_at.slice(0, 10) >= from && c.done_at.slice(0, 10) < to)
-  const thisWeek = doneIn(week, addDays(week, 7))
-  const lastWeek = doneIn(addDays(week, -7), week)
-  const stars = (list) => list.reduce((s, c) => s + (c.stars || 0), 0)
+  const { thisWeek, lastWeek } = weekStars(chores.rows, kid.id, householdId, week)
+  const stars = sumStars
   const starsNow = stars(thisWeek)
 
   // Rutiner och dagens ring
@@ -52,7 +50,7 @@ export default function Kids({ householdId, members, household, households, memb
   const allToday = routines.rows.filter((r) => r.member_id === kid.id)
   const checkFor = (r) => checks.rows.find((c) => c.routine_id === r.id && c.day === t)
   const doneCards = cards.filter(checkFor).length
-  const choresToday = theirs.filter((c) => (c.due_date === t) || (c.done && c.done_at?.slice(0, 10) === t))
+  const choresToday = theirs.filter((c) => (c.due_date === t) || (c.done && dayOf(c.done_at) === t))
   const ringTotal = allToday.length + choresToday.length
   const ringDone = allToday.filter(checkFor).length + choresToday.filter((c) => c.done).length
   const toggleCard = (r) => {
@@ -72,7 +70,7 @@ export default function Kids({ householdId, members, household, households, memb
 
   // Sparmål: stjärnor intjänade sedan målet sattes
   const hasGoal = kid.goal_title && kid.goal_amount > 0
-  const saved = hasGoal ? stars(doneBy.filter((c) => c.done && c.done_at && c.done_at.slice(0, 10) >= (kid.goal_since || '0'))) * perStar : 0
+  const saved = goalSaved(chores.rows, kid, householdId, perStar)
   const goalPct = hasGoal ? Math.min(100, (saved / kid.goal_amount) * 100) : 0
   const saveGoal = async (e) => {
     e.preventDefault()

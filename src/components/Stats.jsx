@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTable } from '../useTable'
-import { today, startOfWeek, addDays } from '../lib/dates'
+import { today, startOfWeek, addDays, dayOf } from '../lib/dates'
 import { MemberTag } from './MemberPicker'
 import VabStats from './VabStats'
 import { counts } from '../lib/testmode'
@@ -37,7 +37,7 @@ function ChoreStats({ householdId, members, since }) {
   const [period, setPeriod] = useState('month')
   const t = today()
   const from = period === 'week' ? startOfWeek(t) : period === 'month' ? t.slice(0, 7) + '-01' : t.slice(0, 4) + '-01-01'
-  const done = chores.rows.filter((c) => c.done && c.done_at && c.done_at.slice(0, 10) >= from)
+  const done = chores.rows.filter((c) => c.done && c.done_at && dayOf(c.done_at) >= from)
   const who = (c) => c.done_by || c.assigned_to
   const perMember = members.map((m) => ({ m, n: done.filter((c) => who(c) === m.id).length, stars: done.filter((c) => who(c) === m.id).reduce((s, c) => s + (c.stars || 0), 0) }))
   const unknown = done.filter((c) => !who(c)).length
@@ -57,7 +57,7 @@ function ChoreStats({ householdId, members, since }) {
 
   // Senaste 8 veckorna
   const weeks = Array.from({ length: 8 }, (_, i) => addDays(startOfWeek(t), -7 * (7 - i)))
-  const weekRows = weeks.map((w) => members.map((m) => chores.rows.filter((c) => c.done && c.done_at && who(c) === m.id && c.done_at.slice(0, 10) >= w && c.done_at.slice(0, 10) < addDays(w, 7)).length))
+  const weekRows = weeks.map((w) => members.map((m) => chores.rows.filter((c) => c.done && c.done_at && who(c) === m.id && dayOf(c.done_at) >= w && dayOf(c.done_at) < addDays(w, 7)).length))
   const weekMax = Math.max(1, ...weekRows.map((r) => r.reduce((a, b) => a + b, 0)))
   const late = chores.rows.filter((c) => !c.done && c.due_date && c.due_date < t).length
 

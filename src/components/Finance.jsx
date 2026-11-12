@@ -124,7 +124,7 @@ function Bills({ householdId, members, membersTable, go }) {
           {result.rows.map((r) => (
             <div key={r.id}>
               <strong>{r.name} ({Math.round(r.share * 100)} %)</strong>
-              <div className="muted small">Ska stå för {kr(r.shouldPay)}, betalar själv {kr(r.paid)}</div>
+              <div className="muted small">Ska stå för {kr(r.shouldPayKr)}, betalar själv {kr(r.paid)}</div>
             </div>
           ))}
           {result.transfers.length === 0

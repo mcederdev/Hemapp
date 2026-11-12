@@ -7,7 +7,8 @@
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview --host",
-    "test": "node --test src/lib/*.test.js"
+    "test": "node --test src/lib/lib.test.js && vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",
@@ -20,6 +21,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "6.2.1",
     "vite": "8.3.6",
-    "vite-plugin-pwa": "2.0.0"
+    "vite-plugin-pwa": "2.0.0",
+    "vitest": "^5.0.5"
   }
 }
