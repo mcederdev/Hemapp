@@ -9,6 +9,7 @@ import { getTheme, setTheme } from '../lib/theme'
 import { CustodyEditor } from './Custody'
 import { AvatarUpload, AccentPicker, PlacePicker, Guests, ExportData } from './FamilyExtras'
 import { pushSupport, currentSubscription, enablePush, disablePush } from '../lib/push'
+import { linkInviteVerdict, isMissingFunction } from '../lib/linkInvite'
 
 export default function Family({ me, householdId, members, membersTable, household, households, linked, custody, custodyTable, custodyExc, guests, guestsTable }) {
   const [childName, setChildName] = useState('')
@@ -212,6 +213,11 @@ function SharedCustody({ members, householdId, linked, membersTable }) {
   }
   const accept = async (e) => {
     e.preventDefault(); setMsg('')
+    const { data: check, error: checkError } = await supabase.rpc('check_link_invite', { code: input })
+    if (checkError && !isMissingFunction(checkError)) return setMsg(checkError.message)
+    const verdict = linkInviteVerdict(check)
+    if (verdict.error) return setMsg(verdict.error)
+    if (verdict.warning && !confirm(verdict.warning)) return
     const { error } = await supabase.rpc('accept_link_invite', { code: input })
     if (error) return setMsg(error.message)
     setInput(''); setMsg('Klart! Nu delar ni kalender, schema, bil och barnets VAB.')

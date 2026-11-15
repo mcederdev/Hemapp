@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import { linkInviteVerdict, isMissingFunction } from '../lib/linkInvite'
 
 export default function Setup({ onDone }) {
   const [name, setName] = useState('')
@@ -16,6 +17,17 @@ export default function Setup({ onDone }) {
     if (!auth.session) {
       await supabase.auth.signOut()
       return
+    }
+    // Delad vårdnad: kolla koden innan hushållet skapas, så att det inte blir ett extra hushåll
+    if (mode === 'link') {
+      const { data: check, error: checkError } = await supabase.rpc('check_link_invite', { code })
+      if (checkError && !isMissingFunction(checkError)) return setMsg(checkError.message)
+      const verdict = linkInviteVerdict(check)
+      if (verdict.error) return setMsg(verdict.error)
+      if (verdict.warning && !confirm(verdict.warning)) {
+        setMode('join'); setCode('')
+        return setMsg('Skriv in familjens inbjudningskod. Du får den av någon som redan är med i familjen.')
+      }
     }
     let { error } = mode === 'guest'
       ? await supabase.rpc('accept_guest_invite', { code, my_name: name })
