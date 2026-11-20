@@ -4,7 +4,7 @@ Alla önskemål som Magnus har bett om, och hur långt de har kommit. Listan upp
 
 Samma lista finns överst i dokumentet [Hemappen – önskemål och förbättringsidéer](https://claude.ai/artifact/HD2vtyY5PeqVHSoAAcPiC9), som också har förbättringsidéerna 1–71. Båda uppdateras samtidigt.
 
-Senast uppdaterad: 2026-11-20 (skanning flyttad till plusknappen).
+Senast uppdaterad: 2026-11-20 (VAB döljer hämtningen, skanning flyttad till plusknappen).
 
 **Status:** ✅ klart · 🟡 delvis eller väntar på någon · ⏳ pågår · ⬜ inte byggt (väntar på besked) · ⏸️ pausat
 
@@ -14,8 +14,7 @@ Senast uppdaterad: 2026-11-20 (skanning flyttad till plusknappen).
 
 | Status | Önskemål | Kommentar |
 |---|---|---|
-| 🟡 | Ta bort kameraknappen, välj Skanna eller Skriv när man trycker + (Skafferi och Slut hemma) | Byggt 2026-11-20 i PR #15, väntar på att Magnus testar och mergar |
-| 🟡 | Testsvit (Vitest) och rättning av alla 21 fel den hittade (snabbinmatning, sysslor, stjärnor, kalenderimport, ekonomi, inköp) | PR #13 öppen, alla tester gröna. Väntar på att Magnus testar och mergar |
+| 🟡 | VAB döljer lämna/hämta den dagen | PR öppen, väntar på att Magnus testar och mergar |
 | ⏳ | Köksskärmen: ändra storlek och ordning på blocken (dra ut, flytta, innehållet anpassas) | Byggs i en egen tråd (förslag 71 i dokumentet) |
 | 🟡 | Ta bort gamla medicinfält i databasen (`medicine_doses`, `dose_morning`, `dose_evening`) | Godkänt 2026-11-05, men SQL:en måste köras av Magnus i Supabase och har inte körts |
 | 🟡 | Se Juhanis skolschema även andra hemmets veckor | Ingen kodändring behövs. Andra hemmet (eller Magnus) lägger in "Skola" på Juhani för sina veckor |
@@ -69,6 +68,7 @@ Senast uppdaterad: 2026-11-20 (skanning flyttad till plusknappen).
 - ✅ Mest köpta varor räknas först vid avbockning, och inte i testläget
 
 ### Mat
+- ✅ Ingen separat kameraknapp: + ger valet Skanna eller Skriv på Skafferi och Slut hemma (PR #15)
 - ✅ Skafferi: skanna in varor med streckkod (Open Food Facts + appens minne), skanna tom förpackning på Slut hemma (PR #11)
 - 🟡 Skafferi: egen plats för Kryddor (även vid skanning, kryddor hamnar där av sig själva). Byggt, väntar på merge (PR #12)
 - ✅ Veckomeny som färgade kort, håll inne för att byta dag
@@ -103,6 +103,7 @@ Senast uppdaterad: 2026-11-20 (skanning flyttad till plusknappen).
 
 ### Lämna och hämta
 - ✅ Förval efter kalendern (den som är ledig), "Båda", egen sida, påminnelse på Idag, statistik
+- 🟡 VAB för barnet döljer hämtningen den dagen (och lämningen om VAB börjar före skolan), utan varningar. Sidan visar "Juhani är hemma, Magnus vabbar"
 
 ### Bilen
 - ✅ Kostnader, vem som betalat, delas eller inte (bensin = info), Swish, reglerat
@@ -135,6 +136,7 @@ Senast uppdaterad: 2026-11-20 (skanning flyttad till plusknappen).
 - ✅ Väder, nattläge 21–06, helskärm, håller skärmen vaken, prio-varor först
 
 ### Övrigt
+- ✅ Testsvit (Vitest) och rättning av alla 21 fel den hittade (PR #13, mergad 2026-11-12)
 - ✅ Lappar med figurer och "till", "+ Lapp" som post-it på familjeraden
 - ✅ Meddelanden inom familjen och mellan hushållen
 - ✅ Årliga påminnelser, födelsedagar och presentidéer
