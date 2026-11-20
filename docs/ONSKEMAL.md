@@ -4,7 +4,7 @@ Alla önskemål som Magnus har bett om, och hur långt de har kommit. Listan upp
 
 Samma lista finns överst i dokumentet [Hemappen – önskemål och förbättringsidéer](https://claude.ai/artifact/HD2vtyY5PeqVHSoAAcPiC9), som också har förbättringsidéerna 1–71. Båda uppdateras samtidigt.
 
-Senast uppdaterad: 2026-11-20 (VAB döljer hämtningen).
+Senast uppdaterad: 2026-11-20 (VAB döljer hämtningen, skanning flyttad till plusknappen).
 
 **Status:** ✅ klart · 🟡 delvis eller väntar på någon · ⏳ pågår · ⬜ inte byggt (väntar på besked) · ⏸️ pausat
 
@@ -68,6 +68,7 @@ Senast uppdaterad: 2026-11-20 (VAB döljer hämtningen).
 - ✅ Mest köpta varor räknas först vid avbockning, och inte i testläget
 
 ### Mat
+- ✅ Ingen separat kameraknapp: + ger valet Skanna eller Skriv på Skafferi och Slut hemma (PR #15)
 - ✅ Skafferi: skanna in varor med streckkod (Open Food Facts + appens minne), skanna tom förpackning på Slut hemma (PR #11)
 - 🟡 Skafferi: egen plats för Kryddor (även vid skanning, kryddor hamnar där av sig själva). Byggt, väntar på merge (PR #12)
 - ✅ Veckomeny som färgade kort, håll inne för att byta dag
