@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTable } from '../useTable'
 import { today, prettyDay } from '../lib/dates'
 import { daysUntil } from '../lib/yearly'
-import Sheet, { Fab } from './Sheet'
+import Sheet, { FabMenu } from './Sheet'
 import Scanner from './Scanner'
 import { useBarcodes } from '../useBarcodes'
 
@@ -60,12 +60,9 @@ export default function Pantry({ householdId, onOut }) {
         <button className={`chip ${place === 'alla' ? 'on' : ''}`} onClick={() => setPlace('alla')}>Allt</button>
         {PLACES.map(([v, l]) => <button key={v} className={`chip ${place === v ? 'on' : ''}`} onClick={() => setPlace(v)}>{l}</button>)}
       </div>
-      <div className="scan-btns mt">
-        <button onClick={() => { setNote(''); setScan(true) }}>📷 Skanna in vara</button>
-      </div>
       {looking && <p className="muted small mt">Letar upp varan…</p>}
       {note && !looking && <p className="muted small mt">{note}</p>}
-      {pantry.rows.length === 0 && <p className="muted">Det ni bockar av på inköpslistan hamnar här av sig självt (mat som sparas, inte frukt, dryck eller hygien). Lägg till mer med +. Då föreslår Mat-sidan middagar som använder det som snart går ut.</p>}
+      {pantry.rows.length === 0 && <p className="muted">Det ni bockar av på inköpslistan hamnar här av sig självt (mat som sparas, inte frukt, dryck eller hygien). Lägg till mer med +, skanna streckkoden eller skriv själv. Då föreslår Mat-sidan middagar som använder det som snart går ut.</p>}
       {pantry.rows.length > 0 && <p className="muted small mt">Avbockade varor läggs till här. Bäst före är en gissning för färskvaror, tryck på varan för att ändra.</p>}
       <ul className="list mt">
         {rows.map((x) => {
@@ -81,7 +78,10 @@ export default function Pantry({ householdId, onOut }) {
           )
         })}
       </ul>
-      <Fab onClick={() => setEdit({ ...blank(), place: place === 'alla' ? 'kyl' : place })} label="Lägg till" />
+      <FabMenu label="Lägg till" options={[
+        { icon: '📷', label: 'Skanna streckkod', onClick: () => { setNote(''); setScan(true) } },
+        { icon: '✏️', label: 'Skriv själv', onClick: () => setEdit({ ...blank(), place: place === 'alla' ? 'kyl' : place }) }
+      ]} />
       {scan && <Scanner title="Skanna in vara" onCode={scanned} onClose={() => setScan(false)} />}
       {edit && (
         <Sheet title={edit.id ? edit.name : 'Finns hemma'} onClose={() => setEdit(null)}>

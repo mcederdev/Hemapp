@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTable } from '../useTable'
 import { guessSection, SECTIONS, DEFAULT_STAPLES } from '../lib/sections'
 import { parseDay } from '../lib/dates'
-import Sheet, { Fab } from './Sheet'
+import Sheet, { Fab, FabMenu } from './Sheet'
 import SwipeRow, { Check } from './Swipe'
 import { MemberTag } from './MemberPicker'
 import ShopMode from './ShopMode'
@@ -265,11 +265,6 @@ function OutAtHome({ householdId, catalog, items, pantry, add, defaultList }) {
       <p className="muted small">
         {edit ? 'Tryck på en vara för att ändra eller ta bort den.' : `Tryck på det som håller på att ta slut så läggs det på ${defaultList?.name || 'inköpslistan'}. Tryck igen för att ångra.`}
       </p>
-      {!edit && (
-        <div className="scan-btns mt">
-          <button onClick={() => { setNote(''); setScan(true) }}>📷 Skanna det som är slut</button>
-        </div>
-      )}
       {note && <p className="muted small mt">{note}</p>}
       {scan && <Scanner title="Vad är slut?" hint="Skanna den tomma förpackningen." onCode={scanned} onClose={() => setScan(false)} />}
       <div className="tiles mt">
@@ -284,7 +279,10 @@ function OutAtHome({ householdId, catalog, items, pantry, add, defaultList }) {
         })}
       </div>
       {usingDefaults && <p className="muted small">Det här är förslag. <button className="link" onClick={adoptDefaults}>Använd dem som våra</button> eller lägg till egna med plusset.</p>}
-      <Fab onClick={() => setSheet({ name: '', section: '' })} label="Ny vara" />
+      <FabMenu label="Lägg till" options={[
+        { icon: '📷', label: 'Skanna det som är slut', onClick: () => { setNote(''); setScan(true) } },
+        { icon: '✏️', label: 'Skriv in ny vara', onClick: () => setSheet({ name: '', section: '' }) }
+      ]} />
       {sheet && (
         <Sheet title={sheet.id ? 'Ändra vara' : 'Ny vara som brukar ta slut'} onClose={() => setSheet(null)}>
           <form className="stack" onSubmit={save}>

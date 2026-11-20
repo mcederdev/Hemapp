@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 // Popup som glider upp nerifrån, stängs med ✕ eller tryck utanför
 export default function Sheet({ title, onClose, children, tall = false }) {
@@ -27,4 +27,30 @@ export default function Sheet({ title, onClose, children, tall = false }) {
 // Rund plusknapp nere till höger
 export function Fab({ onClick, label = 'Lägg till' }) {
   return <button className="fab" onClick={onClick} aria-label={label}>+</button>
+}
+
+// Plusknapp som först frågar hur man vill lägga till: skanna streckkoden eller skriva själv.
+// options = [{ icon, label, onClick }]
+export function FabMenu({ options, label = 'Lägg till' }) {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+  const pick = (o) => { setOpen(false); o.onClick() }
+  return (
+    <>
+      {open && <div className="fab-bg" onClick={() => setOpen(false)} />}
+      {open && (
+        <div className="fab-menu" role="menu" aria-label={label}>
+          {options.map((o) => (
+            <button key={o.label} role="menuitem" onClick={() => pick(o)}><span aria-hidden="true">{o.icon}</span> {o.label}</button>
+          ))}
+        </div>
+      )}
+      <button className={`fab ${open ? 'open' : ''}`} onClick={() => setOpen(!open)} aria-label={open ? 'Stäng' : label} aria-expanded={open}>+</button>
+    </>
+  )
 }
