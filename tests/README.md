@@ -15,8 +15,8 @@ Europe/Stockholm (`vitest.config.js`), så datumtesterna ger samma svar på alla
 | `chores.test.js` | Nästa datum för återkommande sysslor, avbockning och ångra, planer |
 | `stars.test.js` | Stjärnor, veckopeng och sparmål |
 | `shopping.test.js` | Inga dubbletter på inköpslistan, avdelningar och Övrigt |
-| `quickadd.test.js` | Snabbinmatningen (pluset på Idag) |
 | `pantry.test.js` | Vilka varor som räknas som skafferivaror och var de hamnar hemma |
+| `quickadd.test.js` | Snabbinmatningen (pluset på Idag) |
 
 Tester vars namn börjar med **Fixad bugg:** var röda när testsviten skrevs (2026-11-12) och
 visade fel i koden. De är rättade nu och ska förbli gröna. Hittar du ett nytt fel: skriv ett test
