@@ -21,14 +21,29 @@ export function busyAt(events, personId, at) {
     .some((o) => o.start <= at && (o.end || o.start) > at)
 }
 
+// VAB för barnet en dag: vem som vabbar och vilka av lämna/hämta som inte behövs.
+// Hämta behövs aldrig (barnet är hemma eller hämtas när VAB börjar). Lämna behövs bara om
+// all VAB den dagen börjar efter skolstart, alltså att barnet gick till skolan och hämtades tidigt.
+export function vabCover(vab, childId, dayStr, school) {
+  const rows = (vab || []).filter((r) => (r.kind || 'vab') === 'vab' && r.child_id === childId && r.day === dayStr)
+  if (!rows.length) return null
+  const begin = (r) => (r.full_day || !r.start_time ? '00:00' : String(r.start_time).slice(0, 5))
+  const first = rows.map(begin).sort()[0]
+  const skip = new Set(['hamta'])
+  if (!school || first <= school.startHM) skip.add('lamna')
+  return { parentIds: [...new Set(rows.map((r) => r.parent_id).filter(Boolean))], skip, from: first === '00:00' ? null : first }
+}
+
 // Varningar för en dag: ingen ledig att lämna/hämta, vald person jobbar, bytet krockar med jobb
-export function dayWarnings({ events, kids, parents, pickups, dayStr, here, handover, nameOf }) {
+export function dayWarnings({ events, kids, parents, pickups, dayStr, here, handover, nameOf, vab }) {
   const out = []
   for (const kid of kids) {
     if (here && !here(kid.id)) continue
     const s = schoolDay(events, kid.id, dayStr)
     if (!s) continue
+    const cover = vabCover(vab, kid.id, dayStr, s)
     for (const [kind, at, label] of [['lamna', s.start, 'lämna'], ['hamta', s.end, 'hämta']]) {
+      if (cover?.skip.has(kind)) continue
       const p = pickups.find((x) => x.child_id === kid.id && x.day === dayStr && x.kind === kind)
       if (p?.both_parents) {
         const busy = parents.filter((m) => busyAt(events, m.id, at))

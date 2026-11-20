@@ -1,17 +1,21 @@
 import { useState } from 'react'
 import { useTable } from '../useTable'
 import { today, addDays, prettyDay } from '../lib/dates'
-import { schoolDay, dayWarnings, freeParent, busyAt } from '../lib/pickup'
+import { schoolDay, dayWarnings, freeParent, busyAt, vabCover } from '../lib/pickup'
 import { withUs, isHandover } from '../lib/custody'
 import { MemberTag } from './MemberPicker'
 import Sheet from './Sheet'
 import Fold from './Fold'
+
+// "Juhani är hemma, Magnus vabbar" eller "hämtas 11:00, Magnus vabbar"
+const vabText = (kid, v) => `${v.skip.has('lamna') ? `${kid.name} är hemma` : `${kid.name} hämtas ${v.from}`}${v.names.length ? `, ${v.names.join(' och ')} vabbar` : ' (VAB)'}`
 
 const dayName = (d, t) => (d === t ? 'Idag' : d === addDays(t, 1) ? 'Imorgon' : prettyDay(d))
 
 // Räknar ut dagarna: skoltider, vem som lämnar/hämtar (valt eller förvalt enligt kalendern) och varningar
 function usePlan({ householdId, members, people, me, custody, events, count }) {
   const pickups = useTable('pickups', householdId, 'day')
+  const vab = useTable('vab_days', householdId, 'day')
   const t = today()
   const kids = members.filter((m) => m.role === 'child')
   const parents = members.filter((m) => m.role !== 'child' && m.household_id === me.household_id)
@@ -22,9 +26,10 @@ function usePlan({ householdId, members, people, me, custody, events, count }) {
 
   const days = Array.from({ length: count }, (_, i) => addDays(t, i)).map((d) => {
     const handover = kids.flatMap((k) => { const c = cust(k.id); return c && isHandover(c, d) ? [{ kid: k, at: new Date(`${d}T${String(c.handover_time).slice(0, 5)}`) }] : [] })
-    const rows = kids.filter((k) => hereOn(d)(k.id)).map((k) => ({ kid: k, s: schoolDay(events, k.id, d) })).filter((x) => x.s).map(({ kid, s }) => ({
+    const rows = kids.filter((k) => hereOn(d)(k.id)).map((k) => { const s = schoolDay(events, k.id, d); return { kid: k, s, cover: s && vabCover(vab.rows, k.id, d, s) } }).filter((x) => x.s).map(({ kid, s, cover }) => ({
       kid,
-      slots: [['lamna', 'Lämna', s.startHM, s.start], ['hamta', 'Hämta', s.endHM, s.end]].map(([kind, label, time, at]) => {
+      vab: cover && { ...cover, names: cover.parentIds.map((id) => byId[id]?.name).filter(Boolean) },
+      slots: [['lamna', 'Lämna', s.startHM, s.start], ['hamta', 'Hämta', s.endHM, s.end]].filter(([kind]) => !cover?.skip.has(kind)).map(([kind, label, time, at]) => {
         const p = who(kid, d, kind)
         const auto = !p ? freeParent(events, parents, at) : null
         const both = !!p?.both_parents
@@ -32,7 +37,7 @@ function usePlan({ householdId, members, people, me, custody, events, count }) {
         return { kind, label, time, at, p, auto, both, person, name: both ? 'Båda' : p?.person_name || person?.name || null }
       })
     }))
-    const warnings = dayWarnings({ events, kids, parents, pickups: pickups.rows, dayStr: d, here: hereOn(d), handover, nameOf: (id) => byId[id]?.name || 'Någon' })
+    const warnings = dayWarnings({ events, kids, parents, pickups: pickups.rows, dayStr: d, here: hereOn(d), handover, nameOf: (id) => byId[id]?.name || 'Någon', vab: vab.rows })
     return { d, rows, warnings }
   })
 
@@ -98,9 +103,10 @@ export function PickupsPage(props) {
         <div key={d} className="card compact pickups"><div className="pk-day">
           <div className="muted small cap"><strong>{dayName(d, t)}</strong></div>
           {warnings.map((w, i) => <p key={i} className="warn-line">⚠️ {w.text}</p>)}
-          {rows.map(({ kid, slots }) => (
+          {rows.map(({ kid, slots, vab }) => (
             <div key={kid.id} className="pk-row">
               <MemberTag member={kid} size={24} />
+              {vab && <span className="muted small">🤒 {vabText(kid, vab)}</span>}
               {slots.map((s) => (
                 <button key={s.kind} className={`pk-btn ${s.both || s.p?.person_name || s.p?.person_id ? 'set' : s.auto ? 'auto' : ''}`} onClick={() => setPick({ kid, day: d, kind: s.kind, label: s.label, time: s.time, at: s.at })}>
                   <span className="muted small">{s.label} {s.time}{s.auto ? ' · ledig' : ''}</span>
