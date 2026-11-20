@@ -5,6 +5,7 @@ import { daysUntil } from '../lib/yearly'
 import Sheet, { FabMenu } from './Sheet'
 import Scanner from './Scanner'
 import { useBarcodes } from '../useBarcodes'
+import { PANTRY_GROUPS } from '../lib/pantryStaples'
 
 const PLACES = [['skafferi', '🥫 Skafferi'], ['kyl', '🧊 Kyl'], ['frys', '❄️ Frys'], ['kryddor', '🌶️ Kryddor']]
 const blank = () => ({ name: '', place: 'kyl', qty: '', best_before: '' })
@@ -30,6 +31,7 @@ export default function Pantry({ householdId, onOut }) {
   const [scan, setScan] = useState(false)
   const [looking, setLooking] = useState(false)
   const [note, setNote] = useState('')
+  const [info, setInfo] = useState(false)
   const t = today()
   const rows = pantry.rows.filter((x) => place === 'alla' || x.place === place)
     .sort((a, b) => (a.best_before || '9999').localeCompare(b.best_before || '9999') || a.name.localeCompare(b.name))
@@ -64,6 +66,7 @@ export default function Pantry({ householdId, onOut }) {
       {note && !looking && <p className="muted small mt">{note}</p>}
       {pantry.rows.length === 0 && <p className="muted">Det ni bockar av på inköpslistan hamnar här av sig självt (mat som sparas, inte frukt, dryck eller hygien). Lägg till mer med +, skanna streckkoden eller skriv själv. Då föreslår Mat-sidan middagar som använder det som snart går ut.</p>}
       {pantry.rows.length > 0 && <p className="muted small mt">Avbockade varor läggs till här. Bäst före är en gissning för färskvaror, tryck på varan för att ändra.</p>}
+      <button className="link small" onClick={() => setInfo(true)}>Vad räknas som skafferivaror?</button>
       <ul className="list mt">
         {rows.map((x) => {
           const n = x.best_before ? daysUntil(t, x.best_before) : null
@@ -83,6 +86,18 @@ export default function Pantry({ householdId, onOut }) {
         { icon: '✏️', label: 'Skriv själv', onClick: () => setEdit({ ...blank(), place: place === 'alla' ? 'kyl' : place }) }
       ]} />
       {scan && <Scanner title="Skanna in vara" onCode={scanned} onClose={() => setScan(false)} />}
+      {info && (
+        <Sheet title="Skafferivaror" onClose={() => setInfo(false)}>
+          <p className="muted small">Torrvaror och konserver som håller länge. När ni bockar av en sådan vara på inköpslistan hamnar den här under 🥫 Skafferi, utan bäst före-datum.</p>
+          {PANTRY_GROUPS.map((g) => (
+            <div key={g.title} className="mt">
+              <strong>{g.title}</strong>
+              <p className="small">{g.items}</p>
+            </div>
+          ))}
+          <p className="muted small mt">Saknas något? Lägg in varan själv med + och välj Skafferi, eller säg till så läggs den in i listan.</p>
+        </Sheet>
+      )}
       {edit && (
         <Sheet title={edit.id ? edit.name : 'Finns hemma'} onClose={() => setEdit(null)}>
           <form className="stack" onSubmit={save}>

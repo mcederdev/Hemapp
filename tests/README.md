@@ -15,6 +15,7 @@ Europe/Stockholm (`vitest.config.js`), så datumtesterna ger samma svar på alla
 | `chores.test.js` | Nästa datum för återkommande sysslor, avbockning och ångra, planer |
 | `stars.test.js` | Stjärnor, veckopeng och sparmål |
 | `shopping.test.js` | Inga dubbletter på inköpslistan, avdelningar och Övrigt |
+| `pantry.test.js` | Vilka varor som räknas som skafferivaror och var de hamnar hemma |
 | `quickadd.test.js` | Snabbinmatningen (pluset på Idag) |
 | `pickup.test.js` | Lämna och hämta: VAB döljer hämtningen |
 | `pickup-page.test.jsx` | Sidan Lämna och hämta ritas upp utan krasch (även med VAB) |
