@@ -1,3 +1,5 @@
+import { PANTRY_WORDS, PANTRY_HINTS } from './pantryStaples.js'
+
 // Gissar vilken avdelning i butiken en vara hör till
 export const SECTIONS = [
   'Frukt & grönt', 'Bröd', 'Mejeri', 'Kött & fisk', 'Chark', 'Frys', 'Skafferi',
@@ -6,16 +8,17 @@ export const SECTIONS = [
 
 const WORDS = {
   'Frukt & grönt': ['äpple', 'banan', 'apelsin', 'päron', 'druv', 'citron', 'lime', 'tomat', 'gurka', 'sallad', 'lök', 'vitlök', 'potatis', 'morot', 'paprika', 'broccoli', 'avokado', 'svamp', 'champinjon', 'zucchini', 'spenat', 'frukt', 'bär', 'kål', 'majs', 'ingefära', 'clementin', 'melon', 'kiwi', 'örter', 'dill', 'persilja', 'basilika'],
-  'Bröd': ['bröd', 'limpa', 'fralla', 'frallor', 'baguette', 'knäcke', 'tortilla', 'bulle', 'kaka', 'tunnbröd', 'hamburgerbröd', 'korvbröd'],
+  'Bröd': ['bröd', 'limpa', 'fralla', 'frallor', 'baguette', 'bulle', 'kaka', 'tunnbröd', 'hamburgerbröd', 'korvbröd'],
   'Mejeri': ['mjölk', 'fil', 'yoghurt', 'grädde', 'smör', 'ost', 'ägg', 'kvarg', 'crème', 'creme', 'keso', 'margarin', 'bregott', 'havredryck', 'mozzarella', 'fetaost', 'halloumi'],
   'Kött & fisk': ['kött', 'färs', 'kyckling', 'fläsk', 'lax', 'fisk', 'torsk', 'räk', 'biff', 'filé', 'kotlett', 'bacon', 'kalkon'],
   'Chark': ['korv', 'skinka', 'salami', 'pålägg', 'leverpastej', 'falukorv', 'prinskorv'],
   'Frys': ['fryst', 'glass', 'fiskpinnar', 'pommes', 'ärtor', 'frysta'],
-  'Skafferi': ['pasta', 'spaghetti', 'makaroner', 'ris', 'mjöl', 'socker', 'salt', 'peppar', 'krydda', 'olja', 'vinäger', 'buljong', 'krossade', 'passerade', 'tacokrydda', 'tacosås', 'flingor', 'müsli', 'havregryn', 'gryn', 'bönor', 'linser', 'ketchup', 'senap', 'majonnäs', 'sylt', 'honung', 'nötter', 'kaffe', 'te', 'kakao', 'konserv', 'nudlar', 'soja', 'mos', 'tepåsar'],
+  // Skafferivarorna står i pantryStaples.js
+  'Skafferi': PANTRY_WORDS,
   'Dryck': ['juice', 'läsk', 'vatten', 'saft', 'öl', 'vin', 'cola', 'festis'],
-  'Godis & snacks': ['godis', 'chips', 'choklad', 'popcorn', 'snacks', 'kex', 'dipp'],
+  'Godis & snacks': ['godis', 'chips', 'choklad', 'popcorn', 'snacks', 'dipp'],
   'Hygien': ['tandkräm', 'tandborste', 'schampo', 'balsam', 'tvål', 'deo', 'bomull', 'plåster', 'binda', 'tampong', 'rakhyvel', 'hudkräm', 'solkräm'],
-  'Hushåll': ['toapapper', 'hushållspapper', 'diskmedel', 'tvättmedel', 'sopsäck', 'påsar', 'folie', 'plastfolie', 'batteri', 'glödlampa', 'disktabletter', 'servetter', 'städ', 'svamp till disk', 'sköljmedel'],
+  'Hushåll': ['toapapper', 'hushållspapper', 'diskmedel', 'tvättmedel', 'sopsäck', 'påsar', 'folie', 'plastfolie', 'batteri', 'glödlampa', 'disktabletter', 'servetter', 'kaffefilter', 'städ', 'svamp till disk', 'sköljmedel'],
   'Barn': ['blöj', 'välling', 'barnmat', 'napp', 'våtservett']
 }
 
@@ -24,6 +27,8 @@ export function guessSection(name) {
   const tokens = n.split(/[^a-zåäöé]+/)
   // Korta ord (t.ex. "te", "ris") måste matcha ett helt ord, längre räcker som del av ordet
   const hit = (w) => (w.length <= 3 ? tokens.includes(w) : n.includes(w))
+  // "Majs på burk", "Torkade aprikoser": burk, konserv, tetra och torkat gör varan till en skafferivara
+  if (PANTRY_HINTS.some((w) => tokens.includes(w)) && !/fryst|frysta|djupfryst/.test(n)) return 'Skafferi'
   // Sammansatta ord avgörs av sista delen: potatischips = chips, apelsinjuice = juice.
   // Bland ord som slutar ett ord vinner det som står sist, sedan det längsta.
   let best = null

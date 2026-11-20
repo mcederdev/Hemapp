@@ -17,10 +17,14 @@ export function checkOff(items, item, lists, pantry = null) {
 const PLACES = { 'Mejeri': ['kyl', 7], 'Kött & fisk': ['kyl', 2], 'Chark': ['kyl', 7], 'Bröd': ['skafferi', 4], 'Frys': ['frys', null], 'Skafferi': ['skafferi', null], 'Godis & snacks': ['skafferi', null] }
 // Kryddor får en egen plats i skafferiet
 export const SPICE = /krydd|peppar|^salt$|flingsalt|havssalt|kanel|oregano|timjan|rosmarin|paprikapulver|spiskummin|kummin|curry|chili|cayenne|lagerblad|kardemumma|muskot|nejlika|saffran|gurkmeja|garam masala|vaniljsocker|vaniljpulver|torkad basilika|dragon|mejram|anis|fänkålsfrö|senapsfrö|koriander(frö|, mald)|ingefära, mald|malen ingefära/
+// Torrvaror och konserver som håller länge (listan finns i pantryStaples.js). Färsk pasta m.m. räknas inte.
+export const isPantryStaple = (name) => !/färsk|fryst|frysta/.test(String(name || '').toLowerCase()) && guessSection(name) === 'Skafferi'
 export function pantryPlace(item) {
   const name = item.name.toLowerCase()
   if (SPICE.test(name) && !/korv|chips|sås|ost\b/.test(name)) return { place: 'kryddor', days: null }
   if (/fryst|frysta|glass|fiskpinnar|pommes/.test(name)) return { place: 'frys', days: null }
+  // Skafferivaror (pantryStaples.js) går före den sparade avdelningen, så att t.ex. knäckebröd inte får brödets bäst före
+  if (isPantryStaple(name)) return { place: 'skafferi', days: null }
   const section = item.section && PLACES[item.section] ? item.section : guessSection(item.name)
   const p = PLACES[section]
   return p ? { place: p[0], days: p[1] } : null

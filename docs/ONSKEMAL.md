@@ -24,6 +24,7 @@ Senast uppdaterad: 2026-11-12 (testsvit med Vitest).
 | ⬜ | Lämna/hämta i morgonnotisen ("Du hämtar Juhani 14:00") | Erbjuden, inget svar |
 | ⬜ | Export av databasen till Home-app-mappen (backup) | Erbjuden. Supabase gratisplan har inga backuper |
 | ⬜ | Kvitto: fota kvittot för priser och varor, utan dubbletter mot det som redan bockats av | Plan B. Kan göras gratis med textigenkänning i telefonen eller iPhonens Live Text. Väntar på besked |
+| 🟡 | Definiera vilka varor som är skafferivaror (pasta, ris, gryn, alla sorters mjöl, konserver, baljväxter, nötter, frön, torkad frukt, oljor, såser, sirap, kokos, kaffe, te) | Byggt 2026-11-20 i PR #16, väntar på att Magnus testar och mergar. Listan syns i appen under Skafferi → "Vad räknas som skafferivaror?" |
 | ⬜ | Mat: standardportioner efter vårdnadsveckor, kopiera förra veckans meny, dra av lagat från skafferiet | Idéer från mat-ombyggnaden |
 | ⏸️ | Byta namn på appen | Pausat tills Magnus säger till |
 | ⏸️ | Egen mailtjänst (Brevo), e-postverifiering och skydd mot läckta lösenord | Påminn om appen ska användas av fler än familjerna och några testfamiljer |
@@ -70,6 +71,7 @@ Senast uppdaterad: 2026-11-12 (testsvit med Vitest).
 ### Mat
 - ✅ Skafferi: skanna in varor med streckkod (Open Food Facts + appens minne), skanna tom förpackning på Slut hemma (PR #11)
 - 🟡 Skafferi: egen plats för Kryddor (även vid skanning, kryddor hamnar där av sig själva). Byggt, väntar på merge (PR #12)
+- 🟡 Skafferi: tydlig lista över skafferivaror (src/lib/pantryStaples.js). Avbockade torrvaror och konserver hamnar i Skafferi utan bäst före, knäckebröd räknas inte som färskt bröd, "på burk"/"torkade" känns igen, skanning av konserver och nötter hamnar rätt. Väntar på merge (PR #16)
 - ✅ Veckomeny som färgade kort, håll inne för att byta dag
 - ✅ Föreslå hela veckan
 - ✅ Föreslagna rätter går att redigera och dölja

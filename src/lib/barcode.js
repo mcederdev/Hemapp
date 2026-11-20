@@ -14,9 +14,11 @@ export function validCode(code) {
 export function placeFromCategories(tags = []) {
   const t = (tags || []).join(' ')
   if (/frozen|surgel|fryst|frysta/.test(t)) return 'frys'
+  // Konserver och kokosmjölk före kylen: "canned-fishes" och "coconut-milks" ska inte hamna i kylen
+  if (/canned|coconut-milks|coconut-creams|dried-fruits|nuts|seeds|flours/.test(t)) return 'skafferi'
   if (/dairies|milks|cheeses|yogurts|creams|butters|eggs|meats|fishes|seafood|sausages|hams|refrigerated|chilled|fresh-/.test(t)) return 'kyl'
   if (/spices|seasonings|herbs|spice-mixes|peppers-ground|salts/.test(t)) return 'kryddor'
-  if (/groceries|cereals|pastas|rices|canned|sauces|spreads|snacks|biscuits|breakfast|condiments|spices|flours|sugars|beverages|coffees|teas/.test(t)) return 'skafferi'
+  if (/groceries|cereals|pastas|rices|canned|sauces|spreads|snacks|biscuits|breakfast|condiments|spices|flours|sugars|syrups|honeys|cocoa|baking|legumes|pulses|oils|vinegars|crispbreads|crackers|beverages|coffees|teas/.test(t)) return 'skafferi'
   return null
 }
 
