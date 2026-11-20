@@ -17,6 +17,7 @@ Europe/Stockholm (`vitest.config.js`), så datumtesterna ger samma svar på alla
 | `shopping.test.js` | Inga dubbletter på inköpslistan, avdelningar och Övrigt |
 | `quickadd.test.js` | Snabbinmatningen (pluset på Idag) |
 | `pickup.test.js` | Lämna och hämta: VAB döljer hämtningen |
+| `pickup-page.test.jsx` | Sidan Lämna och hämta ritas upp utan krasch (även med VAB) |
 
 Tester vars namn börjar med **Fixad bugg:** var röda när testsviten skrevs (2026-11-12) och
 visade fel i koden. De är rättade nu och ska förbli gröna. Hittar du ett nytt fel: skriv ett test
