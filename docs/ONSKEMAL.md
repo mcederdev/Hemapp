@@ -14,7 +14,7 @@ Senast uppdaterad: 2026-11-20 (skanning flyttad till plusknappen).
 
 | Status | Önskemål | Kommentar |
 |---|---|---|
-| 🟡 | Ta bort kameraknappen, välj Skanna eller Skriv när man trycker + (Skafferi och Slut hemma) | Byggt 2026-11-20, väntar på att Magnus testar och mergar |
+| 🟡 | Ta bort kameraknappen, välj Skanna eller Skriv när man trycker + (Skafferi och Slut hemma) | Byggt 2026-11-20 i PR #15, väntar på att Magnus testar och mergar |
 | 🟡 | Testsvit (Vitest) och rättning av alla 21 fel den hittade (snabbinmatning, sysslor, stjärnor, kalenderimport, ekonomi, inköp) | PR #13 öppen, alla tester gröna. Väntar på att Magnus testar och mergar |
 | ⏳ | Köksskärmen: ändra storlek och ordning på blocken (dra ut, flytta, innehållet anpassas) | Byggs i en egen tråd (förslag 71 i dokumentet) |
 | 🟡 | Ta bort gamla medicinfält i databasen (`medicine_doses`, `dose_morning`, `dose_evening`) | Godkänt 2026-11-05, men SQL:en måste köras av Magnus i Supabase och har inte körts |
