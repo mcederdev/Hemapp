@@ -103,7 +103,7 @@ export function PickupsPage(props) {
         <div key={d} className="card compact pickups"><div className="pk-day">
           <div className="muted small cap"><strong>{dayName(d, t)}</strong></div>
           {warnings.map((w, i) => <p key={i} className="warn-line">⚠️ {w.text}</p>)}
-          {rows.map(({ kid, slots }) => (
+          {rows.map(({ kid, slots, vab }) => (
             <div key={kid.id} className="pk-row">
               <MemberTag member={kid} size={24} />
               {vab && <span className="muted small">🤒 {vabText(kid, vab)}</span>}

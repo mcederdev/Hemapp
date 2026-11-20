@@ -7,6 +7,7 @@ import Shopping from './components/Shopping'
 import Chores, { setSharedLink } from './components/Chores'
 import Today from './components/Today'
 import Icon from './components/Icon'
+import ErrorBoundary from './components/ErrorBoundary'
 import { withInitials } from './components/MemberPicker'
 import { applyAccent } from './lib/accent'
 import { resolveMenu, SHORT, setMenuState, groupMore } from './lib/menu'
@@ -160,6 +161,7 @@ function Home({ me }) {
       {testBar}
       {offlineBar}
       <main>
+        <ErrorBoundary key={tab}>
         <Suspense fallback={<p className="muted pad">Laddar…</p>}>
         {tab === 'today' && <Today {...props} />}
         {tab === 'more' && (
@@ -196,6 +198,7 @@ function Home({ me }) {
         {tab === 'family' && <Family {...props} />}
         {tab === 'menu' && <MenuEdit menu={myMenu} onChange={(m) => members.update(me.id, { menu: m })} />}
         </Suspense>
+        </ErrorBoundary>
       </main>
       <nav className="tabs">
         {TABS.map((t) => (
